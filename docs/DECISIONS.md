@@ -19,3 +19,23 @@
 - Milestone 0 only needs group-stage prediction entry in UI; knockout and antepost support are modeled for configuration and scoring but not fully exposed as flows yet.
 - The local server time for mock write checks is fixed in state to keep the vertical slice deterministic.
 - npm audit reports moderate transitive vulnerabilities after installing current packages; no forced breaking updates were applied during this milestone.
+
+## 2026-07-03 - Milestone 1 Authentication and Secure Lifecycle
+
+- Added Supabase Auth through a public anon-key client using Expo public environment variables: `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+- Implemented Google and Apple login with Supabase OAuth and `expo-web-browser`. Provider setup is still completed in Supabase dashboard and native platform consoles, not through committed secrets.
+- Kept the Milestone 0 mock flow as the default when Supabase is not configured. This preserves local demo behavior and avoids requiring credentials for development.
+- Added `AuthProvider` separately from `PredicteMockProvider` so real auth can be introduced without coupling it to mock competition state.
+- Added a Supabase league repository that uses RPCs for lifecycle writes instead of direct table mutations.
+- Chose security-definer RPCs for league creation, invite creation, invite acceptance, role changes, member removal, deadline updates, and lock actions. This keeps complex authorization centralized in the database.
+- Stored invite tokens as SHA-256 hashes. The plain invite token is returned only at creation time and used in `/invite/:token` links.
+- Required lock to happen at or after the server deadline. Scheduled locking is represented by `lock_due_leagues()` and reserved for service-role execution.
+- Added RLS helper functions to avoid recursive policies and to keep membership/role checks consistent.
+- Added pure TypeScript policy/lifecycle tests plus static migration tests. Full Supabase local integration tests are still a future improvement because this environment does not run a local Supabase stack during the milestone.
+
+## Milestone 1 Assumptions
+
+- OAuth provider credentials and redirect URL registration are configured outside the repository in Supabase, Google, and Apple consoles.
+- The mobile app may safely expose only the Supabase URL and anon key through Expo public env vars.
+- The first real league lifecycle can use `total_required = 0` prediction sets until Milestone 2 completes full prediction requirements.
+- Ownership transfer remains out of scope for Milestone 1; owner/admin/participant role management supports promotion/demotion for non-owner members only.

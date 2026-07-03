@@ -3,15 +3,18 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AppThemeProvider, useAppTheme } from "@/design-system/theme";
+import { AuthProvider } from "@/state/AuthProvider";
 import { PredicteMockProvider } from "@/state/PredicteMockProvider";
 
 export default function RootLayout(): React.ReactNode {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppThemeProvider>
-        <PredicteMockProvider>
-          <RootStack />
-        </PredicteMockProvider>
+        <AuthProvider>
+          <PredicteMockProvider>
+            <RootStack />
+          </PredicteMockProvider>
+        </AuthProvider>
       </AppThemeProvider>
     </GestureHandlerRootView>
   );

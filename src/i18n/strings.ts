@@ -39,6 +39,9 @@ export const strings = {
   },
   copy: {
     mockOnly: "Vertical slice mock: nessuna API sportiva reale collegata.",
+    supabaseNotConfigured:
+      "Supabase non configurato: il flusso mock resta attivo. Imposta EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY per usare Auth reale.",
+    supabaseConfigured: "Supabase configurato: puoi usare login reale con Google o Apple.",
     noLeagues: "Nessuna lega attiva.",
     deadline: "Deadline pronostici",
     predictionProgress: "Avanzamento pronostici",

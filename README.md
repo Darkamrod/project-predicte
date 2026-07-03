@@ -22,6 +22,17 @@ npm run typecheck
 npm run test
 ```
 
+## Supabase Auth Configuration
+
+Milestone 1 supports real Supabase Auth when these public Expo variables are present:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=...
+EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Google and Apple OAuth providers must be enabled in Supabase and configured with the `predicte://auth/callback` redirect flow. Without these variables, the app keeps using the Milestone 0 mock flow.
+
 ## Milestone 0 Scope
 
 This repository intentionally does not include payments, entry fees, prize pools, paid/unpaid member status, betting, odds, advertising SDKs, or real sports-provider connections.
