@@ -41,7 +41,7 @@ export function canWriteOwnPrediction(params: {
 }): boolean {
   return (
     params.requesterUserId === params.ownerUserId &&
-    ["draft", "open"].includes(params.leagueStatus) &&
+    params.leagueStatus === "open" &&
     params.serverNowUtc < params.deadlineAtUtc
   );
 }

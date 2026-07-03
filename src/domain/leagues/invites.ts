@@ -11,14 +11,6 @@ export interface InviteState {
 }
 
 export function canJoinLeagueByInvite(state: InviteState, serverNowUtc: string): boolean {
-  if (state.alreadyMember) {
-    return true;
-  }
-
-  if (state.leagueStatus !== "open" || serverNowUtc >= state.deadlineAtUtc) {
-    return false;
-  }
-
   if (state.revokedAtUtc) {
     return false;
   }
@@ -29,6 +21,14 @@ export function canJoinLeagueByInvite(state: InviteState, serverNowUtc: string):
 
   if (state.maxUses !== undefined && state.uses >= state.maxUses) {
     return false;
+  }
+
+  if (state.leagueStatus !== "open" || serverNowUtc >= state.deadlineAtUtc) {
+    return false;
+  }
+
+  if (state.alreadyMember) {
+    return true;
   }
 
   return true;

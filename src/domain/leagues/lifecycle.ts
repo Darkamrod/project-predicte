@@ -7,8 +7,15 @@ export interface LeagueLifecycleState {
   maximumDeadlineAtUtc?: string;
 }
 
-export function isLeagueWritable(state: LeagueLifecycleState, serverNowUtc: string): boolean {
-  return ["draft", "open"].includes(state.status) && serverNowUtc < state.deadlineAtUtc;
+export function leagueAcceptsMembers(state: LeagueLifecycleState, serverNowUtc: string): boolean {
+  return isOpenBeforeDeadline(state, serverNowUtc);
+}
+
+export function leagueAcceptsPredictions(
+  state: LeagueLifecycleState,
+  serverNowUtc: string
+): boolean {
+  return isOpenBeforeDeadline(state, serverNowUtc);
 }
 
 export function canCreateLeagueInvite(params: {
@@ -16,7 +23,7 @@ export function canCreateLeagueInvite(params: {
   state: LeagueLifecycleState;
   serverNowUtc: string;
 }): boolean {
-  return isOwnerOrAdmin(params.role) && isLeagueWritable(params.state, params.serverNowUtc);
+  return isOwnerOrAdmin(params.role) && leagueAcceptsMembers(params.state, params.serverNowUtc);
 }
 
 export function canManageLeagueMember(params: {
@@ -28,7 +35,7 @@ export function canManageLeagueMember(params: {
   return (
     isOwnerOrAdmin(params.actorRole) &&
     params.targetRole !== "owner" &&
-    isLeagueWritable(params.state, params.serverNowUtc)
+    leagueAcceptsMembers(params.state, params.serverNowUtc)
   );
 }
 
@@ -42,7 +49,7 @@ export function canChangeMemberRole(params: {
   return (
     params.actorRole === "owner" &&
     params.targetRole !== "owner" &&
-    isLeagueWritable(params.state, params.serverNowUtc)
+    leagueAcceptsMembers(params.state, params.serverNowUtc)
   );
 }
 
@@ -79,4 +86,8 @@ export function canLockLeagueAfterDeadline(params: {
 
 function isOwnerOrAdmin(role: LeagueMemberRole): boolean {
   return role === "owner" || role === "admin";
+}
+
+function isOpenBeforeDeadline(state: LeagueLifecycleState, serverNowUtc: string): boolean {
+  return state.status === "open" && serverNowUtc < state.deadlineAtUtc;
 }

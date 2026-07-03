@@ -7,6 +7,11 @@ const migration = readFileSync(
   join(process.cwd(), "supabase/migrations/20260703210000_milestone1_secure_lifecycle.sql"),
   "utf8"
 );
+const hardeningMigration = readFileSync(
+  join(process.cwd(), "supabase/migrations/20260704010000_milestone1_1_lifecycle_hardening.sql"),
+  "utf8"
+);
+const seedSql = readFileSync(join(process.cwd(), "supabase/seed.sql"), "utf8");
 
 describe("Milestone 1 Supabase migration", () => {
   it("defines the secure lifecycle RPC surface", () => {
@@ -35,8 +40,79 @@ describe("Milestone 1 Supabase migration", () => {
   });
 
   it("does not introduce excluded money, advertising, or wagering features", () => {
-    expect(migration).not.toMatch(
+    expect(`${migration}\n${hardeningMigration}\n${seedSql}`).not.toMatch(
       /payment|paid|payout|prize|advertising|betting|odds|wagering|gambling/i
     );
+  });
+});
+
+describe("Milestone 1.1 Supabase hardening migration", () => {
+  it("separates member lifecycle gates from prediction write gates", () => {
+    expect(hardeningMigration).toContain("league_accepts_members");
+    expect(hardeningMigration).toContain("league_accepts_predictions");
+    expect(hardeningMigration).toContain("public.league_accepts_members(p_league_id)");
+    expect(hardeningMigration).toContain("public.league_accepts_predictions(ps.league_id)");
+    expect(hardeningMigration).toContain(
+      "drop function if exists public.league_accepts_member_and_prediction_writes(uuid);"
+    );
+
+    const migrationWithoutDropStatement = hardeningMigration.replace(
+      "drop function if exists public.league_accepts_member_and_prediction_writes(uuid);",
+      ""
+    );
+    expect(migrationWithoutDropStatement).not.toContain(
+      "league_accepts_member_and_prediction_writes"
+    );
+  });
+
+  it("keeps draft leagues from accepting invites or prediction writes", () => {
+    expect(hardeningMigration).toMatch(/l\.status = 'open'\s+and now\(\) < l\.deadline_at/);
+    expect(hardeningMigration).toContain("if not public.league_accepts_members(p_league_id)");
+    expect(hardeningMigration).toContain("not public.league_accepts_predictions(target_league_id)");
+  });
+
+  it("validates invite tokens before idempotently returning an existing membership", () => {
+    const revokedTokenCheck = hardeningMigration.indexOf(
+      "if invite_record.revoked_at is not null then"
+    );
+    const expiredTokenCheck = hardeningMigration.indexOf(
+      "if invite_record.expires_at is not null and now() >= invite_record.expires_at then"
+    );
+    const alreadyActiveCheck = hardeningMigration.indexOf("into already_active;");
+
+    expect(revokedTokenCheck).toBeGreaterThan(-1);
+    expect(expiredTokenCheck).toBeGreaterThan(-1);
+    expect(alreadyActiveCheck).toBeGreaterThan(-1);
+    expect(revokedTokenCheck).toBeLessThan(alreadyActiveCheck);
+    expect(expiredTokenCheck).toBeLessThan(alreadyActiveCheck);
+  });
+
+  it("uses explicit tiebreak and antepost policies without client delete grants", () => {
+    expect(hardeningMigration).toContain("tiebreak overrides visible own or after lock");
+    expect(hardeningMigration).toContain("tiebreak overrides insert own before deadline");
+    expect(hardeningMigration).toContain("tiebreak overrides update own before deadline");
+    expect(hardeningMigration).toContain("antepost predictions visible own or after lock");
+    expect(hardeningMigration).toContain("antepost predictions insert own before deadline");
+    expect(hardeningMigration).toContain("antepost predictions update own before deadline");
+    expect(hardeningMigration).not.toMatch(/prediction_tiebreak_overrides for all/i);
+    expect(hardeningMigration).not.toMatch(/antepost_predictions for all/i);
+    expect(hardeningMigration).not.toMatch(/for delete/i);
+  });
+
+  it("provides a coherent minimum local seed for create_private_league", () => {
+    expect(seedSql).toContain("public.sports");
+    expect(seedSql).toContain("public.competition_templates");
+    expect(seedSql).toContain("public.competition_editions");
+    expect(seedSql).toContain("enabled");
+    expect(seedSql).toContain("true");
+    expect(seedSql).toContain("public.stages");
+    expect(seedSql).toContain("public.groups");
+    expect(seedSql).toContain("public.rounds");
+    expect(seedSql).toContain("public.teams");
+    expect(seedSql).toContain("public.edition_teams");
+    expect(seedSql).toContain("public.matches");
+    expect(seedSql).toContain("public.scoring_presets");
+    expect(seedSql).toContain("00000000-0000-4000-8000-000000000003");
+    expect(seedSql).toContain("WORLD_CUP_MOCK_DEFAULT");
   });
 });

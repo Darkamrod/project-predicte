@@ -24,3 +24,17 @@ Milestone 1 keeps the Milestone 0 schema and hardens access around:
 - `prediction_sets`, `match_predictions`, `prediction_tiebreak_overrides`, `antepost_predictions`: readable by owner before lock and by league members after lock; writable only by the prediction owner before the server deadline.
 
 Direct client writes to scoring events, leaderboard snapshots, provider payloads, or official results remain unavailable.
+
+## Milestone 1.1 Local Seed
+
+`supabase/seed.sql` now contains a minimum coherent local catalog for lifecycle testing:
+
+- football sport and World Cup-style competition template;
+- one enabled mock competition edition with maximum deadline;
+- one group-stage stage, group, and round;
+- four mock teams assigned to the edition;
+- two mock group-stage matches;
+- two antepost definitions;
+- one active scoring preset linked to both the template and edition.
+
+The seed is intentionally small. It exists so `create_private_league` can be exercised locally against an enabled edition and a valid scoring preset before Milestone 2 fills out the complete prediction workflow.

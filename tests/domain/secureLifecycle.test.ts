@@ -6,7 +6,8 @@ import {
   canLockLeagueAfterDeadline,
   canManageLeagueMember,
   canUpdateLeagueDeadline,
-  isLeagueWritable
+  leagueAcceptsMembers,
+  leagueAcceptsPredictions
 } from "@/domain/leagues/lifecycle";
 import { canJoinLeagueByInvite } from "@/domain/leagues/invites";
 import {
@@ -23,9 +24,15 @@ const openState = {
   maximumDeadlineAtUtc: "2030-06-08T18:30:00.000Z"
 };
 
+const draftState = {
+  ...openState,
+  status: "draft" as const
+};
+
 describe("secure league lifecycle rules", () => {
-  it("allows organizer actions only while the league accepts writes", () => {
-    expect(isLeagueWritable(openState, "2030-06-08T18:00:00.000Z")).toBe(true);
+  it("allows organizer actions only while the league accepts members", () => {
+    expect(leagueAcceptsMembers(openState, "2030-06-08T18:00:00.000Z")).toBe(true);
+    expect(leagueAcceptsMembers(draftState, "2030-06-08T18:00:00.000Z")).toBe(false);
     expect(
       canCreateLeagueInvite({
         role: "owner",
@@ -40,7 +47,20 @@ describe("secure league lifecycle rules", () => {
         serverNowUtc: "2030-06-08T18:00:00.000Z"
       })
     ).toBe(false);
-    expect(isLeagueWritable(openState, "2030-06-08T18:30:00.000Z")).toBe(false);
+    expect(
+      canCreateLeagueInvite({
+        role: "owner",
+        state: draftState,
+        serverNowUtc: "2030-06-08T18:00:00.000Z"
+      })
+    ).toBe(false);
+    expect(leagueAcceptsMembers(openState, "2030-06-08T18:30:00.000Z")).toBe(false);
+  });
+
+  it("allows prediction writes only while the league accepts predictions", () => {
+    expect(leagueAcceptsPredictions(openState, "2030-06-08T18:00:00.000Z")).toBe(true);
+    expect(leagueAcceptsPredictions(draftState, "2030-06-08T18:00:00.000Z")).toBe(false);
+    expect(leagueAcceptsPredictions(openState, "2030-06-08T18:30:00.000Z")).toBe(false);
   });
 
   it("prevents member management of owners and after lock", () => {
@@ -177,6 +197,46 @@ describe("invite rules", () => {
       )
     ).toBe(false);
   });
+
+  it("requires an already-active member to present a still-valid invite token", () => {
+    expect(
+      canJoinLeagueByInvite(
+        {
+          leagueStatus: "open",
+          deadlineAtUtc: "2030-06-08T18:30:00.000Z",
+          expiresAtUtc: "2030-06-01T18:30:00.000Z",
+          uses: 0,
+          maxUses: 10,
+          alreadyMember: true
+        },
+        "2030-05-30T10:00:00.000Z"
+      )
+    ).toBe(true);
+    expect(
+      canJoinLeagueByInvite(
+        {
+          leagueStatus: "open",
+          deadlineAtUtc: "2030-06-08T18:30:00.000Z",
+          expiresAtUtc: "2030-05-30T10:00:00.000Z",
+          uses: 0,
+          alreadyMember: true
+        },
+        "2030-05-30T10:00:00.000Z"
+      )
+    ).toBe(false);
+    expect(
+      canJoinLeagueByInvite(
+        {
+          leagueStatus: "open",
+          deadlineAtUtc: "2030-06-08T18:30:00.000Z",
+          revokedAtUtc: "2030-05-29T10:00:00.000Z",
+          uses: 0,
+          alreadyMember: true
+        },
+        "2030-05-30T10:00:00.000Z"
+      )
+    ).toBe(false);
+  });
 });
 
 describe("RLS-equivalent policy rules", () => {
@@ -242,6 +302,15 @@ describe("RLS-equivalent policy rules", () => {
         ownerUserId: "user-a",
         deadlineAtUtc: "2030-06-08T18:30:00.000Z",
         serverNowUtc: "2030-06-08T18:30:00.000Z"
+      })
+    ).toBe(false);
+    expect(
+      canWriteOwnPrediction({
+        leagueStatus: "draft",
+        requesterUserId: "user-a",
+        ownerUserId: "user-a",
+        deadlineAtUtc: "2030-06-08T18:30:00.000Z",
+        serverNowUtc: "2030-06-08T18:00:00.000Z"
       })
     ).toBe(false);
   });

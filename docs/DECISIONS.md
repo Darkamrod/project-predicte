@@ -39,3 +39,18 @@
 - The mobile app may safely expose only the Supabase URL and anon key through Expo public env vars.
 - The first real league lifecycle can use `total_required = 0` prediction sets until Milestone 2 completes full prediction requirements.
 - Ownership transfer remains out of scope for Milestone 1; owner/admin/participant role management supports promotion/demotion for non-owner members only.
+
+## 2026-07-04 - Milestone 1.1 Supabase Lifecycle Hardening
+
+- Added a local Supabase seed catalog with one football sport, one World Cup-style template, one enabled mock edition, group-stage structure, mock teams, mock matches, antepost definitions, and an active scoring preset. This is only mock data for local lifecycle validation.
+- Split the database lifecycle gates into `league_accepts_members` and `league_accepts_predictions`. Both require league status `open` and server time before `deadline_at`; `draft` no longer authorizes member invites, member management, or prediction writes.
+- Updated the TypeScript lifecycle and RLS-equivalent policy helpers to mirror the server rule: prediction writes require `open` before deadline.
+- Replaced broad `for all` RLS policies on `prediction_tiebreak_overrides` and `antepost_predictions` with explicit `select`, `insert`, and `update` policies. No client `delete` policy is granted for these records in Milestone 1.1; future UX should model removals as controlled updates or a dedicated RPC if deletion becomes necessary.
+- Chose stricter invite semantics for `join_league_by_invite`: revoked, expired, full, or deadline-closed tokens are rejected before checking existing membership. If the token is still valid and the user is already an active member, the function returns the league id idempotently without incrementing invite usage.
+- Left Milestone 2 prediction workflow features untouched. No real sports provider, payment, advertising, betting, odds, wagering, or gambling capability was added.
+
+## Milestone 1.1 Assumptions
+
+- Local end-to-end Supabase validation still requires Supabase CLI and Docker outside this repository.
+- The mock seed intentionally uses deterministic UUIDs so migration and seed resets remain repeatable.
+- The current no-delete policy for antepost and tiebreak prediction records is acceptable until the product defines an explicit "clear answer" UX.
