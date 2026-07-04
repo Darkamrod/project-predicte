@@ -10,7 +10,7 @@ import type {
   ScoringRuleConfig
 } from "./types";
 
-const calculationVersion = "scoring-engine-m0-v1";
+const calculationVersion = "scoring-engine-m3-v1";
 
 export function scoreRegulationMatch(
   config: ScoringRuleConfig,
@@ -125,7 +125,8 @@ export function scoreAntepost(
   if (
     input.predictedWinnerTeamId &&
     input.actualWinnerTeamId &&
-    input.predictedWinnerTeamId === input.actualWinnerTeamId
+    input.predictedWinnerTeamId === input.actualWinnerTeamId &&
+    config.antepost.tournamentWinner > 0
   ) {
     events.push(
       createEvent(

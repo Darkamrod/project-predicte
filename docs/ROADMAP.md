@@ -30,8 +30,26 @@
 - Antepost and tiebreak override RLS policies made explicit for select, insert, and update.
 - Invite join semantics tightened so invalid tokens are rejected before idempotent membership return.
 
+## Completed in Milestone 2
+
+- Complete mock prediction workflow for group stage, predicted standings, best third-placed qualifiers, knockout bracket, third-place match, final, and antepost.
+- Tie-break override model and domain handling for unresolved predicted standings.
+- Knockout prediction validation for 90-minute score, qualified team, extra time, and penalties.
+- Dependency invalidation warnings for upstream group or knockout changes.
+- Full validation and completion status with next missing prediction navigation.
+- Sync-state surface for saved, syncing, synced, failed, and local unsynced prediction states.
+
+## Completed in Milestone 3
+
+- Complete configurable scoring engine for group, knockout, third-place final, final, advancement method, phase qualification, pairings, and antepost.
+- Rule editor for stage and antepost point values with owner/admin, deadline, and lock guards.
+- Immutable locked rule snapshots with checksum.
+- Mock rule-change history.
+- Detailed scoring events, idempotent tournament recalculation, leaderboard snapshots, and user point breakdowns.
+- Supabase seed scoring preset aligned with the TypeScript config shape.
+
 ## Next Authorized Milestone
 
-Milestone 2 should complete the prediction workflow: all stages, standings, tie-break overrides, bracket generation, antepost, dependency invalidation, offline/sync states, and full validation.
+Milestone 4 should be defined by the next authorized prompt. Likely candidates are real Supabase persistence for the complete prediction workflow, server-side scoring execution, audit-log persistence for rule changes, and background recalculation plumbing.
 
-Do not start Milestone 2 without explicit authorization.
+Do not start Milestone 4 without explicit authorization.

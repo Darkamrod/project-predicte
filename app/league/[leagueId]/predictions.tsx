@@ -1,9 +1,9 @@
 import { useLocalSearchParams } from "expo-router";
 
-import { GroupPredictionsScreen } from "@/features/predictions/GroupPredictionsScreen";
+import { PredictionWorkflowScreen } from "@/features/predictions/PredictionWorkflowScreen";
 
 export default function PredictionsRoute(): React.ReactNode {
   const { leagueId } = useLocalSearchParams<{ leagueId: string }>();
 
-  return <GroupPredictionsScreen leagueId={leagueId} />;
+  return <PredictionWorkflowScreen leagueId={leagueId} />;
 }

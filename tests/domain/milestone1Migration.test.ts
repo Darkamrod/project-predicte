@@ -113,6 +113,7 @@ describe("Milestone 1.1 Supabase hardening migration", () => {
     expect(seedSql).toContain("public.matches");
     expect(seedSql).toContain("public.scoring_presets");
     expect(seedSql).toContain("00000000-0000-4000-8000-000000000003");
-    expect(seedSql).toContain("WORLD_CUP_MOCK_DEFAULT");
+    expect(seedSql).toContain("WORLD_CUP_DEFAULT");
+    expect(seedSql).toContain("THIRD_PLACE");
   });
 });

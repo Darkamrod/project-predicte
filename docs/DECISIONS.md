@@ -54,3 +54,39 @@
 - Local end-to-end Supabase validation still requires Supabase CLI and Docker outside this repository.
 - The mock seed intentionally uses deterministic UUIDs so migration and seed resets remain repeatable.
 - The current no-delete policy for antepost and tiebreak prediction records is acceptable until the product defines an explicit "clear answer" UX.
+
+## 2026-07-04 - Milestone 2 Complete Prediction Workflow
+
+- Added the complete prediction workflow as pure TypeScript domain modules under `src/domain/predictions`: group standings with tie-break overrides, best-third selection, predicted bracket generation, knockout validation, dependency invalidation, antepost validation, and full completion status.
+- Kept the competition workflow data-driven from `CompetitionSeed`. The UI consumes generated bracket/group/antepost structures and does not hardcode World Cup rounds inside route files.
+- Used the existing mock World Cup seed as the Milestone 2 data source: 12 groups, 72 group matches, 8 best third-placed qualifiers, round of 32 through final, third-place match, and three antepost definitions.
+- Chose sequential bracket pairing from configured `bracketSlots` for the mock World Cup model. This is sufficient for Milestone 2 mock workflow and should be replaced by explicit imported bracket match templates when real provider/import data arrives.
+- Dependency invalidation now creates explicit warnings for impacted bracket matches and preserves existing predictions. No prediction data is deleted silently.
+- Knockout predictions enforce the domain rule: non-draw 90-minute scores auto-resolve to `REGULATION`; drawn 90-minute scores require a qualified team plus `EXTRA_TIME` or `PENALTIES`.
+- Added `SAVED` to the sync status model and surfaced all required sync states in the prediction review UI: saved, syncing, synced, sync failed, and local unsynced changes.
+- Left Supabase schema unchanged for Milestone 2 because the existing `match_predictions`, `prediction_tiebreak_overrides`, and `antepost_predictions` tables already represent the required workflow concepts.
+- No real sports provider, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 2 Assumptions
+
+- The mock bracket order is deterministic but not an official FIFA bracket mapping.
+- Supabase persistence for the full workflow remains a later integration step; Milestone 2 keeps the existing mock fallback working while preparing domain structures for backend wiring.
+- The tie-break override UI stores the displayed order for the unresolved set. A richer manual reordering interaction can be added later without changing the stored domain model.
+
+## 2026-07-04 - Milestone 3 Rule Editor and Complete Scoring Engine
+
+- Added a pure tournament scoring orchestrator in `src/domain/scoring/tournamentScoring.ts`. It consumes prediction sets, competition config, official result sets, and scoring rule versions, then emits deterministic scoring events, leaderboard snapshots, and user breakdowns.
+- Kept point values and stacking behavior in `ScoringRuleConfig`. The engine now covers group score, group position, stage qualification, pairing, knockout score, extra-time method, penalty method, tournament winner, top scorer, and top-scorer exact goals without hardcoded point values.
+- Added `THIRD_PLACE` to the scoring stage config so the third-place final is scored through the same configurable path as other knockout rounds.
+- Chose idempotent recalculation by `sourceResultVersion`: recalculation replaces events for the same source version and rebuilds the snapshot from the remaining event set plus the latest events.
+- Extended rule editing to produce mock `ScoringRuleChange` history for stage and antepost point values. Real persistence can later use `audit_log` or a dedicated table; no new SQL migration was required in Milestone 3.
+- Rule edits are allowed only for owner/admin, while the league is `open`, before the server deadline, and before rule lock. Locked rule snapshots clone their config and carry a checksum.
+- Updated `supabase/seed.sql` scoring preset to match the TypeScript scoring config shape, including all stages, antepost values, and stacking flags.
+- Kept the existing mock prediction workflow incomplete by default. Users can still complete bracket and antepost predictions; scoring only awards events for predictions actually present.
+- No real sports provider, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 3 Assumptions
+
+- The mock official result set is deterministic and exists only to exercise scoring end-to-end without sports-provider APIs.
+- The mock rule history is in-memory and session-scoped until a backend persistence milestone defines the authoritative audit write path.
+- Generated bracket match ids are acceptable for mock scoring; provider-backed bracket ids remain a future integration concern.

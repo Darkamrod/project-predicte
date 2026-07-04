@@ -36,3 +36,15 @@ Milestone 1.1 narrows lifecycle checks after the Milestone 1 review:
 - `join_league_by_invite` validates revoked, expired, full, and deadline-closed tokens before returning an existing active membership. Idempotent joins are allowed only when the presented invite token is still valid.
 
 The local seed remains mock-only and does not grant client writes to official results, scoring events, leaderboard snapshots, provider payloads, or provider sync tables.
+
+## Milestone 3 Rule and Scoring Security
+
+Milestone 3 keeps scoring and rule lifecycle aligned with the server-authoritative model:
+
+- mock rule edits require owner/admin role, league status `open`, server time before deadline, and draft rule status;
+- locked rule versions reject point-value changes and keep a checksum snapshot;
+- scoring recalculation consumes official result sets as inputs and does not trust device time for lock/deadline decisions;
+- leaderboard snapshots and scoring breakdowns are derived from scoring events, not edited directly in UI components;
+- no client write path was added for official results, scoring events, leaderboard snapshots, provider data, or provider secrets.
+
+The implementation remains mock-only for official results. Real scoring execution should run through server-side jobs or RPCs in a future backend milestone so service-role access and audit logging stay outside the mobile client.

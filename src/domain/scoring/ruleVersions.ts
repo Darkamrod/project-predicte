@@ -1,4 +1,38 @@
-import type { ScoringRuleConfig, ScoringRuleVersion, ScoringStageKey } from "./types";
+import type {
+  AntepostScoringRule,
+  ScoringRuleChange,
+  ScoringRuleConfig,
+  ScoringRuleVersion,
+  ScoringStageKey,
+  StageScoringRule
+} from "./types";
+
+export interface ScoringRuleEditState {
+  leagueId: string;
+  leagueStatus: "draft" | "open" | "locked" | "live" | "completed" | "archived" | "cancelled";
+  deadlineAtUtc: string;
+  ruleStatus: ScoringRuleVersion["status"];
+  currentUserRole: "owner" | "admin" | "participant";
+}
+
+export interface ScoringRuleUpdateWithHistoryParams {
+  ruleVersion: ScoringRuleVersion;
+  stage: ScoringStageKey;
+  field: keyof StageScoringRule;
+  value: number;
+  actorUserId: string;
+  actorDisplayName: string;
+  changedAtUtc: string;
+}
+
+export interface AntepostRuleUpdateWithHistoryParams {
+  ruleVersion: ScoringRuleVersion;
+  field: keyof AntepostScoringRule;
+  value: number;
+  actorUserId: string;
+  actorDisplayName: string;
+  changedAtUtc: string;
+}
 
 export function createDraftScoringRuleVersion(params: {
   leagueId: string;
@@ -27,6 +61,7 @@ export function lockScoringRuleVersion(
   return {
     ...draft,
     status: "locked",
+    config: cloneConfig(draft.config),
     checksum: createConfigChecksum(draft.config),
     lockedAtUtc
   };
@@ -35,7 +70,7 @@ export function lockScoringRuleVersion(
 export function updateStageRuleValue(
   ruleVersion: ScoringRuleVersion,
   stage: ScoringStageKey,
-  field: keyof ScoringRuleConfig["stages"][ScoringStageKey],
+  field: keyof StageScoringRule,
   value: number
 ): ScoringRuleVersion {
   if (ruleVersion.status === "locked") {
@@ -59,6 +94,102 @@ export function updateStageRuleValue(
       }
     }
   };
+}
+
+export function updateStageRuleValueWithHistory(params: ScoringRuleUpdateWithHistoryParams): {
+  ruleVersion: ScoringRuleVersion;
+  change: ScoringRuleChange;
+} {
+  const previousValue = params.ruleVersion.config.stages[params.stage][params.field];
+  const ruleVersion = updateStageRuleValue(
+    params.ruleVersion,
+    params.stage,
+    params.field,
+    params.value
+  );
+
+  return {
+    ruleVersion,
+    change: {
+      id: `${params.ruleVersion.id}:${params.stage}:${String(params.field)}:${params.changedAtUtc}`,
+      leagueId: params.ruleVersion.leagueId,
+      ruleVersionId: params.ruleVersion.id,
+      actorUserId: params.actorUserId,
+      actorDisplayName: params.actorDisplayName,
+      changedAtUtc: params.changedAtUtc,
+      scope: "stage",
+      stage: params.stage,
+      field: params.field,
+      previousValue,
+      nextValue: params.value
+    }
+  };
+}
+
+export function updateAntepostRuleValue(
+  ruleVersion: ScoringRuleVersion,
+  field: keyof AntepostScoringRule,
+  value: number
+): ScoringRuleVersion {
+  if (ruleVersion.status === "locked") {
+    throw new Error("Locked scoring rules are immutable.");
+  }
+
+  if (!Number.isInteger(value) || value < 0 || value > ruleVersion.config.maxPointsPerField) {
+    throw new Error("Scoring value is outside the allowed range.");
+  }
+
+  return {
+    ...ruleVersion,
+    config: {
+      ...ruleVersion.config,
+      antepost: {
+        ...ruleVersion.config.antepost,
+        [field]: value
+      }
+    }
+  };
+}
+
+export function updateAntepostRuleValueWithHistory(params: AntepostRuleUpdateWithHistoryParams): {
+  ruleVersion: ScoringRuleVersion;
+  change: ScoringRuleChange;
+} {
+  const previousValue = params.ruleVersion.config.antepost[params.field];
+  const ruleVersion = updateAntepostRuleValue(params.ruleVersion, params.field, params.value);
+
+  return {
+    ruleVersion,
+    change: {
+      id: `${params.ruleVersion.id}:antepost:${String(params.field)}:${params.changedAtUtc}`,
+      leagueId: params.ruleVersion.leagueId,
+      ruleVersionId: params.ruleVersion.id,
+      actorUserId: params.actorUserId,
+      actorDisplayName: params.actorDisplayName,
+      changedAtUtc: params.changedAtUtc,
+      scope: "antepost",
+      field: params.field,
+      previousValue,
+      nextValue: params.value
+    }
+  };
+}
+
+export function canEditScoringRules(state: ScoringRuleEditState, serverNowUtc: string): boolean {
+  const roleCanEdit = state.currentUserRole === "owner" || state.currentUserRole === "admin";
+  const leagueAcceptsEdits = state.leagueStatus === "open";
+  const beforeDeadline = Date.parse(serverNowUtc) < Date.parse(state.deadlineAtUtc);
+
+  return roleCanEdit && leagueAcceptsEdits && beforeDeadline && state.ruleStatus === "draft";
+}
+
+export function assertScoringRulesWritable(
+  state: ScoringRuleEditState,
+  serverNowUtc: string
+): void {
+  if (!canEditScoringRules(state, serverNowUtc)) {
+    throw new Error("Scoring rules can only be edited by owner/admin before lock and deadline.");
+  }
 }
 
 export function createConfigChecksum(config: ScoringRuleConfig): string {

@@ -218,22 +218,84 @@ values (
   'World Cup Mock Default',
   1,
   '{
-    "presetCode": "WORLD_CUP_MOCK_DEFAULT",
+    "presetCode": "WORLD_CUP_DEFAULT",
     "schemaVersion": 1,
-    "maxPointsPerField": 10,
+    "maxPointsPerField": 999,
     "stages": {
       "GROUP_STAGE": {
-        "exactScore": 5,
-        "goalDifference": 3,
-        "outcome": 2
+        "correctOutcome": 5,
+        "exactScore": 10,
+        "correctGroupPosition": 3,
+        "stageQualification": 0,
+        "correctPairing": 0,
+        "extraTimeMethod": 0,
+        "penaltyMethod": 0
+      },
+      "ROUND_OF_32": {
+        "correctOutcome": 5,
+        "exactScore": 10,
+        "correctGroupPosition": 0,
+        "stageQualification": 2,
+        "correctPairing": 5,
+        "extraTimeMethod": 2,
+        "penaltyMethod": 5
+      },
+      "ROUND_OF_16": {
+        "correctOutcome": 10,
+        "exactScore": 15,
+        "correctGroupPosition": 0,
+        "stageQualification": 4,
+        "correctPairing": 10,
+        "extraTimeMethod": 4,
+        "penaltyMethod": 10
+      },
+      "QUARTER_FINAL": {
+        "correctOutcome": 15,
+        "exactScore": 30,
+        "correctGroupPosition": 0,
+        "stageQualification": 8,
+        "correctPairing": 15,
+        "extraTimeMethod": 8,
+        "penaltyMethod": 15
+      },
+      "SEMI_FINAL": {
+        "correctOutcome": 25,
+        "exactScore": 50,
+        "correctGroupPosition": 0,
+        "stageQualification": 15,
+        "correctPairing": 5,
+        "extraTimeMethod": 15,
+        "penaltyMethod": 30
+      },
+      "THIRD_PLACE": {
+        "correctOutcome": 20,
+        "exactScore": 40,
+        "correctGroupPosition": 0,
+        "stageQualification": 10,
+        "correctPairing": 10,
+        "extraTimeMethod": 10,
+        "penaltyMethod": 20
+      },
+      "FINAL": {
+        "correctOutcome": 50,
+        "exactScore": 100,
+        "correctGroupPosition": 0,
+        "stageQualification": 20,
+        "correctPairing": 30,
+        "extraTimeMethod": 20,
+        "penaltyMethod": 30
       }
     },
     "antepost": {
-      "winner": 10,
-      "runnerUp": 7
+      "tournamentWinner": 25,
+      "topScorer": 25,
+      "topScorerExactGoals": 50
     },
     "stacking": {
-      "matchScoreMode": "BEST_ONLY"
+      "exactScoreReplacesOutcome": true,
+      "topScorerExactGoalsReplacesTopScorer": true,
+      "qualificationAndPairingAreIndependent": true,
+      "advancementMethodRequiresDrawAndQualifier": true
     }
   }'::jsonb,
   true

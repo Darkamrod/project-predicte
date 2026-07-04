@@ -38,3 +38,41 @@ Direct client writes to scoring events, leaderboard snapshots, provider payloads
 - one active scoring preset linked to both the template and edition.
 
 The seed is intentionally small. It exists so `create_private_league` can be exercised locally against an enabled edition and a valid scoring preset before Milestone 2 fills out the complete prediction workflow.
+
+## Milestone 2 Prediction Workflow Model
+
+Milestone 2 extends the TypeScript domain model without adding a new SQL migration:
+
+- `MatchPrediction` now represents both group-stage and generated knockout predictions.
+- `PredictionTiebreakOverride` stores an ordered set of teams for a group/stage scope when automatic tie-breaks cannot resolve predicted standings.
+- `AntepostPrediction` stores team, player, or numeric antepost answers.
+- `PredictionDependencyWarning` records bracket predictions that need review after upstream participants change.
+- `PredictionCompletion` includes the next incomplete item so the UI can jump directly to it.
+
+The existing Supabase tables already map to these concepts:
+
+- `match_predictions`;
+- `prediction_tiebreak_overrides`;
+- `antepost_predictions`;
+- `prediction_sets` completion counters.
+
+Real persistence for generated bracket match identifiers and idempotent sync queues is deferred to the backend wiring milestone.
+
+## Milestone 3 Scoring Model
+
+Milestone 3 extends the TypeScript scoring model without adding a SQL migration:
+
+- `OfficialTournamentResultSet` is the input boundary for official results used by scoring. The Milestone 3 implementation supplies a deterministic mock result set; real provider/import wiring remains future work.
+- `ScoringRuleConfig` now includes `THIRD_PLACE` stage values and complete antepost values.
+- `ScoringRuleChange` records stage and antepost rule edits in the mock league state.
+- `UserScoringBreakdown` and `ScoringBreakdownItem` represent the UI-ready point breakdown generated from scoring events.
+
+Existing Supabase tables already cover the future authoritative persistence path:
+
+- `league_scoring_rule_versions` for draft and locked rule snapshots;
+- `scoring_events` for detailed event rows;
+- `leaderboard_snapshots` and `leaderboard_entries` for standings;
+- `scoring_recalculation_runs` for future background/server recalculation metadata;
+- `audit_log` as the likely storage path for rule-change history unless a future milestone introduces a dedicated history table.
+
+`supabase/seed.sql` now uses the same scoring config shape as the TypeScript preset so locally created leagues do not start from a legacy preset payload.

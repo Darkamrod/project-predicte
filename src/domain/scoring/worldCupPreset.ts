@@ -57,6 +57,15 @@ export const worldCupDefaultScoringConfig: ScoringRuleConfig = {
       extraTimeMethod: 15,
       penaltyMethod: 30
     },
+    THIRD_PLACE: {
+      ...emptyStageRule,
+      stageQualification: 10,
+      correctPairing: 10,
+      correctOutcome: 20,
+      exactScore: 40,
+      extraTimeMethod: 10,
+      penaltyMethod: 20
+    },
     FINAL: {
       ...emptyStageRule,
       stageQualification: 20,

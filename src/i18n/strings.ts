@@ -34,7 +34,8 @@ export const strings = {
     cancelled: "Annullata",
     synced: "Sincronizzato",
     syncing: "Sincronizzazione",
-    local: "Salvato locale",
+    saved: "Salvato",
+    local: "Modifiche locali",
     syncFailed: "Errore sync"
   },
   copy: {

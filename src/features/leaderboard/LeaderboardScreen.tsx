@@ -6,6 +6,7 @@ import { AppScreen } from "@/components/AppScreen";
 import { PrimaryButton } from "@/components/Buttons";
 import { ErrorState } from "@/components/ErrorState";
 import { LeaderboardRow } from "@/components/LeaderboardRow";
+import type { ScoringBreakdownScope } from "@/domain/scoring/types";
 import { useAppTheme } from "@/design-system/theme";
 import { strings } from "@/i18n/strings";
 import { usePredicteMock } from "@/state/PredicteMockProvider";
@@ -24,6 +25,9 @@ export function LeaderboardScreen({ leagueId }: { leagueId: string }): React.Rea
   }
 
   const snapshot = league.leaderboardSnapshots.at(-1);
+  const currentUserBreakdown = league.scoringBreakdowns.find(
+    (breakdown) => breakdown.userId === currentUser.id
+  );
 
   return (
     <AppScreen>
@@ -52,8 +56,34 @@ export function LeaderboardScreen({ leagueId }: { leagueId: string }): React.Rea
           isCurrentUser={entry.userId === currentUser.id}
         />
       ))}
+      <AppCard>
+        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Breakdown punti</Text>
+        {currentUserBreakdown && currentUserBreakdown.items.length > 0 ? (
+          currentUserBreakdown.items.slice(0, 12).map((item) => (
+            <Text key={item.id} style={[styles.body, { color: theme.colors.textSecondary }]}>
+              {scopeLabel(item.scope)} - +{item.points} - {item.reason}
+            </Text>
+          ))
+        ) : (
+          <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
+            Nessun dettaglio punti disponibile per il tuo profilo.
+          </Text>
+        )}
+      </AppCard>
     </AppScreen>
   );
+}
+
+function scopeLabel(scope: ScoringBreakdownScope): string {
+  if (scope === "ANTEPOST") {
+    return "Antepost";
+  }
+
+  if (scope === "STAGE") {
+    return "Fase";
+  }
+
+  return "Match";
 }
 
 const styles = StyleSheet.create({

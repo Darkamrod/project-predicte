@@ -1,4 +1,11 @@
-import type { MatchPrediction, PredictionCompletion, PredictionSet } from "./types";
+import type { AntepostDefinition } from "@/domain/competitions/types";
+import type {
+  AntepostPrediction,
+  MatchPrediction,
+  PredictionCompletion,
+  PredictionSet,
+  PredictionSyncStatus
+} from "./types";
 
 export function isMatchPredictionComplete(prediction: MatchPrediction): boolean {
   const goalsAreValid =
@@ -17,19 +24,34 @@ export function isMatchPredictionComplete(prediction: MatchPrediction): boolean 
     return Boolean(prediction.qualifiedTeamId && prediction.advancementMethod !== "REGULATION");
   }
 
+  if (prediction.stageCode !== "GROUP_STAGE") {
+    return Boolean(prediction.qualifiedTeamId && prediction.advancementMethod === "REGULATION");
+  }
+
   return true;
 }
 
 export function calculatePredictionCompletion(predictionSet: PredictionSet): PredictionCompletion {
   const completedItems = predictionSet.matchPredictions.filter(isMatchPredictionComplete).length;
-  const unsyncedItems = predictionSet.matchPredictions.filter(
-    (prediction) => prediction.syncStatus !== "SYNCED"
+  const antepostCompleted = (predictionSet.antepostPredictions ?? []).filter(
+    isAntepostPredictionComplete
   ).length;
-  const incompleteItems = Math.max(predictionSet.totalRequired - completedItems, 0);
+  const unsyncedItems =
+    predictionSet.matchPredictions.filter(
+      (prediction) => !isPredictionSynced(prediction.syncStatus)
+    ).length +
+    (predictionSet.antepostPredictions ?? []).filter(
+      (prediction) => !isPredictionSynced(prediction.syncStatus)
+    ).length +
+    (predictionSet.tiebreakOverrides ?? []).filter(
+      (override) => !isPredictionSynced(override.syncStatus)
+    ).length;
+  const completedTotal = completedItems + antepostCompleted;
+  const incompleteItems = Math.max(predictionSet.totalRequired - completedTotal, 0);
   const percentComplete =
     predictionSet.totalRequired === 0
       ? 0
-      : Math.round((completedItems / predictionSet.totalRequired) * 100);
+      : Math.round((completedTotal / predictionSet.totalRequired) * 100);
 
   const validationIssues: string[] = [];
 
@@ -43,10 +65,41 @@ export function calculatePredictionCompletion(predictionSet: PredictionSet): Pre
 
   return {
     totalRequired: predictionSet.totalRequired,
-    completedItems,
+    completedItems: completedTotal,
     incompleteItems,
     unsyncedItems,
     percentComplete,
     validationIssues
   };
+}
+
+export function isPredictionSynced(status: PredictionSyncStatus): boolean {
+  return status === "SYNCED";
+}
+
+export function isRequiredAntepostComplete(
+  definition: AntepostDefinition,
+  prediction: AntepostPrediction
+): boolean {
+  if (!definition.required) {
+    return true;
+  }
+
+  if (definition.valueType === "TEAM") {
+    return Boolean(prediction.selectedTeamId);
+  }
+
+  if (definition.valueType === "PLAYER") {
+    return Boolean(prediction.selectedPlayerId);
+  }
+
+  return Number.isInteger(prediction.numericValue) && (prediction.numericValue ?? -1) >= 0;
+}
+
+function isAntepostPredictionComplete(prediction: AntepostPrediction): boolean {
+  return Boolean(
+    prediction.selectedTeamId ||
+    prediction.selectedPlayerId ||
+    (Number.isInteger(prediction.numericValue) && (prediction.numericValue ?? -1) >= 0)
+  );
 }

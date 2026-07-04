@@ -1,16 +1,11 @@
 import type { LeagueDeadlineState, LeagueStatus } from "./types";
 
-const editableLeagueStatuses: LeagueStatus[] = ["draft", "open"];
-
 export function isBeforeDeadline(serverNowUtc: string, deadlineAtUtc: string): boolean {
   return new Date(serverNowUtc).getTime() < new Date(deadlineAtUtc).getTime();
 }
 
 export function canEditPredictions(state: LeagueDeadlineState, serverNowUtc: string): boolean {
-  return (
-    editableLeagueStatuses.includes(state.status) &&
-    isBeforeDeadline(serverNowUtc, state.deadlineAtUtc)
-  );
+  return state.status === "open" && isBeforeDeadline(serverNowUtc, state.deadlineAtUtc);
 }
 
 export function assertPredictionWritable(state: LeagueDeadlineState, serverNowUtc: string): void {

@@ -14,7 +14,13 @@ export type ScoringEventType =
   | "MANUAL_CORRECTION";
 
 export type ScoringStageKey =
-  "GROUP_STAGE" | "ROUND_OF_32" | "ROUND_OF_16" | "QUARTER_FINAL" | "SEMI_FINAL" | "FINAL";
+  | "GROUP_STAGE"
+  | "ROUND_OF_32"
+  | "ROUND_OF_16"
+  | "QUARTER_FINAL"
+  | "SEMI_FINAL"
+  | "THIRD_PLACE"
+  | "FINAL";
 
 export interface StageScoringRule {
   correctOutcome: number;
@@ -60,6 +66,20 @@ export interface ScoringRuleVersion {
   lockedAtUtc?: string;
 }
 
+export interface ScoringRuleChange {
+  id: string;
+  leagueId: string;
+  ruleVersionId: string;
+  actorUserId: string;
+  actorDisplayName: string;
+  changedAtUtc: string;
+  scope: "stage" | "antepost";
+  stage?: ScoringStageKey | undefined;
+  field: keyof StageScoringRule | keyof AntepostScoringRule;
+  previousValue: number;
+  nextValue: number;
+}
+
 export interface ScoringEvent {
   id: string;
   leagueId: string;
@@ -73,6 +93,25 @@ export interface ScoringEvent {
   calculationVersion: string;
   createdAtUtc: string;
   sourceResultVersion: string;
+}
+
+export type ScoringBreakdownScope = "MATCH" | "STAGE" | "ANTEPOST";
+
+export interface ScoringBreakdownItem {
+  id: string;
+  participantUserId: string;
+  scope: ScoringBreakdownScope;
+  referenceId: string;
+  stage?: ScoringStageKey;
+  type: ScoringEventType;
+  points: number;
+  reason: string;
+}
+
+export interface UserScoringBreakdown {
+  userId: string;
+  totalPoints: number;
+  items: ScoringBreakdownItem[];
 }
 
 export interface RegulationScore {
@@ -133,4 +172,51 @@ export interface ScoringContext {
   scoringRuleVersionId: string;
   sourceResultVersion: string;
   createdAtUtc: string;
+}
+
+export interface OfficialMatchResult {
+  matchId: string;
+  stage: ScoringStageKey;
+  order: number;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeGoals: number;
+  awayGoals: number;
+  qualifiedTeamId?: string | undefined;
+  advancementMethod?: AdvancementMethod | undefined;
+}
+
+export interface OfficialGroupPosition {
+  groupCode: string;
+  position: number;
+  teamId: string;
+}
+
+export interface OfficialStageQualification {
+  stage: ScoringStageKey;
+  referenceId: string;
+  teamIds: string[];
+}
+
+export interface OfficialPairing {
+  stage: ScoringStageKey;
+  referenceId: string;
+  order: number;
+  teamIds: [string, string];
+}
+
+export interface OfficialAntepostResult {
+  winnerTeamId?: string | undefined;
+  topScorerPlayerIds?: string[] | undefined;
+  topScorerGoals?: number | undefined;
+}
+
+export interface OfficialTournamentResultSet {
+  sourceResultVersion: string;
+  createdAtUtc: string;
+  matchResults: OfficialMatchResult[];
+  groupPositions: OfficialGroupPosition[];
+  stageQualifications: OfficialStageQualification[];
+  pairings: OfficialPairing[];
+  antepost?: OfficialAntepostResult | undefined;
 }

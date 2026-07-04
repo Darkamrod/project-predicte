@@ -5,7 +5,7 @@ export type LeagueStatus =
 
 export type PredictionSetStatus = "draft" | "complete" | "locked";
 
-export type PredictionSyncStatus = "LOCAL" | "SYNCING" | "SYNCED" | "SYNC_FAILED";
+export type PredictionSyncStatus = "SAVED" | "SYNCING" | "SYNCED" | "SYNC_FAILED" | "LOCAL";
 
 export type AdvancementMethod = "REGULATION" | "EXTRA_TIME" | "PENALTIES";
 
@@ -22,10 +22,38 @@ export interface MatchPrediction {
   stageCode: StageCode;
   homeGoals: number;
   awayGoals: number;
-  qualifiedTeamId?: string;
-  advancementMethod?: AdvancementMethod;
+  qualifiedTeamId?: string | undefined;
+  advancementMethod?: AdvancementMethod | undefined;
   syncStatus: PredictionSyncStatus;
   updatedAtUtc: string;
+}
+
+export interface PredictionTiebreakOverride {
+  id: string;
+  predictionSetId: string;
+  scopeRef: string;
+  orderedTeamIds: string[];
+  reason: string;
+  syncStatus: PredictionSyncStatus;
+  updatedAtUtc: string;
+}
+
+export interface AntepostPrediction {
+  id: string;
+  predictionSetId: string;
+  definitionId: string;
+  selectedTeamId?: string | undefined;
+  selectedPlayerId?: string | undefined;
+  numericValue?: number | undefined;
+  syncStatus: PredictionSyncStatus;
+  updatedAtUtc: string;
+}
+
+export interface PredictionDependencyWarning {
+  id: string;
+  message: string;
+  impactedMatchIds: string[];
+  createdAtUtc: string;
 }
 
 export interface PredictionSet {
@@ -37,6 +65,9 @@ export interface PredictionSet {
   completedItems: number;
   unsyncedItems: number;
   matchPredictions: MatchPrediction[];
+  tiebreakOverrides?: PredictionTiebreakOverride[];
+  antepostPredictions?: AntepostPrediction[];
+  dependencyWarnings?: PredictionDependencyWarning[];
   lastServerSyncedAtUtc?: string;
 }
 
@@ -61,4 +92,31 @@ export interface PredictionCompletion {
   unsyncedItems: number;
   percentComplete: number;
   validationIssues: string[];
+  nextIncomplete?: PredictionNextIncomplete | undefined;
 }
+
+export type PredictionIssueSeverity = "warning" | "error";
+
+export type PredictionIssueKind =
+  | "MISSING_MATCH"
+  | "INVALID_KNOCKOUT"
+  | "UNRESOLVED_TIEBREAK"
+  | "MISSING_ANTEPOST"
+  | "BRACKET_INCOMPLETE"
+  | "UNSYNCED_CHANGES"
+  | "DEPENDENCY_WARNING";
+
+export interface PredictionValidationIssue {
+  id: string;
+  kind: PredictionIssueKind;
+  severity: PredictionIssueSeverity;
+  message: string;
+  referenceId?: string | undefined;
+}
+
+export type PredictionNextIncomplete =
+  | { kind: "GROUP_MATCH"; matchId: string }
+  | { kind: "TIEBREAK"; scopeRef: string }
+  | { kind: "KNOCKOUT_MATCH"; matchId: string }
+  | { kind: "ANTEPOST"; definitionId: string }
+  | { kind: "SYNC"; referenceId: string };

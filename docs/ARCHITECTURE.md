@@ -23,3 +23,21 @@ Domain code does not import React Native UI. Scoring values live in configuratio
 - `src/domain/leagues` and `src/domain/security`: pure lifecycle and RLS-equivalent policy rules used by tests and documentation.
 
 The mock vertical slice remains available while the real backend is introduced behind explicit configuration.
+
+## Milestone 2 Additions
+
+- `src/domain/predictions/bracket.ts`: predicted group tables, best third-placed qualifiers, and generated knockout bracket.
+- `src/domain/predictions/validation.ts`: full prediction-set validation for groups, tie-breaks, knockout, antepost, dependency warnings, and sync state.
+- `src/domain/predictions/invalidation.ts`: downstream bracket impact detection that preserves predictions and emits review warnings.
+- `src/features/predictions/PredictionWorkflowScreen.tsx`: mobile-first workflow hub that composes domain results into group, standings, knockout, antepost, and review sections.
+
+The prediction workflow remains mock-backed unless Supabase is configured. Business rules stay in `src/domain`.
+
+## Milestone 3 Additions
+
+- `src/domain/scoring/tournamentScoring.ts`: pure full-tournament scoring orchestration, idempotent recalculation, leaderboard snapshot generation, and point breakdown generation.
+- `src/services/mock/mockResults.ts`: deterministic official-result mock adapter used only to exercise scoring without real sports-provider APIs.
+- `src/features/rules/RulesScreen.tsx`: complete stage and antepost rule editor wired to domain/provider guards.
+- `src/features/leaderboard/LeaderboardScreen.tsx`: displays domain-generated point breakdowns.
+
+Rule editing and scoring remain separated from route files and UI components. The mock provider coordinates state updates, while scoring calculations stay in `src/domain/scoring`.

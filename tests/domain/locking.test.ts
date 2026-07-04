@@ -43,6 +43,16 @@ describe("prediction and rule locking", () => {
     expect(canEditPredictions(state, "2030-06-08T18:00:00.000Z")).toBe(false);
   });
 
+  it("rejects prediction writes while the league is still draft", () => {
+    const state = {
+      leagueId: "league-test",
+      status: "draft" as const,
+      deadlineAtUtc: "2030-06-08T18:30:00.000Z"
+    };
+
+    expect(canEditPredictions(state, "2030-06-08T18:00:00.000Z")).toBe(false);
+  });
+
   it("allows scoring rule edits only while open and before deadline", () => {
     const openState = {
       leagueId: "league-test",

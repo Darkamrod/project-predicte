@@ -1,14 +1,16 @@
 import { createWorldCup2030MockSeed } from "@/domain/competitions/worldCupMock";
-import type { Match } from "@/domain/competitions/types";
+import type { CompetitionSeed } from "@/domain/competitions/types";
 import { createLeaderboardSnapshot } from "@/domain/leaderboard/leaderboard";
 import type { LeaderboardParticipant, LeaderboardSnapshot } from "@/domain/leaderboard/types";
+import { generatePredictedBracket } from "@/domain/predictions/bracket";
 import type { MatchPrediction, PredictionSet } from "@/domain/predictions/types";
 import { createDraftScoringRuleVersion } from "@/domain/scoring/ruleVersions";
-import { scoreRegulationMatch } from "@/domain/scoring/engine";
-import type { ScoringContext, ScoringEvent } from "@/domain/scoring/types";
+import { recalculateTournamentScoring } from "@/domain/scoring/tournamentScoring";
+import type { ScoringEvent, UserScoringBreakdown } from "@/domain/scoring/types";
 import { worldCupDefaultScoringConfig } from "@/domain/scoring/worldCupPreset";
 import type { AuthUser } from "@/services/auth/types";
 import type { League, LeagueMember, MockLeagueState } from "@/services/leagues/types";
+import { createWorldCupMockResultSet } from "./mockResults";
 
 const nowUtc = "2026-07-03T20:00:00.000Z";
 
@@ -45,7 +47,7 @@ export function createInitialMockLeagueState(currentUser: AuthUser): MockLeagueS
     competition
   });
 
-  const settled = settleFirstMockResult(league, competition.matches[0]);
+  const settled = settleFirstMockResult(league, competition);
 
   return {
     competition,
@@ -53,6 +55,7 @@ export function createInitialMockLeagueState(currentUser: AuthUser): MockLeagueS
       {
         ...league,
         scoringEvents: settled.events,
+        scoringBreakdowns: settled.breakdowns,
         leaderboardSnapshots: [settled.previousSnapshot, settled.snapshot]
       }
     ]
@@ -92,9 +95,11 @@ export function createMockLeague(params: {
     members,
     scoringRuleVersion,
     predictionSets: members.map((member) =>
-      createPredictionSet(params.id, member.userId, params.competition.matches)
+      createPredictionSet(params.id, member.userId, params.competition)
     ),
+    scoringRuleHistory: [],
     scoringEvents: [],
+    scoringBreakdowns: [],
     leaderboardSnapshots: []
   };
 }
@@ -102,8 +107,9 @@ export function createMockLeague(params: {
 export function createPredictionSet(
   leagueId: string,
   userId: string,
-  matches: Match[]
+  competition: CompetitionSeed
 ): PredictionSet {
+  const matches = competition.matches;
   const groupMatches = matches.filter((match) => match.stageId === "stage-group");
   const defaultScores = getDefaultScores(userId);
   const matchPredictions: MatchPrediction[] = groupMatches.map((match, index) => ({
@@ -116,32 +122,46 @@ export function createPredictionSet(
     syncStatus: "SYNCED",
     updatedAtUtc: nowUtc
   }));
-
-  return {
+  const draftPredictionSet: PredictionSet = {
     id: `${leagueId}:${userId}:prediction-set`,
     leagueId,
     userId,
     status: "draft",
-    totalRequired: groupMatches.length,
+    totalRequired: 0,
     completedItems: matchPredictions.length,
     unsyncedItems: 0,
     matchPredictions,
+    tiebreakOverrides: [],
+    antepostPredictions: [],
+    dependencyWarnings: [],
     lastServerSyncedAtUtc: nowUtc
+  };
+  const bracket = generatePredictedBracket({
+    competition,
+    predictionSet: draftPredictionSet
+  });
+  const antepostRequired = competition.antepostDefinitions.filter(
+    (definition) => definition.required
+  ).length;
+
+  return {
+    ...draftPredictionSet,
+    status: "draft",
+    totalRequired: groupMatches.length + bracket.matches.length + antepostRequired,
+    completedItems: matchPredictions.length,
+    unsyncedItems: 0
   };
 }
 
 export function settleFirstMockResult(
   league: League,
-  match: Match | undefined
+  competition: CompetitionSeed
 ): {
   events: ScoringEvent[];
+  breakdowns: UserScoringBreakdown[];
   previousSnapshot: LeaderboardSnapshot;
   snapshot: LeaderboardSnapshot;
 } {
-  if (!match) {
-    throw new Error("Cannot settle mock result without a match.");
-  }
-
   const participants: LeaderboardParticipant[] = league.members.map((member) => ({
     userId: member.userId,
     displayName: member.displayName,
@@ -156,53 +176,27 @@ export function settleFirstMockResult(
     allEvents: [],
     latestEvents: []
   });
-
-  const latestEvents = league.predictionSets.flatMap((predictionSet) => {
-    const prediction = predictionSet.matchPredictions.find((item) => item.matchId === match.id);
-
-    if (!prediction) {
-      return [];
-    }
-
-    const context: ScoringContext = {
-      leagueId: league.id,
-      participantUserId: predictionSet.userId,
-      competitionEditionId: league.competitionEditionId,
-      scoringRuleVersionId: league.scoringRuleVersion.id,
-      sourceResultVersion: "mock-result-v1",
-      createdAtUtc: "2030-06-08T21:15:00.000Z"
-    };
-
-    return scoreRegulationMatch(league.scoringRuleVersion.config, context, {
-      stage: "GROUP_STAGE",
-      matchId: match.id,
-      prediction: {
-        homeGoals: prediction.homeGoals,
-        awayGoals: prediction.awayGoals
-      },
-      result: {
-        homeTeamId: match.homeTeamId,
-        awayTeamId: match.awayTeamId,
-        homeGoals: 1,
-        awayGoals: 0
-      }
-    });
-  });
-
-  const snapshot = createLeaderboardSnapshot({
-    leagueId: league.id,
-    createdAtUtc: "2030-06-08T21:15:00.000Z",
+  const resultSet = createWorldCupMockResultSet({
+    competition,
     sourceResultVersion: "mock-result-v1",
+    createdAtUtc: "2030-06-08T21:15:00.000Z"
+  });
+  const recalculation = recalculateTournamentScoring({
+    competition,
+    leagueId: league.id,
+    competitionEditionId: league.competitionEditionId,
+    scoringRuleVersion: league.scoringRuleVersion,
+    predictionSets: league.predictionSets,
     participants,
-    allEvents: latestEvents,
-    latestEvents,
+    resultSet,
     previousSnapshot
   });
 
   return {
-    events: latestEvents,
+    events: recalculation.latestEvents,
+    breakdowns: recalculation.breakdowns,
     previousSnapshot,
-    snapshot
+    snapshot: recalculation.leaderboardSnapshot
   };
 }
 

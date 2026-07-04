@@ -40,6 +40,10 @@ function getStatusMeta(status: PredictionSyncStatus): {
     return { label: strings.status.syncFailed, icon: WifiOff };
   }
 
+  if (status === "SAVED") {
+    return { label: strings.status.saved, icon: CheckCircle2 };
+  }
+
   return { label: strings.status.local, icon: RefreshCw };
 }
 
