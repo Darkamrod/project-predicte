@@ -46,3 +46,15 @@ Rule lifecycle:
 - mock rule changes are recorded as `ScoringRuleChange` entries for stage and antepost fields.
 
 The engine remains configuration-driven. No point values are hardcoded into UI or prediction workflow code.
+
+## Milestone 4 Persistence Contract
+
+Milestone 4 keeps calculation in the pure `src/domain/scoring` modules and adds a Supabase persistence contract around its output:
+
+- `SupabaseScoringRepository.persistRecalculation` serializes `ScoringEvent`, `LeaderboardSnapshot`, and `UserScoringBreakdown` values.
+- `persist_scoring_recalculation` stores the payload only after the league and rule snapshot are locked.
+- The RPC replaces all scoring rows for the same `source_result_key`, then writes fresh scoring events, one leaderboard snapshot, leaderboard entries, breakdown rows, and a recalculation run.
+- Scoring event payloads must reference the locked scoring rule version. The database rejects events for a different rule version.
+- Direct table writes remain unavailable to normal clients; leaderboard and breakdown data are derived artifacts.
+
+This preserves deterministic idempotency from Milestone 3 while preparing the same domain engine to run from a trusted server worker in a later milestone.

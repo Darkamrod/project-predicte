@@ -48,3 +48,18 @@ Milestone 3 keeps scoring and rule lifecycle aligned with the server-authoritati
 - no client write path was added for official results, scoring events, leaderboard snapshots, provider data, or provider secrets.
 
 The implementation remains mock-only for official results. Real scoring execution should run through server-side jobs or RPCs in a future backend milestone so service-role access and audit logging stay outside the mobile client.
+
+## Milestone 4 Persistence Security
+
+Milestone 4 moves the complete prediction and scoring workflow onto RPC-backed Supabase persistence:
+
+- prediction writes use `save_match_prediction`, `upsert_prediction_tiebreak_override`, `upsert_antepost_prediction`, and `update_prediction_set_completion`;
+- each prediction RPC resolves the current user's active prediction set server-side and reuses `prediction_set_is_writable_by_current_user`;
+- generated knockout match predictions are stored with `prediction_ref`, but still pass through the same league deadline and lock checks as real match predictions;
+- scoring rule edits use owner/admin-only RPCs and require league status `open`, server time before deadline, and draft rule status;
+- `lock_scoring_rule_snapshot` requires owner/admin and server time at or after deadline, locks prediction sets, and writes a checksum snapshot;
+- `lock_due_leagues()` remains service-role only for scheduled locking;
+- scoring events, scoring breakdown items, leaderboard snapshots, leaderboard entries, rule changes, and recalculation runs have read policies only. Client writes are performed through security-definer RPCs;
+- `persist_scoring_recalculation` requires owner/admin, a locked league, and a locked scoring rule snapshot. It replaces rows for one `source_result_key` to keep recalculation idempotent.
+
+The repository does not expose service-role credentials to the mobile client. Future automated result ingestion should run from a trusted backend worker that calls the same database contract or a narrower service-role-only variant.

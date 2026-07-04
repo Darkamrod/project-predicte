@@ -48,8 +48,18 @@
 - Detailed scoring events, idempotent tournament recalculation, leaderboard snapshots, and user point breakdowns.
 - Supabase seed scoring preset aligned with the TypeScript config shape.
 
+## Completed in Milestone 4
+
+- Supabase migration for complete prediction persistence, including generated knockout prediction references.
+- RPC-backed persistence for match predictions, tie-break overrides, antepost predictions, and prediction-set completion.
+- Persistent rule editor changes, audit entries, locked rule snapshot checksum, and rule lock RPC.
+- Idempotent scoring recalculation persistence keyed by `source_result_key`.
+- Persistent scoring events, leaderboard snapshots, leaderboard entries, scoring breakdown rows, and recalculation run metadata.
+- Supabase repository classes for predictions, rules, and scoring while preserving the mock fallback flow.
+- RLS read policies for new derived tables and no direct client write policies for scoring artifacts.
+
 ## Next Authorized Milestone
 
-Milestone 4 should be defined by the next authorized prompt. Likely candidates are real Supabase persistence for the complete prediction workflow, server-side scoring execution, audit-log persistence for rule changes, and background recalculation plumbing.
+Milestone 5 should be defined by the next authorized prompt. Likely candidates are trusted server execution for scoring, result ingestion/import workflow, richer Supabase integration tests with authenticated users, and production-ready background recalculation plumbing.
 
-Do not start Milestone 4 without explicit authorization.
+Do not start Milestone 5 without explicit authorization.

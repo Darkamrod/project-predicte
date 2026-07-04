@@ -96,3 +96,21 @@
 - Added a narrow Supabase migration that replaces invite token helpers with schema-qualified `extensions.digest` and `extensions.gen_random_bytes` calls.
 - Kept invite token generation and SHA-256 hashing semantics unchanged.
 - Left Milestone 4 backend work, payments, advertising, betting, odds, gambling, and real sports-provider APIs untouched.
+
+## 2026-07-04 - Milestone 4 Supabase Persistence
+
+- Added a dedicated Supabase migration for complete prediction, rule, scoring, and leaderboard persistence instead of changing UI components or mock state.
+- Added `prediction_ref` to `match_predictions` so generated knockout bracket predictions can be stored even when they do not map to a real `matches.id` UUID yet. Real scheduled matches still use `match_id`.
+- Added `prediction_sync_status` and sync-status columns for match predictions, tie-break overrides, and antepost predictions. The server stores the state supplied by the repository, while lock/deadline authorization remains database-enforced.
+- Added RPCs for match prediction upsert, tie-break override upsert, antepost upsert, and prediction-set completion updates. These RPCs use the current user's active prediction set and reject writes after lock/deadline.
+- Added persisted rule-change history in `league_scoring_rule_changes`, while also writing member-visible `audit_log` entries for rule edits and lock events.
+- Added `lock_scoring_rule_snapshot` and updated league locking to use a schema-qualified SHA-256 checksum via `extensions.digest`. The locked rule snapshot is required before scoring persistence.
+- Added idempotent scoring persistence keyed by `source_result_key`. A recalculation replaces scoring events, breakdown rows, and the leaderboard snapshot for the same source key in one RPC call.
+- Kept direct client table writes unavailable for scoring events, leaderboard snapshots, leaderboard entries, scoring breakdowns, and rule-change history. Writes go through RPCs with owner/admin checks.
+- Added Supabase repository classes for prediction persistence, rule edits, and scoring persistence. They are separate from UI and keep the existing mock flow untouched when Supabase is not configured.
+
+## Milestone 4 Assumptions
+
+- The current app still runs the pure TypeScript scoring engine locally for mock and repository contract tests. The database is authoritative for accepting, locking, auditing, and idempotently storing recalculation output. A future backend worker or Edge Function can execute the same domain engine server-side.
+- Generated bracket IDs remain deterministic `prediction_ref` values until provider-backed bracket templates introduce stable real identifiers.
+- Full Supabase integration tests with authenticated users are still represented by local `db reset`, `db lint`, static migration tests, and repository RPC contract tests.

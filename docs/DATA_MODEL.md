@@ -76,3 +76,30 @@ Existing Supabase tables already cover the future authoritative persistence path
 - `audit_log` as the likely storage path for rule-change history unless a future milestone introduces a dedicated history table.
 
 `supabase/seed.sql` now uses the same scoring config shape as the TypeScript preset so locally created leagues do not start from a legacy preset payload.
+
+## Milestone 4 Persistence Model
+
+Milestone 4 adds the database fields and tables needed to persist the complete Milestone 2 and Milestone 3 workflow:
+
+- `match_predictions.prediction_ref`: stable text key for generated knockout predictions. `match_id` is nullable and remains the FK path for real scheduled matches.
+- `match_predictions.stage_code`, `home_team_id`, `away_team_id`, and `depends_on_prediction_refs`: metadata required to persist predicted bracket matches without hardcoding bracket structure in UI.
+- `prediction_sync_status`: enum used by persisted match predictions, tie-break overrides, and antepost predictions.
+- `prediction_tiebreak_overrides.updated_at` and unique `(prediction_set_id, scope_ref)`: enables safe upsert semantics.
+- `league_scoring_rule_changes`: durable rule editor history for stage and antepost fields.
+- `scoring_events.event_key` and `source_result_key`: stable idempotency keys for recalculation output.
+- `leaderboard_snapshots.snapshot_key` and `source_result_key`: stable snapshot identity for one recalculation source.
+- `scoring_breakdown_items`: persisted point breakdown rows linked to scoring events when available.
+- `scoring_recalculation_runs.actor_user_id`, `source_result_key`, and `snapshot_id`: audit-friendly metadata for each recalculation request.
+
+New RPCs own write access for the complete workflow:
+
+- `save_match_prediction`;
+- `upsert_prediction_tiebreak_override`;
+- `upsert_antepost_prediction`;
+- `update_prediction_set_completion`;
+- `update_stage_scoring_rule_value`;
+- `update_antepost_scoring_rule_value`;
+- `lock_scoring_rule_snapshot`;
+- `persist_scoring_recalculation`.
+
+The mock TypeScript model remains the default local UX path. Supabase repositories map the same domain concepts into these RPCs when a real Supabase client is configured.

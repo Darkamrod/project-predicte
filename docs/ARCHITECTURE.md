@@ -41,3 +41,13 @@ The prediction workflow remains mock-backed unless Supabase is configured. Busin
 - `src/features/leaderboard/LeaderboardScreen.tsx`: displays domain-generated point breakdowns.
 
 Rule editing and scoring remain separated from route files and UI components. The mock provider coordinates state updates, while scoring calculations stay in `src/domain/scoring`.
+
+## Milestone 4 Additions
+
+- `src/services/predictions/supabasePredictionRepository.ts`: RPC-backed adapter for match predictions, tie-break overrides, antepost predictions, and completion counters.
+- `src/services/rules/supabaseRuleRepository.ts`: RPC-backed adapter for scoring rule edits and locked rule snapshots.
+- `src/services/scoring/supabaseScoringRepository.ts`: RPC-backed adapter for persisted scoring events, leaderboard snapshots, and point breakdowns.
+- `src/services/supabase/rpcClient.ts`: small injectable RPC client boundary used by repositories and tests.
+- `supabase/migrations/20260704030000_milestone4_prediction_scoring_persistence.sql`: persistence, RLS, RPC, checksum, and idempotency migration for the complete workflow.
+
+The UI still uses the mock provider by default. Real Supabase persistence is available through service adapters and can be wired into screens without moving business logic out of `src/domain`.

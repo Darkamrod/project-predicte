@@ -42,3 +42,9 @@ The leaderboard route now includes a points breakdown for the current user. The 
 3. Antepost events: tournament winner, top scorer, and top-scorer exact goals.
 
 The mock result action recalculates events and leaderboard snapshots through the Milestone 3 engine. Repeating a recalculation for the same source result version is idempotent.
+
+## Milestone 4 Persistence UX Impact
+
+Milestone 4 does not change the visible mock-first UX. It adds Supabase repositories behind the complete prediction, rule, scoring, and leaderboard concepts so the same flows can be backed by real persistence when Supabase is configured.
+
+The existing mock screens still simulate saved/synced states locally. Real sync error handling can now use the repository-level RPC failures without moving database logic into UI components.
