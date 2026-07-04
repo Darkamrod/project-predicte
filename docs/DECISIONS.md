@@ -90,3 +90,9 @@
 - The mock official result set is deterministic and exists only to exercise scoring end-to-end without sports-provider APIs.
 - The mock rule history is in-memory and session-scoped until a backend persistence milestone defines the authoritative audit write path.
 - Generated bracket match ids are acceptable for mock scoring; provider-backed bracket ids remain a future integration concern.
+
+## 2026-07-04 - Milestone 3.1 Supabase pgcrypto Lint Fix
+
+- Added a narrow Supabase migration that replaces invite token helpers with schema-qualified `extensions.digest` and `extensions.gen_random_bytes` calls.
+- Kept invite token generation and SHA-256 hashing semantics unchanged.
+- Left Milestone 4 backend work, payments, advertising, betting, odds, gambling, and real sports-provider APIs untouched.

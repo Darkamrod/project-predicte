@@ -11,6 +11,10 @@ const hardeningMigration = readFileSync(
   join(process.cwd(), "supabase/migrations/20260704010000_milestone1_1_lifecycle_hardening.sql"),
   "utf8"
 );
+const pgcryptoLintFixMigration = readFileSync(
+  join(process.cwd(), "supabase/migrations/20260704020000_milestone3_1_pgcrypto_lint_fix.sql"),
+  "utf8"
+);
 const seedSql = readFileSync(join(process.cwd(), "supabase/seed.sql"), "utf8");
 
 describe("Milestone 1 Supabase migration", () => {
@@ -27,6 +31,8 @@ describe("Milestone 1 Supabase migration", () => {
   it("stores only hashed invite tokens and gates access through RLS helpers", () => {
     expect(migration).toContain("hash_invite_token");
     expect(migration).toContain("digest(p_token, 'sha256')");
+    expect(pgcryptoLintFixMigration).toContain("extensions.digest(p_token, 'sha256'::text)");
+    expect(pgcryptoLintFixMigration).toContain("extensions.gen_random_bytes(18)");
     expect(migration).toContain("current_user_is_league_member");
     expect(migration).toContain("prediction_set_is_visible");
     expect(migration).toContain("prediction_set_is_writable_by_current_user");
@@ -40,9 +46,9 @@ describe("Milestone 1 Supabase migration", () => {
   });
 
   it("does not introduce excluded money, advertising, or wagering features", () => {
-    expect(`${migration}\n${hardeningMigration}\n${seedSql}`).not.toMatch(
-      /payment|paid|payout|prize|advertising|betting|odds|wagering|gambling/i
-    );
+    expect(
+      `${migration}\n${hardeningMigration}\n${pgcryptoLintFixMigration}\n${seedSql}`
+    ).not.toMatch(/payment|paid|payout|prize|advertising|betting|odds|wagering|gambling/i);
   });
 });
 
