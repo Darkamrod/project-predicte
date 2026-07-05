@@ -194,3 +194,20 @@ Milestone 8 adds a TypeScript-only entry workflow layer without a new SQL migrat
 - Derived antepost values for tournament winner and finalists are generated from the predicted bracket and upserted by the mock adapter after relevant prediction edits. Manual antepost remains top scorer plus top-scorer goals.
 
 Two-legged knockout rounds continue to use one aggregate prediction record in Milestone 8. This keeps the current persisted `match_predictions` shape stable while leaving leg-by-leg records and aggregate-specific validation for a future authorized milestone.
+
+## Milestone 8.1 Tie-Break Override Model
+
+Milestone 8.1 adds persisted tie-group identity to `prediction_tiebreak_overrides`:
+
+- `scope`: `GROUP`, `BEST_THIRDS`, or `LEAGUE_PHASE`.
+- `scope_ref`: broad standings scope, for example `group:A`, `best_thirds`, or `league_phase`.
+- `tie_group_id`: stable id derived from scope, affected positions, and tied team ids.
+- `tied_team_ids`: the specific teams involved in the unresolved tie.
+- `affected_positions`: the standings/ranking positions impacted by that tie.
+- `ordered_team_ids`: the user/admin-entered resolution order for that specific tie group.
+
+The unique key is now `(prediction_set_id, scope_ref, tie_group_id)`. This allows multiple tie-break overrides in one group or ranking scope while preserving idempotent upsert behavior.
+
+The same model is used by the mock adapter, Supabase prediction repository, and trusted scoring context loader. Existing legacy rows are upgraded by the migration with `tie_group_id = scope_ref` and `tied_team_ids = ordered_team_ids`.
+
+Best-third and bracket mapping metadata remains a foundation. `BracketMappingMetadata.status = placeholder` is used for World Cup best-third mappings, EURO best-third mappings, and Champions League seeded playoff/two-leg mapping until official matrix and draw rules are implemented in a later authorized milestone.

@@ -27,7 +27,13 @@ describe("Milestone 6 Supabase scoring context loader", () => {
       homeGoals: 2,
       awayGoals: 1
     });
-    expect(context.predictionSets[0]?.tiebreakOverrides?.[0]?.scopeRef).toBe("group:A");
+    expect(context.predictionSets[0]?.tiebreakOverrides?.[0]).toMatchObject({
+      scope: "GROUP",
+      scopeRef: "group:A",
+      tieGroupId: "group:A:positions:1-2:teams:team-a|team-b",
+      tiedTeamIds: [homeTeamId, awayTeamId],
+      affectedPositions: [1, 2]
+    });
     expect(context.predictionSets[0]?.antepostPredictions?.[0]?.selectedTeamId).toBe(homeTeamId);
     expect(context.participants[0]).toMatchObject({
       userId,
@@ -329,7 +335,11 @@ function createRows(): RowMap {
       {
         id: "tiebreak-id",
         prediction_set_id: predictionSetId,
+        scope: "GROUP",
         scope_ref: "group:A",
+        tie_group_id: "group:A:positions:1-2:teams:team-a|team-b",
+        tied_team_ids: [homeTeamId, awayTeamId],
+        affected_positions: [1, 2],
         ordered_team_ids: [homeTeamId, awayTeamId],
         reason: "Manual",
         created_at: "2030-06-08T18:00:00.000Z",

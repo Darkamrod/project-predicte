@@ -12,6 +12,13 @@ interface MutableStanding {
   points: number;
 }
 
+export interface StandingTieGroup {
+  scopeRef: string;
+  tieGroupId: string;
+  tiedTeamIds: string[];
+  affectedPositions: number[];
+}
+
 export function calculatePredictedGroupStandings(params: {
   teams: Team[];
   matches: Match[];
@@ -59,19 +66,78 @@ export function calculatePredictedGroupStandings(params: {
     scopeRef: params.scopeRef,
     tiebreakOverrides: params.tiebreakOverrides ?? []
   });
-  const tieKeys = new Map<string, MutableStanding[]>();
-
-  for (const row of sorted) {
-    const key = tieKey(row);
-    tieKeys.set(key, [...(tieKeys.get(key) ?? []), row]);
-  }
-
-  return sorted.map((row, index) => ({
+  const rows = sorted.map((row, index) => ({
     ...row,
     goalDifference: row.goalsFor - row.goalsAgainst,
     position: index + 1,
-    unresolvedTie: isTieUnresolved(tieKeys.get(tieKey(row)) ?? [], params.tiebreakOverrides ?? [])
+    unresolvedTie: false
   }));
+  const unresolvedGroups = buildStandingTieGroups(rows, params.scopeRef ?? "standing").filter(
+    (group) =>
+      !findTieGroupOverride({
+        scopeRef: group.scopeRef,
+        tieGroupId: group.tieGroupId,
+        tiedTeamIds: group.tiedTeamIds,
+        tiebreakOverrides: params.tiebreakOverrides ?? []
+      })
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    unresolvedTie: unresolvedGroups.some((group) => group.tiedTeamIds.includes(row.teamId))
+  }));
+}
+
+export function buildStandingTieGroups(
+  rows: GroupStandingRow[],
+  scopeRef: string
+): StandingTieGroup[] {
+  return [...groupRowsByStandingTieKey(rows).values()]
+    .filter((groupRows) => groupRows.length > 1)
+    .map((groupRows) => {
+      const tiedTeamIds = groupRows.map((row) => row.teamId);
+      const affectedPositions = groupRows.map((row) => row.position);
+
+      return {
+        scopeRef,
+        tieGroupId: createTieGroupId({ scopeRef, tiedTeamIds, affectedPositions }),
+        tiedTeamIds,
+        affectedPositions
+      };
+    });
+}
+
+export function createTieGroupId(params: {
+  scopeRef: string;
+  tiedTeamIds: string[];
+  affectedPositions?: number[] | undefined;
+}): string {
+  const sortedTeamIds = [...params.tiedTeamIds].sort();
+  const positionRef =
+    params.affectedPositions && params.affectedPositions.length > 0
+      ? params.affectedPositions.join("-")
+      : "unknown";
+
+  return `${params.scopeRef}:positions:${positionRef}:teams:${sortedTeamIds.join("|")}`;
+}
+
+export function findTieGroupOverride(params: {
+  scopeRef: string;
+  tieGroupId?: string | undefined;
+  tiedTeamIds: string[];
+  tiebreakOverrides: PredictionTiebreakOverride[];
+}): PredictionTiebreakOverride | undefined {
+  return params.tiebreakOverrides.find((override) => {
+    if (override.scopeRef !== params.scopeRef) {
+      return false;
+    }
+
+    if (params.tieGroupId && override.tieGroupId) {
+      return override.tieGroupId === params.tieGroupId;
+    }
+
+    return sameTeamSet(override.tiedTeamIds ?? override.orderedTeamIds, params.tiedTeamIds);
+  });
 }
 
 function applyPrediction(
@@ -129,31 +195,34 @@ function applyTiebreakOverrides(params: {
   scopeRef?: string | undefined;
   tiebreakOverrides: PredictionTiebreakOverride[];
 }): MutableStanding[] {
-  const scopedOverride = params.tiebreakOverrides.find(
-    (override) => override.scopeRef === params.scopeRef
-  );
-
-  if (!scopedOverride) {
-    return params.rows;
-  }
-
   const tieGroups = groupRowsByTieKey(params.rows);
+  const positionByTeamId = new Map(params.rows.map((row, index) => [row.teamId, index + 1]));
 
   return params.rows
     .map((row) => {
       const tiedRows = tieGroups.get(tieKey(row)) ?? [];
-      const overrideCoversTie =
-        tiedRows.length > 1 &&
-        sameTeamSet(
-          tiedRows.map((item) => item.teamId),
-          scopedOverride.orderedTeamIds
-        );
-      const overrideIndex = scopedOverride.orderedTeamIds.indexOf(row.teamId);
+      const tiedTeamIds = tiedRows.map((item) => item.teamId);
+      const affectedPositions = tiedRows
+        .map((item) => positionByTeamId.get(item.teamId))
+        .filter((position): position is number => position !== undefined);
+      const override =
+        tiedRows.length > 1
+          ? findTieGroupOverride({
+              scopeRef: params.scopeRef ?? "standing",
+              tieGroupId: createTieGroupId({
+                scopeRef: params.scopeRef ?? "standing",
+                tiedTeamIds,
+                affectedPositions
+              }),
+              tiedTeamIds,
+              tiebreakOverrides: params.tiebreakOverrides
+            })
+          : undefined;
+      const overrideIndex = override?.orderedTeamIds.indexOf(row.teamId) ?? -1;
 
       return {
         row,
-        overrideIndex:
-          overrideCoversTie && overrideIndex >= 0 ? overrideIndex : Number.POSITIVE_INFINITY
+        overrideIndex: overrideIndex >= 0 ? overrideIndex : Number.POSITIVE_INFINITY
       };
     })
     .sort((left, right) => {
@@ -180,20 +249,15 @@ function groupRowsByTieKey(rows: MutableStanding[]): Map<string, MutableStanding
   return groups;
 }
 
-function isTieUnresolved(
-  tiedRows: MutableStanding[],
-  tiebreakOverrides: PredictionTiebreakOverride[]
-): boolean {
-  if (tiedRows.length <= 1) {
-    return false;
+function groupRowsByStandingTieKey(rows: GroupStandingRow[]): Map<string, GroupStandingRow[]> {
+  const groups = new Map<string, GroupStandingRow[]>();
+
+  for (const row of rows) {
+    const key = [row.points, row.goalDifference, row.goalsFor].join(":");
+    groups.set(key, [...(groups.get(key) ?? []), row]);
   }
 
-  return !tiebreakOverrides.some((override) =>
-    sameTeamSet(
-      tiedRows.map((row) => row.teamId),
-      override.orderedTeamIds
-    )
-  );
+  return groups;
 }
 
 function sameTeamSet(left: string[], right: string[]): boolean {

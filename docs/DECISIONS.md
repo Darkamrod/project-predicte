@@ -223,3 +223,12 @@
 - Quick mode swipe support is additive to visible buttons; buttons remain the accessible primary path.
 - League-phase tie-break handling is still simplified. The current validation blocks unresolved group-table ties; full official Champions League ranking override UX can be expanded once real edition/provider data is introduced.
 - Two-legged rounds store one aggregate prediction in Milestone 8. Future leg-level predictions may require either child prediction records or an expanded prediction payload contract.
+
+## 2026-07-05 - Milestone 8.1 Tie-Break Groups and Advancement Foundation
+
+- Added a stable `tieGroupId` to prediction tie-break overrides. Multiple unresolved ties can now exist in the same scope, such as two separate pairs tied inside one group, without overwriting each other.
+- Changed Supabase tie-break persistence from unique `(prediction_set_id, scope_ref)` to unique `(prediction_set_id, scope_ref, tie_group_id)`. Legacy rows are migrated with `tie_group_id = scope_ref` and `tied_team_ids = ordered_team_ids`.
+- Kept `upsert_prediction_tiebreak_override` semantics unchanged for deadline/lock/security, but extended its payload with scope, tie group id, tied team ids, and affected positions.
+- Best-thirds ranking now blocks impacted generated bracket slots when the qualifying/ranking tie is unresolved. A manual `BEST_THIRDS` override resolves that tie group instead of relying on deterministic fallback order.
+- World Cup 2026, EURO 2028, and Champions League 2026/27 bracket mapping strategies are still marked as placeholders. The templates carry strategy codes, but official best-third matrices, UEFA ranking edge cases, seeded playoff draw logic, and full two-leg leg-by-leg prediction remain future work.
+- The prediction entry screen now recomputes the workflow after successful match/tie-break/knockout saves before jumping to the next missing item, avoiding stale navigation from the previous render.

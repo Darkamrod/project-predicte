@@ -137,3 +137,14 @@ Official scoring remains configuration-driven and server-authoritative through t
 Two-legged knockout rounds are still scored through the existing configured stage keys. Milestone 8 records one aggregate placeholder prediction for those rounds; leg-by-leg scoring or aggregate-specific bonuses remain out of scope.
 
 `create_private_league` creates the draft league rule version from `scoring_preset_versions` and rejects incomplete configs. The legacy `scoring_presets` table can still be used only as an explicit compatibility override, not as the default source for new multi-competition leagues.
+
+## Milestone 8.1 Advancement Inputs
+
+Milestone 8.1 does not add new point values or scoring event types. It hardens the prediction inputs consumed by scoring:
+
+- group, best-thirds, and league-phase ties are identified by stable `tieGroupId` values;
+- multiple ties inside one scope can be resolved independently before bracket generation feeds scoring;
+- unresolved best-thirds ties leave impacted bracket slots undefined, preventing accidental scoring from deterministic fallback teams;
+- bracket mapping metadata remains `placeholder` for official World Cup/EURO best-third matrices and Champions League seeded playoff/two-leg draw rules.
+
+The scoring engine still scores the generated predicted bracket it receives. Implementing official advancement matrices or leg-by-leg two-match scoring remains future authorized work.

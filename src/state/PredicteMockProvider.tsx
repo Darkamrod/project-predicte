@@ -77,7 +77,11 @@ interface PredicteMockContextValue extends MockLeagueState {
   }): void;
   setTiebreakOverride(params: {
     leagueId: string;
+    scope?: "GROUP" | "BEST_THIRDS" | "LEAGUE_PHASE" | undefined;
     scopeRef: string;
+    tieGroupId?: string | undefined;
+    tiedTeamIds?: string[] | undefined;
+    affectedPositions?: number[] | undefined;
     orderedTeamIds: string[];
     reason: string;
   }): void;
@@ -437,7 +441,16 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
   );
 
   const setTiebreakOverride = useCallback(
-    (params: { leagueId: string; scopeRef: string; orderedTeamIds: string[]; reason: string }) => {
+    (params: {
+      leagueId: string;
+      scope?: "GROUP" | "BEST_THIRDS" | "LEAGUE_PHASE" | undefined;
+      scopeRef: string;
+      tieGroupId?: string | undefined;
+      tiedTeamIds?: string[] | undefined;
+      affectedPositions?: number[] | undefined;
+      orderedTeamIds: string[];
+      reason: string;
+    }) => {
       setState((previous) => ({
         ...previous,
         leagues: previous.leagues.map((league) => {
@@ -460,10 +473,15 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
               return predictionSet;
             }
 
+            const tieGroupId = params.tieGroupId ?? params.scopeRef;
             const nextOverride = {
-              id: `${predictionSet.id}:tiebreak:${params.scopeRef}`,
+              id: `${predictionSet.id}:tiebreak:${tieGroupId}`,
               predictionSetId: predictionSet.id,
+              ...(params.scope ? { scope: params.scope } : {}),
               scopeRef: params.scopeRef,
+              tieGroupId,
+              ...(params.tiedTeamIds ? { tiedTeamIds: params.tiedTeamIds } : {}),
+              ...(params.affectedPositions ? { affectedPositions: params.affectedPositions } : {}),
               orderedTeamIds: params.orderedTeamIds,
               reason: params.reason,
               syncStatus: "SYNCED" as const,
@@ -474,7 +492,11 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
             return refreshPredictionSet(competition, {
               ...predictionSet,
               tiebreakOverrides: [
-                ...existing.filter((override) => override.scopeRef !== params.scopeRef),
+                ...existing.filter(
+                  (override) =>
+                    override.scopeRef !== params.scopeRef ||
+                    (override.tieGroupId ?? override.scopeRef) !== tieGroupId
+                ),
                 nextOverride
               ],
               lastServerSyncedAtUtc: serverNowUtc

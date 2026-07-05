@@ -31,6 +31,10 @@ const milestone41Migration = readFileSync(
   ),
   "utf8"
 );
+const milestone81Migration = readFileSync(
+  join(process.cwd(), "supabase/migrations/20260705060000_milestone8_1_tiebreak_groups.sql"),
+  "utf8"
+);
 const decisionsDoc = readFileSync(join(process.cwd(), "docs/DECISIONS.md"), "utf8");
 const dataModelDoc = readFileSync(join(process.cwd(), "docs/DATA_MODEL.md"), "utf8");
 const scoringEngineDoc = readFileSync(join(process.cwd(), "docs/SCORING_ENGINE.md"), "utf8");
@@ -99,6 +103,19 @@ describe("Milestone 4 Supabase migration contract", () => {
     expect(docs).toContain("Milestone 4.1");
     expect(docs).toContain("ON DELETE SET NULL");
     expect(docs).toContain("source_result_key");
+  });
+
+  it("separates multiple tiebreak overrides inside the same scope", () => {
+    expect(milestone81Migration).toContain("tie_group_id");
+    expect(milestone81Migration).toContain(
+      "prediction_tiebreak_overrides_prediction_set_scope_group_key"
+    );
+    expect(milestone81Migration).toContain("unique (prediction_set_id, scope_ref, tie_group_id)");
+    expect(milestone81Migration).toContain("p_tie_group_id");
+    expect(milestone81Migration).toContain("Tie-break order must include every tied team");
+    expect(milestone81Migration).not.toContain(
+      "on conflict on constraint prediction_tiebreak_overrides_prediction_set_scope_key"
+    );
   });
 
   it("keeps scoring tables RPC-written and member-readable through explicit RLS", () => {
@@ -176,6 +193,14 @@ describe("Milestone 4 Supabase repositories", () => {
       "upsert_antepost_prediction",
       "update_prediction_set_completion"
     ]);
+    expect(getArgs(calls[1])).toMatchObject({
+      p_scope: "GROUP",
+      p_scope_ref: "group:A",
+      p_tie_group_id: tieGroupId,
+      p_tied_team_ids: [teamIdA, teamIdB],
+      p_affected_positions: [1, 2],
+      p_ordered_team_ids: [teamIdA, teamIdB]
+    });
     expect(getArgs(calls[2]).p_selected_payload).toEqual({
       selectedTeamId: teamIdA,
       numericValue: 6
@@ -371,7 +396,11 @@ function createPredictionSet(): PredictionSet {
       {
         id: "tiebreak-row-id",
         predictionSetId,
+        scope: "GROUP",
         scopeRef: "group:A",
+        tieGroupId,
+        tiedTeamIds: [teamIdA, teamIdB],
+        affectedPositions: [1, 2],
         orderedTeamIds: [teamIdA, teamIdB],
         reason: "Manual tie-break",
         syncStatus: "SYNCED",
@@ -463,6 +492,8 @@ const predictionSetId = "33333333-3333-4333-8333-333333333333";
 const matchId = "44444444-4444-4444-8444-444444444444";
 const teamIdA = "55555555-5555-4555-8555-555555555555";
 const teamIdB = "66666666-6666-4666-8666-666666666666";
+const tieGroupId =
+  "group:A:positions:1-2:teams:55555555-5555-4555-8555-555555555555|66666666-6666-4666-8666-666666666666";
 const antepostDefinitionId = "77777777-7777-4777-8777-777777777777";
 const ruleVersionId = "88888888-8888-4888-8888-888888888888";
 const competitionEditionId = "99999999-9999-4999-8999-999999999999";

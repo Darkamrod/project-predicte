@@ -1,6 +1,23 @@
-import type { CompetitionSeed, Group, KnockoutRoundCode, Team } from "@/domain/competitions/types";
-import { calculatePredictedGroupStandings } from "./standings";
-import type { GroupStandingRow, MatchPrediction, PredictionSet } from "./types";
+import type {
+  BracketMappingStrategyCode,
+  CompetitionSeed,
+  Group,
+  KnockoutRoundCode,
+  RankingRuleCode,
+  Team
+} from "@/domain/competitions/types";
+import {
+  createTieGroupId,
+  findTieGroupOverride,
+  calculatePredictedGroupStandings,
+  type StandingTieGroup
+} from "./standings";
+import type {
+  GroupStandingRow,
+  MatchPrediction,
+  PredictionSet,
+  PredictionTiebreakOverride
+} from "./types";
 
 export interface PredictedGroupTable {
   group: Group;
@@ -11,6 +28,8 @@ export interface BestThirdPlaceQualifier {
   rank: number;
   groupCode: string;
   row: GroupStandingRow;
+  unresolvedTie: boolean;
+  tieGroupId?: string | undefined;
 }
 
 export interface PredictedBracketSlot {
@@ -36,7 +55,15 @@ export interface PredictedBracket {
   groupTables: PredictedGroupTable[];
   leagueTable: GroupStandingRow[];
   bestThirdPlaceQualifiers: BestThirdPlaceQualifier[];
+  bestThirdPlaceTieGroups: StandingTieGroup[];
+  mappingMetadata: BracketMappingMetadata;
   matches: PredictedBracketMatch[];
+}
+
+export interface BracketMappingMetadata {
+  strategy: BracketMappingStrategyCode | "sequential_generated";
+  status: "official" | "placeholder";
+  notes: string[];
 }
 
 const roundNames: Record<KnockoutRoundCode, string> = {
@@ -90,25 +117,68 @@ export function calculatePredictedLeagueTable(params: {
 
 export function selectBestThirdPlacedTeams(
   groupTables: PredictedGroupTable[],
-  count: number
+  count: number,
+  tiebreakOverrides: PredictionTiebreakOverride[] = [],
+  rankingRules: RankingRuleCode[] = []
 ): BestThirdPlaceQualifier[] {
-  return groupTables
-    .flatMap((table) => {
-      const third = table.rows.find((row) => row.position === 3);
-
-      return third
-        ? [
-            {
-              rank: 0,
-              groupCode: table.group.code,
-              row: third
-            }
-          ]
-        : [];
-    })
-    .sort(compareThirdPlaceQualifiers)
+  return sortBestThirdCandidates({
+    candidates: collectThirdPlaceCandidates(groupTables),
+    rankingRules,
+    tiebreakOverrides
+  })
     .slice(0, count)
     .map((item, index) => ({ ...item, rank: index + 1 }));
+}
+
+export function calculateBestThirdPlaceTieGroups(params: {
+  groupTables: PredictedGroupTable[];
+  rankingRules: RankingRuleCode[];
+  qualifyingCount?: number | undefined;
+  tiebreakOverrides?: PredictionTiebreakOverride[] | undefined;
+}): StandingTieGroup[] {
+  const candidates = sortBestThirdCandidates({
+    candidates: collectThirdPlaceCandidates(params.groupTables),
+    rankingRules: params.rankingRules,
+    tiebreakOverrides: params.tiebreakOverrides ?? []
+  });
+  const groups = new Map<string, BestThirdPlaceQualifier[]>();
+
+  for (const candidate of candidates) {
+    const key = bestThirdTieKey(candidate, params.rankingRules);
+    groups.set(key, [...(groups.get(key) ?? []), candidate]);
+  }
+
+  return [...groups.values()]
+    .filter((group) => group.length > 1)
+    .map((group) => {
+      const tiedTeamIds = group.map((candidate) => candidate.row.teamId);
+      const affectedPositions = group.map((candidate) => candidates.indexOf(candidate) + 1);
+
+      return {
+        scopeRef: bestThirdsScopeRef(),
+        tieGroupId: createTieGroupId({
+          scopeRef: bestThirdsScopeRef(),
+          tiedTeamIds,
+          affectedPositions
+        }),
+        tiedTeamIds,
+        affectedPositions
+      };
+    })
+    .filter(
+      (group) =>
+        params.qualifyingCount === undefined ||
+        Math.min(...group.affectedPositions) <= params.qualifyingCount
+    )
+    .filter(
+      (group) =>
+        !findTieGroupOverride({
+          scopeRef: group.scopeRef,
+          tieGroupId: group.tieGroupId,
+          tiedTeamIds: group.tiedTeamIds,
+          tiebreakOverrides: params.tiebreakOverrides ?? []
+        })
+    );
 }
 
 export function generatePredictedBracket(params: {
@@ -117,9 +187,21 @@ export function generatePredictedBracket(params: {
 }): PredictedBracket {
   const groupTables = calculatePredictedGroupTables(params);
   const leagueTable = calculatePredictedLeagueTable(params);
+  const bestThirdRankingRules =
+    params.competition.edition.format.bestThirdsRankingRuleCodes ??
+    params.competition.edition.format.rankingRuleCodes ??
+    [];
+  const bestThirdPlaceTieGroups = calculateBestThirdPlaceTieGroups({
+    groupTables,
+    rankingRules: bestThirdRankingRules,
+    qualifyingCount: params.competition.edition.format.bestThirdPlacedTeams,
+    tiebreakOverrides: params.predictionSet.tiebreakOverrides ?? []
+  });
   const bestThirdPlaceQualifiers = selectBestThirdPlacedTeams(
     groupTables,
-    params.competition.edition.format.bestThirdPlacedTeams
+    params.competition.edition.format.bestThirdPlacedTeams,
+    params.predictionSet.tiebreakOverrides ?? [],
+    bestThirdRankingRules
   );
   const matches: PredictedBracketMatch[] = [];
   let previousRoundMatches: PredictedBracketMatch[] = [];
@@ -171,12 +253,22 @@ export function generatePredictedBracket(params: {
     groupTables,
     leagueTable,
     bestThirdPlaceQualifiers,
+    bestThirdPlaceTieGroups,
+    mappingMetadata: getBracketMappingMetadata(params.competition),
     matches: orderConfiguredRounds(params.competition.edition.format.knockoutRounds, matches)
   };
 }
 
 export function groupScopeRef(groupCode: string): string {
   return `group:${groupCode}`;
+}
+
+export function bestThirdsScopeRef(): string {
+  return "best_thirds";
+}
+
+export function leaguePhaseScopeRef(): string {
+  return "league_phase";
 }
 
 export function getMatchPrediction(
@@ -255,8 +347,8 @@ function resolveBracketSlot(params: {
     return {
       id: params.slotId,
       label: `3a #${source.rank}`,
-      teamId: bestThird?.row.teamId,
-      sourceRef: "best-third"
+      teamId: bestThird?.unresolvedTie ? undefined : bestThird?.row.teamId,
+      sourceRef: bestThirdsScopeRef()
     };
   }
 
@@ -392,14 +484,166 @@ function orderConfiguredRounds(
   });
 }
 
-function compareThirdPlaceQualifiers(
-  left: Omit<BestThirdPlaceQualifier, "rank">,
-  right: Omit<BestThirdPlaceQualifier, "rank">
-): number {
-  return (
-    right.row.points - left.row.points ||
-    right.row.goalDifference - left.row.goalDifference ||
-    right.row.goalsFor - left.row.goalsFor ||
-    left.groupCode.localeCompare(right.groupCode)
+function collectThirdPlaceCandidates(
+  groupTables: PredictedGroupTable[]
+): BestThirdPlaceQualifier[] {
+  return groupTables.flatMap((table) => {
+    const third = table.rows.find((row) => row.position === 3);
+
+    return third
+      ? [
+          {
+            rank: 0,
+            groupCode: table.group.code,
+            row: third,
+            unresolvedTie: false
+          }
+        ]
+      : [];
+  });
+}
+
+function sortBestThirdCandidates(params: {
+  candidates: BestThirdPlaceQualifier[];
+  rankingRules: RankingRuleCode[];
+  tiebreakOverrides: PredictionTiebreakOverride[];
+}): BestThirdPlaceQualifier[] {
+  const baseSorted = [...params.candidates].sort(
+    (left, right) =>
+      compareBestThirdByRules(left, right, params.rankingRules) ||
+      left.groupCode.localeCompare(right.groupCode)
   );
+  const tieGroups = new Map<string, BestThirdPlaceQualifier[]>();
+
+  for (const candidate of baseSorted) {
+    const key = bestThirdTieKey(candidate, params.rankingRules);
+    tieGroups.set(key, [...(tieGroups.get(key) ?? []), candidate]);
+  }
+
+  return baseSorted
+    .map((candidate) => {
+      const tiedCandidates = tieGroups.get(bestThirdTieKey(candidate, params.rankingRules)) ?? [];
+      const tiedTeamIds = tiedCandidates.map((item) => item.row.teamId);
+      const affectedPositions = tiedCandidates.map((item) => baseSorted.indexOf(item) + 1);
+      const tieGroupId = createTieGroupId({
+        scopeRef: bestThirdsScopeRef(),
+        tiedTeamIds,
+        affectedPositions
+      });
+      const override =
+        tiedCandidates.length > 1
+          ? findTieGroupOverride({
+              scopeRef: bestThirdsScopeRef(),
+              tieGroupId,
+              tiedTeamIds,
+              tiebreakOverrides: params.tiebreakOverrides
+            })
+          : undefined;
+      const overrideIndex = override?.orderedTeamIds.indexOf(candidate.row.teamId) ?? -1;
+
+      return {
+        candidate: {
+          ...candidate,
+          unresolvedTie: tiedCandidates.length > 1 && !override,
+          ...(tiedCandidates.length > 1 ? { tieGroupId } : {})
+        },
+        overrideIndex: overrideIndex >= 0 ? overrideIndex : Number.POSITIVE_INFINITY
+      };
+    })
+    .sort((left, right) => {
+      const compared = compareBestThirdByRules(
+        left.candidate,
+        right.candidate,
+        params.rankingRules
+      );
+
+      if (compared !== 0) {
+        return compared;
+      }
+
+      return (
+        left.overrideIndex - right.overrideIndex ||
+        left.candidate.groupCode.localeCompare(right.candidate.groupCode)
+      );
+    })
+    .map((item) => item.candidate);
+}
+
+function compareBestThirdByRules(
+  left: BestThirdPlaceQualifier,
+  right: BestThirdPlaceQualifier,
+  rankingRules: RankingRuleCode[]
+): number {
+  for (const rule of rankingRules) {
+    const compared = compareBestThirdByRule(left, right, rule);
+
+    if (compared !== 0) {
+      return compared;
+    }
+  }
+
+  return 0;
+}
+
+function compareBestThirdByRule(
+  left: BestThirdPlaceQualifier,
+  right: BestThirdPlaceQualifier,
+  rule: RankingRuleCode
+): number {
+  if (rule === "points") {
+    return right.row.points - left.row.points;
+  }
+
+  if (rule === "goal_difference") {
+    return right.row.goalDifference - left.row.goalDifference;
+  }
+
+  if (rule === "goals_for") {
+    return right.row.goalsFor - left.row.goalsFor;
+  }
+
+  if (rule === "wins") {
+    return right.row.won - left.row.won;
+  }
+
+  return 0;
+}
+
+function bestThirdTieKey(
+  candidate: BestThirdPlaceQualifier,
+  rankingRules: RankingRuleCode[]
+): string {
+  return rankingRules
+    .map((rule) => {
+      if (rule === "points") {
+        return candidate.row.points;
+      }
+
+      if (rule === "goal_difference") {
+        return candidate.row.goalDifference;
+      }
+
+      if (rule === "goals_for") {
+        return candidate.row.goalsFor;
+      }
+
+      if (rule === "wins") {
+        return candidate.row.won;
+      }
+
+      return "unsupported";
+    })
+    .join(":");
+}
+
+function getBracketMappingMetadata(competition: CompetitionSeed): BracketMappingMetadata {
+  const strategy = competition.edition.format.bracketMappingStrategy ?? "sequential_generated";
+
+  return {
+    strategy,
+    status: "placeholder",
+    notes: [
+      "Milestone 8.1 keeps bracket mappings template-driven but marks World Cup best-third, EURO best-third, and Champions playoff draw mappings as placeholders until official matrix/draw rules are implemented."
+    ]
+  };
 }

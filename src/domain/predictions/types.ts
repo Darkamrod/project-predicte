@@ -31,7 +31,11 @@ export interface MatchPrediction {
 export interface PredictionTiebreakOverride {
   id: string;
   predictionSetId: string;
+  scope?: "GROUP" | "BEST_THIRDS" | "LEAGUE_PHASE" | undefined;
   scopeRef: string;
+  tieGroupId?: string | undefined;
+  tiedTeamIds?: string[] | undefined;
+  affectedPositions?: number[] | undefined;
   orderedTeamIds: string[];
   reason: string;
   syncStatus: PredictionSyncStatus;
@@ -118,7 +122,7 @@ export interface PredictionValidationIssue {
 
 export type PredictionNextIncomplete =
   | { kind: "GROUP_MATCH"; matchId: string }
-  | { kind: "TIEBREAK"; scopeRef: string }
+  | { kind: "TIEBREAK"; scopeRef: string; tieGroupId?: string | undefined }
   | { kind: "KNOCKOUT_MATCH"; matchId: string }
   | { kind: "ANTEPOST"; definitionId: string }
   | { kind: "SYNC"; referenceId: string };

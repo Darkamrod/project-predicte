@@ -84,6 +84,49 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
     REVIEW: 0
   });
   const [confirmed, setConfirmed] = useState(false);
+  const [pendingJumpToNextMissing, setPendingJumpToNextMissing] = useState(false);
+
+  const activeCompetition = league
+    ? (competitions.find((item) => item.edition.id === league.competitionEditionId) ?? competition)
+    : competition;
+  const predictionSet = league?.predictionSets.find((set) => set.userId === currentUser.id);
+  const workflow = predictionSet
+    ? buildPredictionEntryWorkflow({
+        competition: activeCompetition,
+        predictionSet,
+        mode
+      })
+    : undefined;
+
+  const setPhaseCursor = (nextPhase: EditablePhase, nextCursor: number): void => {
+    setPhase(nextPhase);
+    setCursorByPhase((previous) => ({
+      ...previous,
+      [nextPhase]: Math.max(0, nextCursor)
+    }));
+  };
+  const jumpToWorkflowTarget = (
+    nextWorkflow: ReturnType<typeof buildPredictionEntryWorkflow> | undefined = workflow
+  ): void => {
+    if (!nextWorkflow) {
+      return;
+    }
+
+    const nextPhase = editablePhaseFromWorkflow(nextWorkflow.phase);
+    const nextTargets = getTargetsForPhase(nextWorkflow, nextPhase);
+    const nextIndex = nextTargets.findIndex((item) => item.id === nextWorkflow.target.id);
+
+    setPhaseCursor(nextPhase, nextIndex >= 0 ? nextIndex : 0);
+  };
+
+  useEffect(() => {
+    if (!pendingJumpToNextMissing || !workflow) {
+      return;
+    }
+
+    setPendingJumpToNextMissing(false);
+    jumpToWorkflowTarget(workflow);
+  }, [pendingJumpToNextMissing, workflow]);
 
   if (!league) {
     return (
@@ -93,11 +136,7 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
     );
   }
 
-  const activeCompetition =
-    competitions.find((item) => item.edition.id === league.competitionEditionId) ?? competition;
-  const predictionSet = league.predictionSets.find((set) => set.userId === currentUser.id);
-
-  if (!predictionSet) {
+  if (!predictionSet || !workflow) {
     return (
       <AppScreen>
         <ErrorState message="Prediction set mock non trovato." />
@@ -105,11 +144,6 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
     );
   }
 
-  const workflow = buildPredictionEntryWorkflow({
-    competition: activeCompetition,
-    predictionSet,
-    mode
-  });
   const teamsById = new Map(activeCompetition.teams.map((team) => [team.id, team]));
   const playersById = new Map(activeCompetition.players.map((player) => [player.id, player]));
   const phaseTargets = getTargetsForPhase(workflow, phase);
@@ -121,49 +155,6 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
   });
   const manualAntepostPredictions = predictionSet.antepostPredictions ?? [];
   const blockingIssues = workflow.issues.filter((issue) => issue.severity === "error");
-
-  const setPhaseCursor = (nextPhase: EditablePhase, nextCursor: number): void => {
-    setPhase(nextPhase);
-    setCursorByPhase((previous) => ({
-      ...previous,
-      [nextPhase]: Math.max(0, nextCursor)
-    }));
-  };
-  const jumpToWorkflowTarget = (
-    nextWorkflow: ReturnType<typeof buildPredictionEntryWorkflow> = workflow
-  ): void => {
-    const nextPhase = editablePhaseFromWorkflow(nextWorkflow.phase);
-    const nextTargets = getTargetsForPhase(nextWorkflow, nextPhase);
-    const nextIndex = nextTargets.findIndex((item) => item.id === nextWorkflow.target.id);
-
-    setPhaseCursor(nextPhase, nextIndex >= 0 ? nextIndex : 0);
-  };
-
-  const goNext = (): void => {
-    const nextCursor = cursorByPhase[phase] + 1;
-
-    if (nextCursor < phaseTargets.length) {
-      setPhaseCursor(phase, nextCursor);
-      return;
-    }
-
-    if (phase === "INITIAL") {
-      setPhaseCursor(workflow.tiebreakTargets.length > 0 ? "TIEBREAK" : "KNOCKOUT", 0);
-      return;
-    }
-
-    if (phase === "TIEBREAK") {
-      setPhaseCursor("KNOCKOUT", 0);
-      return;
-    }
-
-    if (phase === "KNOCKOUT") {
-      setPhaseCursor("ANTEPOST", 0);
-      return;
-    }
-
-    setPhaseCursor("REVIEW", 0);
-  };
 
   if (!mode) {
     return (
@@ -251,7 +242,7 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
               awayGoals: result.input.awayGoals
             });
             setConfirmed(false);
-            goNext();
+            setPendingJumpToNextMissing(true);
 
             return [];
           }}
@@ -279,12 +270,16 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
 
             setTiebreakOverride({
               leagueId: league.id,
+              scope: target.scope,
               scopeRef: target.scopeRef,
+              tieGroupId: target.tieGroupId,
+              tiedTeamIds: target.tiedTeamIds,
+              affectedPositions: target.affectedPositions,
               orderedTeamIds,
               reason: "Milestone 8 manual override"
             });
             setConfirmed(false);
-            goNext();
+            setPendingJumpToNextMissing(true);
           }}
         />
       ) : null}
@@ -330,7 +325,7 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
               advancementMethod: result.input.advancementMethod
             });
             setConfirmed(false);
-            goNext();
+            setPendingJumpToNextMissing(true);
 
             return [];
           }}

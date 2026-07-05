@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { createWorldCup2030MockSeed } from "@/domain/competitions/worldCupMock";
 import {
+  bestThirdsScopeRef,
   generatePredictedBracket,
   selectBestThirdPlacedTeams,
   type PredictedBracket
 } from "@/domain/predictions/bracket";
 import { calculateDependencyInvalidation } from "@/domain/predictions/invalidation";
-import { calculatePredictedGroupStandings } from "@/domain/predictions/standings";
+import {
+  buildStandingTieGroups,
+  calculatePredictedGroupStandings
+} from "@/domain/predictions/standings";
 import type { MatchPrediction } from "@/domain/predictions/types";
 import {
   validateAntepostPrediction,
@@ -58,6 +62,76 @@ describe("Milestone 2 prediction workflow", () => {
     expect(resolved.some((row) => row.unresolvedTie)).toBe(false);
   });
 
+  it("keeps multiple tiebreak override targets separate within the same group scope", () => {
+    const seed = createWorldCup2030MockSeed();
+    const group = seed.groups[0];
+
+    if (!group) {
+      throw new Error("Expected a seeded group.");
+    }
+
+    const matches = seed.matches.filter((match) => match.groupId === group.id);
+    const teamIds = [...new Set(matches.flatMap((match) => [match.homeTeamId, match.awayTeamId]))];
+    const teams = seed.teams.filter((team) => teamIds.includes(team.id));
+    const topPair = new Set(teamIds.slice(0, 2));
+    const predictions = matches.map<MatchPrediction>((match) => {
+      const homeIsTop = topPair.has(match.homeTeamId);
+      const awayIsTop = topPair.has(match.awayTeamId);
+      const crossGroupMatch = homeIsTop !== awayIsTop;
+
+      return {
+        id: `prediction-${match.id}`,
+        predictionSetId: "prediction-set",
+        matchId: match.id,
+        stageCode: "GROUP_STAGE",
+        homeGoals: crossGroupMatch && homeIsTop ? 1 : 0,
+        awayGoals: crossGroupMatch && awayIsTop ? 1 : 0,
+        syncStatus: "SYNCED",
+        updatedAtUtc: "2030-06-01T10:00:00.000Z"
+      };
+    });
+    const scopeRef = "group:A";
+    const unresolved = calculatePredictedGroupStandings({
+      teams,
+      matches,
+      predictions,
+      scopeRef
+    });
+    const tieGroups = buildStandingTieGroups(unresolved, scopeRef);
+
+    expect(tieGroups).toHaveLength(2);
+    expect(new Set(tieGroups.map((group) => group.scopeRef))).toEqual(new Set([scopeRef]));
+    expect(new Set(tieGroups.map((group) => group.tieGroupId)).size).toBe(2);
+
+    const resolved = calculatePredictedGroupStandings({
+      teams,
+      matches,
+      predictions,
+      scopeRef,
+      tiebreakOverrides: tieGroups.map((group) => ({
+        id: `override-${group.tieGroupId}`,
+        predictionSetId: "prediction-set",
+        scope: "GROUP",
+        scopeRef,
+        tieGroupId: group.tieGroupId,
+        tiedTeamIds: group.tiedTeamIds,
+        affectedPositions: group.affectedPositions,
+        orderedTeamIds: [...group.tiedTeamIds].reverse(),
+        reason: "Resolve specific tie group",
+        syncStatus: "SYNCED",
+        updatedAtUtc: "2030-06-01T10:00:00.000Z"
+      }))
+    });
+
+    expect(resolved.some((row) => row.unresolvedTie)).toBe(false);
+    expect(resolved.slice(0, 2).map((row) => row.teamId)).toEqual(
+      [...tieGroups[0]!.tiedTeamIds].reverse()
+    );
+    expect(resolved.slice(2, 4).map((row) => row.teamId)).toEqual(
+      [...tieGroups[1]!.tiedTeamIds].reverse()
+    );
+  });
+
   it("selects the configured number of best third-placed teams", () => {
     const seed = createWorldCup2030MockSeed();
     const predictionSet = createPredictionSet("league-test", "user-test", seed);
@@ -69,6 +143,65 @@ describe("Milestone 2 prediction workflow", () => {
 
     expect(bestThirds).toHaveLength(8);
     expect(bestThirds.map((item) => item.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it("requires a dedicated best-thirds tiebreak override before filling impacted slots", () => {
+    const seed = createWorldCup2030MockSeed();
+    const predictionSet = createPredictionSet("league-best-thirds", "user-test", seed);
+    const drawnPredictionSet = {
+      ...predictionSet,
+      matchPredictions: seed.matches.map((match) => ({
+        id: `${predictionSet.id}:${match.id}`,
+        predictionSetId: predictionSet.id,
+        matchId: match.id,
+        stageCode: "GROUP_STAGE" as const,
+        homeGoals: 0,
+        awayGoals: 0,
+        syncStatus: "SYNCED" as const,
+        updatedAtUtc: "2030-06-01T10:00:00.000Z"
+      }))
+    };
+    const unresolvedBracket = generatePredictedBracket({
+      competition: seed,
+      predictionSet: drawnPredictionSet
+    });
+    const bestThirdTieGroup = unresolvedBracket.bestThirdPlaceTieGroups[0];
+
+    expect(bestThirdTieGroup).toBeDefined();
+    expect(bestThirdTieGroup?.scopeRef).toBe(bestThirdsScopeRef());
+    expect(unresolvedBracket.bestThirdPlaceQualifiers.some((item) => item.unresolvedTie)).toBe(
+      true
+    );
+    expect(
+      unresolvedBracket.matches.some(
+        (match) => match.roundCode === "ROUND_OF_32" && (!match.homeTeamId || !match.awayTeamId)
+      )
+    ).toBe(true);
+
+    const resolvedBracket = generatePredictedBracket({
+      competition: seed,
+      predictionSet: {
+        ...drawnPredictionSet,
+        tiebreakOverrides: [
+          {
+            id: "best-thirds-override",
+            predictionSetId: predictionSet.id,
+            scope: "BEST_THIRDS",
+            scopeRef: bestThirdsScopeRef(),
+            tieGroupId: bestThirdTieGroup!.tieGroupId,
+            tiedTeamIds: bestThirdTieGroup!.tiedTeamIds,
+            affectedPositions: bestThirdTieGroup!.affectedPositions,
+            orderedTeamIds: bestThirdTieGroup!.tiedTeamIds,
+            reason: "Resolve best thirds",
+            syncStatus: "SYNCED",
+            updatedAtUtc: "2030-06-01T10:00:00.000Z"
+          }
+        ]
+      }
+    });
+
+    expect(resolvedBracket.bestThirdPlaceTieGroups).toHaveLength(0);
+    expect(resolvedBracket.bestThirdPlaceQualifiers.some((item) => item.unresolvedTie)).toBe(false);
   });
 
   it("generates every configured knockout round from predicted group outcomes", () => {
@@ -206,6 +339,12 @@ function bracketWithFinal(homeTeamId: string, awayTeamId: string): PredictedBrac
     groupTables: [],
     leagueTable: [],
     bestThirdPlaceQualifiers: [],
+    bestThirdPlaceTieGroups: [],
+    mappingMetadata: {
+      strategy: "sequential_generated",
+      status: "placeholder",
+      notes: []
+    },
     matches: [
       {
         id: "predicted-final-1",

@@ -1,9 +1,11 @@
 import type { AntepostDefinition, CompetitionSeed } from "@/domain/competitions/types";
 import {
+  bestThirdsScopeRef,
   generatePredictedBracket,
   getMatchPrediction,
   getPredictedQualifiedTeamId,
   groupScopeRef,
+  leaguePhaseScopeRef,
   type PredictedBracket,
   type PredictedBracketMatch
 } from "./bracket";
@@ -12,6 +14,7 @@ import {
   isPredictionSynced,
   isRequiredAntepostComplete
 } from "./progress";
+import { buildStandingTieGroups, type StandingTieGroup } from "./standings";
 import type {
   AntepostPrediction,
   MatchPrediction,
@@ -58,19 +61,48 @@ export function validatePredictionSet(params: {
   }
 
   for (const table of bracket.groupTables) {
-    const unresolvedRows = table.rows.filter((row) => row.unresolvedTie);
+    const unresolvedGroups = buildStandingTieGroups(
+      table.rows,
+      groupScopeRef(table.group.code)
+    ).filter((group) =>
+      group.tiedTeamIds.some((teamId) =>
+        table.rows.some((row) => row.teamId === teamId && row.unresolvedTie)
+      )
+    );
 
-    if (unresolvedRows.length > 0) {
-      const scopeRef = groupScopeRef(table.group.code);
-      issues.push({
-        id: `tiebreak:${scopeRef}`,
-        kind: "UNRESOLVED_TIEBREAK",
-        severity: "error",
-        message: `Pari da risolvere nel Gruppo ${table.group.code}`,
-        referenceId: scopeRef
-      });
-      nextIncomplete ??= { kind: "TIEBREAK", scopeRef };
+    for (const group of unresolvedGroups) {
+      const issue = createTiebreakIssue(group, `Pari da risolvere nel Gruppo ${table.group.code}`);
+
+      issues.push(issue);
+      nextIncomplete ??= {
+        kind: "TIEBREAK",
+        scopeRef: group.scopeRef,
+        tieGroupId: group.tieGroupId
+      };
     }
+  }
+
+  const unresolvedLeagueGroups = buildStandingTieGroups(
+    bracket.leagueTable,
+    leaguePhaseScopeRef()
+  ).filter((group) =>
+    group.tiedTeamIds.some((teamId) =>
+      bracket.leagueTable.some((row) => row.teamId === teamId && row.unresolvedTie)
+    )
+  );
+
+  for (const group of unresolvedLeagueGroups) {
+    issues.push(createTiebreakIssue(group, "Pari da risolvere nella league phase"));
+    nextIncomplete ??= { kind: "TIEBREAK", scopeRef: group.scopeRef, tieGroupId: group.tieGroupId };
+  }
+
+  for (const group of bracket.bestThirdPlaceTieGroups) {
+    issues.push(createTiebreakIssue(group, "Pari da risolvere nella classifica migliori terze"));
+    nextIncomplete ??= {
+      kind: "TIEBREAK",
+      scopeRef: bestThirdsScopeRef(),
+      tieGroupId: group.tieGroupId
+    };
   }
 
   for (const match of bracket.matches) {
@@ -145,6 +177,16 @@ export function validatePredictionSet(params: {
       validationIssues: issues.map((issue) => issue.message),
       ...(nextIncomplete ? { nextIncomplete } : {})
     }
+  };
+}
+
+function createTiebreakIssue(group: StandingTieGroup, message: string): PredictionValidationIssue {
+  return {
+    id: `tiebreak:${group.tieGroupId}`,
+    kind: "UNRESOLVED_TIEBREAK",
+    severity: "error",
+    message,
+    referenceId: group.tieGroupId
   };
 }
 

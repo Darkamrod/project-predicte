@@ -113,3 +113,14 @@ Milestone 7.1 treats competition templates as read-only catalog data for normal 
 - The snapshot contains configuration and metadata only. It does not expose service-role secrets, provider credentials, payment data, or real sports-provider integrations.
 
 Official scoring and provider import RPCs remain service-role-only. Template versioning does not reintroduce any client path for writing scoring artifacts or provider payloads.
+
+## Milestone 8.1 Tie-Break Persistence Security
+
+Milestone 8.1 extends `upsert_prediction_tiebreak_override` with tie-group metadata but keeps the same write boundary:
+
+- authenticated users can write only through the RPC for their own current prediction set;
+- the RPC still rejects writes after deadline or lock through `prediction_set_is_writable_by_current_user`;
+- direct delete remains unavailable to normal clients under the existing explicit RLS policy set;
+- tie-group identity prevents one unresolved tie in a scope from overwriting another, without broadening access to other users' predictions.
+
+No scoring, provider import, payment, advertising, betting, odds, wagering, gambling, or real sports API write path is added.

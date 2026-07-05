@@ -23,7 +23,8 @@ import type {
   AntepostPrediction,
   MatchPrediction,
   PredictionSet,
-  PredictionSyncStatus
+  PredictionSyncStatus,
+  PredictionTiebreakOverride
 } from "@/domain/predictions/types";
 import type {
   ScoringEvent,
@@ -485,11 +486,17 @@ function mapMatchPrediction(row: Row<"match_predictions">): MatchPrediction {
   };
 }
 
-function mapTiebreakOverride(row: Row<"prediction_tiebreak_overrides">) {
+function mapTiebreakOverride(
+  row: Row<"prediction_tiebreak_overrides">
+): PredictionTiebreakOverride {
   return {
     id: row.id,
     predictionSetId: row.prediction_set_id,
+    scope: row.scope as PredictionTiebreakOverride["scope"],
     scopeRef: row.scope_ref,
+    tieGroupId: row.tie_group_id,
+    tiedTeamIds: row.tied_team_ids,
+    affectedPositions: row.affected_positions,
     orderedTeamIds: row.ordered_team_ids,
     reason: row.reason,
     syncStatus: row.sync_status,

@@ -212,6 +212,10 @@ describe("Milestone 7.1 versioned competition templates", () => {
     expect(seed.edition.format.knockoutRounds).toContain("THIRD_PLACE");
     expect(bracket.matches.filter((match) => match.roundCode === "ROUND_OF_32")).toHaveLength(16);
     expect(bracket.matches.some((match) => match.roundCode === "THIRD_PLACE")).toBe(true);
+    expect(bracket.mappingMetadata).toMatchObject({
+      strategy: "fifa_2026_bracket_slots",
+      status: "placeholder"
+    });
     expect(seed.versionBundle?.scoringPreset.presetCode).toBe("WORLD_CUP_DEFAULT");
   });
 
@@ -230,6 +234,10 @@ describe("Milestone 7.1 versioned competition templates", () => {
     expect(bracket.matches.filter((match) => match.roundCode === "ROUND_OF_16")).toHaveLength(8);
     expect(bracket.matches.some((match) => match.roundCode === "ROUND_OF_32")).toBe(false);
     expect(bracket.matches.some((match) => match.roundCode === "THIRD_PLACE")).toBe(false);
+    expect(bracket.mappingMetadata).toMatchObject({
+      strategy: "uefa_euro_2028_bracket_slots",
+      status: "placeholder"
+    });
     expect(rankingRules?.slice(0, 3)).toEqual([
       "points",
       "head_to_head_points",
@@ -272,6 +280,10 @@ describe("Milestone 7.1 versioned competition templates", () => {
     expect(bracket.matches.filter((match) => match.roundCode === "PLAYOFF")).toHaveLength(8);
     expect(bracket.matches.some((match) => match.roundCode === "ROUND_OF_32")).toBe(false);
     expect(bracket.matches.some((match) => match.roundCode === "THIRD_PLACE")).toBe(false);
+    expect(bracket.mappingMetadata).toMatchObject({
+      strategy: "ucl_2026_27_seeded_playoff",
+      status: "placeholder"
+    });
     expect(seed.antepostDefinitions.some((definition) => definition.code === "FINALISTS")).toBe(
       true
     );

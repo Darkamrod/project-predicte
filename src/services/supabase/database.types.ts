@@ -1390,33 +1390,45 @@ export type Database = {
       };
       prediction_tiebreak_overrides: {
         Row: {
+          affected_positions: number[];
           created_at: string;
           id: string;
           ordered_team_ids: string[];
           prediction_set_id: string;
           reason: string;
+          scope: string;
           scope_ref: string;
           sync_status: Database["public"]["Enums"]["prediction_sync_status"];
+          tie_group_id: string;
+          tied_team_ids: string[];
           updated_at: string;
         };
         Insert: {
+          affected_positions?: number[];
           created_at?: string;
           id?: string;
           ordered_team_ids: string[];
           prediction_set_id: string;
           reason: string;
+          scope?: string;
           scope_ref: string;
           sync_status?: Database["public"]["Enums"]["prediction_sync_status"];
+          tie_group_id: string;
+          tied_team_ids?: string[];
           updated_at?: string;
         };
         Update: {
+          affected_positions?: number[];
           created_at?: string;
           id?: string;
           ordered_team_ids?: string[];
           prediction_set_id?: string;
           reason?: string;
+          scope?: string;
           scope_ref?: string;
           sync_status?: Database["public"]["Enums"]["prediction_sync_status"];
+          tie_group_id?: string;
+          tied_team_ids?: string[];
           updated_at?: string;
         };
         Relationships: [
@@ -2423,11 +2435,15 @@ export type Database = {
       };
       upsert_prediction_tiebreak_override: {
         Args: {
+          p_affected_positions?: number[];
           p_league_id: string;
           p_ordered_team_ids: string[];
           p_reason?: string;
+          p_scope?: string;
           p_scope_ref: string;
           p_sync_status?: Database["public"]["Enums"]["prediction_sync_status"];
+          p_tie_group_id?: string;
+          p_tied_team_ids?: string[];
         };
         Returns: string;
       };

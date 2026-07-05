@@ -10,10 +10,11 @@ import {
   generatePredictedBracket,
   getMatchPrediction,
   getPredictedQualifiedTeamId,
-  groupScopeRef,
+  leaguePhaseScopeRef,
   type PredictedBracket,
   type PredictedBracketMatch
 } from "./bracket";
+import { buildStandingTieGroups, type StandingTieGroup } from "./standings";
 import type {
   AdvancementMethod,
   AntepostPrediction,
@@ -64,7 +65,11 @@ export interface PredictionEntryTarget {
   bracketMatch?: PredictedBracketMatch | undefined;
   prediction?: MatchPrediction | undefined;
   tieMode?: KnockoutTieMode | undefined;
+  scope?: "GROUP" | "BEST_THIRDS" | "LEAGUE_PHASE" | undefined;
   scopeRef?: string | undefined;
+  tieGroupId?: string | undefined;
+  tiedTeamIds?: string[] | undefined;
+  affectedPositions?: number[] | undefined;
   orderedTeamIds?: string[] | undefined;
 }
 
@@ -244,34 +249,65 @@ export function buildTiebreakTargets(params: {
   competition: CompetitionSeed;
   bracket: PredictedBracket;
 }): PredictionEntryTarget[] {
-  const targets = params.bracket.groupTables.flatMap((table) => {
-    const scopeRef = groupScopeRef(table.group.code);
-    const tiedRowsByKey = new Map<string, typeof table.rows>();
-
-    for (const row of table.rows.filter((item) => item.unresolvedTie)) {
-      const key = [row.points, row.goalDifference, row.goalsFor].join(":");
-
-      tiedRowsByKey.set(key, [...(tiedRowsByKey.get(key) ?? []), row]);
-    }
-
-    return [...tiedRowsByKey.entries()]
-      .filter(([, rows]) => rows.length > 1)
-      .map(([key, rows], index): PredictionEntryTarget => ({
-        kind: "TIEBREAK",
-        id: `tiebreak:${scopeRef}:${key}:${index + 1}`,
-        label: `${table.group.name}: pari merito`,
-        currentIndex: 0,
-        totalCount: 0,
-        scopeRef,
-        orderedTeamIds: rows.map((row) => row.teamId)
-      }));
-  });
+  const groupTargets = params.bracket.groupTables.flatMap((table) =>
+    buildStandingTieGroups(table.rows, `group:${table.group.code}`)
+      .filter((group) => group.tiedTeamIds.some((teamId) => isTeamUnresolved(table.rows, teamId)))
+      .map((group) =>
+        createTiebreakTarget({
+          scope: "GROUP",
+          group,
+          label: `${table.group.name}: pari merito`
+        })
+      )
+  );
+  const leagueTargets =
+    params.bracket.leagueTable.length > 0
+      ? buildStandingTieGroups(params.bracket.leagueTable, leaguePhaseScopeRef())
+          .filter((group) =>
+            group.tiedTeamIds.some((teamId) => isTeamUnresolved(params.bracket.leagueTable, teamId))
+          )
+          .map((group) =>
+            createTiebreakTarget({
+              scope: "LEAGUE_PHASE",
+              group,
+              label: "League phase: pari merito"
+            })
+          )
+      : [];
+  const bestThirdTargets = params.bracket.bestThirdPlaceTieGroups.map((group) =>
+    createTiebreakTarget({
+      scope: "BEST_THIRDS",
+      group,
+      label: "Migliori terze: pari merito"
+    })
+  );
+  const targets = [...groupTargets, ...bestThirdTargets, ...leagueTargets];
 
   return targets.map((target, index) => ({
     ...target,
     currentIndex: index + 1,
     totalCount: targets.length
   }));
+}
+
+function createTiebreakTarget(params: {
+  scope: "GROUP" | "BEST_THIRDS" | "LEAGUE_PHASE";
+  group: StandingTieGroup;
+  label: string;
+}): PredictionEntryTarget {
+  return {
+    kind: "TIEBREAK",
+    id: `tiebreak:${params.group.tieGroupId}`,
+    label: params.label,
+    currentIndex: 0,
+    totalCount: 0,
+    scope: params.scope,
+    scopeRef: params.group.scopeRef,
+    tieGroupId: params.group.tieGroupId,
+    tiedTeamIds: params.group.tiedTeamIds,
+    affectedPositions: params.group.affectedPositions,
+    orderedTeamIds: params.group.tiedTeamIds
+  };
 }
 
 export function buildKnockoutTargets(params: {
@@ -625,6 +661,13 @@ function createModeTarget(): PredictionEntryTarget {
     currentIndex: 0,
     totalCount: 0
   };
+}
+
+function isTeamUnresolved(
+  rows: readonly { teamId: string; unresolvedTie: boolean }[],
+  teamId: string
+): boolean {
+  return rows.some((row) => row.teamId === teamId && row.unresolvedTie);
 }
 
 function toScoreChips(

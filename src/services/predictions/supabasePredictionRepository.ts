@@ -62,7 +62,11 @@ export class SupabasePredictionRepository {
       tiebreakOverrideIds.push(
         await this.saveTiebreakOverride({
           leagueId: input.leagueId,
+          scope: override.scope,
           scopeRef: override.scopeRef,
+          tieGroupId: override.tieGroupId,
+          tiedTeamIds: override.tiedTeamIds,
+          affectedPositions: override.affectedPositions,
           orderedTeamIds: override.orderedTeamIds,
           reason: override.reason,
           syncStatus: override.syncStatus
@@ -127,7 +131,11 @@ export class SupabasePredictionRepository {
 
   async saveTiebreakOverride(input: {
     leagueId: string;
+    scope?: "GROUP" | "BEST_THIRDS" | "LEAGUE_PHASE" | undefined;
     scopeRef: string;
+    tieGroupId?: string | undefined;
+    tiedTeamIds?: string[] | undefined;
+    affectedPositions?: number[] | undefined;
     orderedTeamIds: string[];
     reason: string;
     syncStatus?: PredictionSyncStatus;
@@ -136,9 +144,13 @@ export class SupabasePredictionRepository {
     const { data, error } = await client.rpc("upsert_prediction_tiebreak_override", {
       p_league_id: input.leagueId,
       p_scope_ref: input.scopeRef,
+      p_tie_group_id: input.tieGroupId ?? input.scopeRef,
       p_ordered_team_ids: input.orderedTeamIds,
       p_reason: input.reason,
-      p_sync_status: input.syncStatus ?? "SYNCED"
+      p_sync_status: input.syncStatus ?? "SYNCED",
+      p_scope: input.scope ?? "GROUP",
+      p_tied_team_ids: input.tiedTeamIds ?? input.orderedTeamIds,
+      p_affected_positions: input.affectedPositions ?? []
     });
 
     if (error) {

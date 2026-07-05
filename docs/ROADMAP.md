@@ -125,8 +125,17 @@
 - League-phase mock competitions receive initial predictions through the mock factory, and two-legged knockout stages are shown as documented aggregate placeholders.
 - Tests cover Quick/Expert normalization, initial/knockout validation, extra time, penalties, two-legged placeholders, derived/manual antepost, tie-break routing, World Cup/EURO/Champions flows, and UI hardcode guards.
 
+## Completed in Milestone 8.1
+
+- Tie-break overrides now include stable tie-group identity so multiple unresolved ties in the same group, best-thirds ranking, or league-phase scope do not overwrite one another.
+- Supabase persistence now stores tie-break `scope`, `tie_group_id`, `tied_team_ids`, and `affected_positions`, with a unique key on `(prediction_set_id, scope_ref, tie_group_id)`.
+- Best-thirds ties that affect qualification or bracket placement require a dedicated override before impacted bracket slots are filled.
+- World Cup, EURO, and Champions League bracket mapping strategies expose placeholder metadata for official matrix/draw rules that are not implemented yet.
+- Prediction-entry navigation now recomputes the workflow after successful saves before jumping to the next missing item.
+- Tests cover multiple tie groups in one scope, best-thirds tie overrides, Supabase RPC contract changes, migration contract changes, server-side context loading, and placeholder mapping metadata.
+
 ## Next Authorized Milestone
 
-Milestone 9 should be defined by the next authorized prompt. Likely candidates are scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.
+Milestone 9 should be defined by the next authorized prompt. Likely candidates are official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.
 
 Do not start Milestone 9 without explicit authorization.

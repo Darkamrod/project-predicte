@@ -87,3 +87,13 @@ The guided order is:
 The `Mancante` action jumps to the next domain-reported missing or invalid item. Dependency warnings are still explicit and never delete downstream predictions silently.
 
 Two-legged knockout rounds, currently used by the Champions League mock template, are shown as an aggregate placeholder. The UI records one aggregate score, qualified team, and advancement method; leg-by-leg entry and aggregate-away-goal-style edge cases are deferred until a dedicated future milestone.
+
+## Milestone 8.1 Prediction Entry Corrections
+
+Tie-break steps now represent a specific tied-team group, not only a broad scope such as `group:A`. If a group table has two independent ties, the workflow shows and saves two distinct ordering tasks.
+
+Best-thirds ties that affect qualification or bracket placement are also routed through the tie-break step. Until official World Cup/EURO best-third mapping matrices are implemented, the generated bracket marks these mappings as placeholder metadata and leaves impacted slots undefined when the ranking tie is unresolved.
+
+After a successful match, tie-break, or knockout save, the screen waits for the updated workflow state and then jumps to the next missing target. This keeps `Mancante` and automatic progression aligned with newly resolved ties or newly generated bracket matches.
+
+Champions League two-leg and playoff mapping remains an aggregate placeholder in the UI. The template exposes league-phase and playoff structure, but leg-by-leg entry and official seeded draw behavior remain future authorized work.

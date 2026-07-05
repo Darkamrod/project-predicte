@@ -159,6 +159,12 @@ describe("Milestone 8 prediction entry workflow", () => {
         groupTables: [],
         leagueTable: [],
         bestThirdPlaceQualifiers: [],
+        bestThirdPlaceTieGroups: [],
+        mappingMetadata: {
+          strategy: "sequential_generated",
+          status: "placeholder",
+          notes: []
+        },
         matches: [finalMatch]
       }
     });
@@ -209,6 +215,7 @@ describe("Milestone 8 prediction entry workflow", () => {
     });
     let completePredictionSet = withRankedInitialPredictions(seed, emptyPredictionSet);
 
+    completePredictionSet = resolveTiebreakTargets(seed, completePredictionSet);
     completePredictionSet = completeKnockoutPredictions(seed, completePredictionSet);
 
     const derived = applyDerivedAntepostPredictions({
@@ -251,6 +258,8 @@ describe("Milestone 8 prediction entry workflow", () => {
     expect(workflow.tiebreakTargets.length).toBeGreaterThan(0);
     expect(workflow.target.kind).toBe("TIEBREAK");
     expect(workflow.target.scopeRef).toMatch(/^group:/);
+    expect(workflow.target.tieGroupId).toContain("positions:");
+    expect(workflow.target.tiedTeamIds?.length).toBeGreaterThan(1);
   });
 
   it("keeps World Cup and EURO stage flows data-driven", () => {
@@ -310,6 +319,14 @@ describe("Milestone 8 prediction entry workflow", () => {
     const source = readFileSync("src/features/predictions/PredictionWorkflowScreen.tsx", "utf8");
 
     expect(source).not.toMatch(/world_cup|World Cup|ROUND_OF_32|THIRD_PLACE/);
+  });
+
+  it("recomputes the next missing target after successful prediction saves", () => {
+    const source = readFileSync("src/features/predictions/PredictionWorkflowScreen.tsx", "utf8");
+
+    expect(source).toContain("pendingJumpToNextMissing");
+    expect(source).toContain("jumpToWorkflowTarget(workflow)");
+    expect(source).toContain("setPendingJumpToNextMissing(true)");
   });
 });
 
@@ -457,6 +474,56 @@ function completeKnockoutPredictions(
   }
 
   throw new Error("Unable to complete knockout predictions for Milestone 8 test fixture.");
+}
+
+function resolveTiebreakTargets(
+  competition: CompetitionSeed,
+  predictionSet: PredictionSet
+): PredictionSet {
+  let nextPredictionSet = predictionSet;
+
+  for (let index = 0; index < 30; index += 1) {
+    const workflow = buildPredictionEntryWorkflow({
+      competition,
+      predictionSet: nextPredictionSet,
+      mode: "QUICK"
+    });
+
+    if (workflow.phase !== "TIEBREAK" || workflow.target.kind !== "TIEBREAK") {
+      return nextPredictionSet;
+    }
+
+    const target = workflow.target;
+    const tieGroupId = target.tieGroupId ?? target.scopeRef;
+
+    if (!target.scopeRef || !tieGroupId || !target.orderedTeamIds) {
+      return nextPredictionSet;
+    }
+
+    nextPredictionSet = {
+      ...nextPredictionSet,
+      tiebreakOverrides: [
+        ...(nextPredictionSet.tiebreakOverrides ?? []).filter(
+          (override) => (override.tieGroupId ?? override.scopeRef) !== tieGroupId
+        ),
+        {
+          id: `${nextPredictionSet.id}:${tieGroupId}`,
+          predictionSetId: nextPredictionSet.id,
+          ...(target.scope ? { scope: target.scope } : {}),
+          scopeRef: target.scopeRef,
+          tieGroupId,
+          ...(target.tiedTeamIds ? { tiedTeamIds: target.tiedTeamIds } : {}),
+          ...(target.affectedPositions ? { affectedPositions: target.affectedPositions } : {}),
+          orderedTeamIds: target.orderedTeamIds,
+          reason: "Resolve test tie-break",
+          syncStatus: "SYNCED",
+          updatedAtUtc
+        }
+      ]
+    };
+  }
+
+  throw new Error("Unable to resolve tiebreak targets for Milestone 8 test fixture.");
 }
 
 function createManualAntepostPredictions(
