@@ -205,13 +205,14 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
             serverNowUtc
           );
 
+          const competition = getCompetitionForLeague(previous, league);
           const predictionSets = league.predictionSets.map((predictionSet) => {
             if (predictionSet.userId !== currentUser.id) {
               return predictionSet;
             }
 
             const beforeBracket = generatePredictedBracket({
-              competition: previous.competition,
+              competition,
               predictionSet
             });
             const matchPredictions = predictionSet.matchPredictions.map((prediction) =>
@@ -229,7 +230,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
               matchPredictions
             };
             const afterBracket = generatePredictedBracket({
-              competition: previous.competition,
+              competition,
               predictionSet: nextPredictionSet
             });
             const dependencyWarnings = mergeDependencyWarnings(
@@ -242,7 +243,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
               })
             );
 
-            return refreshPredictionSet(previous.competition, {
+            return refreshPredictionSet(competition, {
               ...nextPredictionSet,
               dependencyWarnings,
               lastServerSyncedAtUtc: serverNowUtc
@@ -284,13 +285,14 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
             serverNowUtc
           );
 
+          const competition = getCompetitionForLeague(previous, league);
           const predictionSets = league.predictionSets.map((predictionSet) => {
             if (predictionSet.userId !== currentUser.id) {
               return predictionSet;
             }
 
             const beforeBracket = generatePredictedBracket({
-              competition: previous.competition,
+              competition,
               predictionSet
             });
             const bracketMatch = beforeBracket.matches.find((match) => match.id === params.matchId);
@@ -318,7 +320,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
               )
             };
             const afterBracket = generatePredictedBracket({
-              competition: previous.competition,
+              competition,
               predictionSet: nextPredictionSet
             });
             const dependencyWarnings = mergeDependencyWarnings(
@@ -331,7 +333,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
               })
             );
 
-            return refreshPredictionSet(previous.competition, {
+            return refreshPredictionSet(competition, {
               ...nextPredictionSet,
               dependencyWarnings,
               lastServerSyncedAtUtc: serverNowUtc
@@ -373,6 +375,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
             serverNowUtc
           );
 
+          const competition = getCompetitionForLeague(previous, league);
           const predictionSets = league.predictionSets.map((predictionSet) => {
             if (predictionSet.userId !== currentUser.id) {
               return predictionSet;
@@ -391,7 +394,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
             };
             const existing = predictionSet.antepostPredictions ?? [];
 
-            return refreshPredictionSet(previous.competition, {
+            return refreshPredictionSet(competition, {
               ...predictionSet,
               antepostPredictions: [
                 ...existing.filter((prediction) => prediction.definitionId !== params.definitionId),
@@ -429,6 +432,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
             serverNowUtc
           );
 
+          const competition = getCompetitionForLeague(previous, league);
           const predictionSets = league.predictionSets.map((predictionSet) => {
             if (predictionSet.userId !== currentUser.id) {
               return predictionSet;
@@ -445,7 +449,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
             };
             const existing = predictionSet.tiebreakOverrides ?? [];
 
-            return refreshPredictionSet(previous.competition, {
+            return refreshPredictionSet(competition, {
               ...predictionSet,
               tiebreakOverrides: [
                 ...existing.filter((override) => override.scopeRef !== params.scopeRef),
@@ -469,21 +473,25 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
     (leagueId: string) => {
       setState((previous) => ({
         ...previous,
-        leagues: previous.leagues.map((league) =>
-          league.id === leagueId
-            ? {
-                ...league,
-                predictionSets: league.predictionSets.map((predictionSet) =>
-                  predictionSet.userId === currentUser.id
-                    ? refreshPredictionSet(previous.competition, {
-                        ...predictionSet,
-                        dependencyWarnings: []
-                      })
-                    : predictionSet
-                )
-              }
-            : league
-        )
+        leagues: previous.leagues.map((league) => {
+          if (league.id !== leagueId) {
+            return league;
+          }
+
+          const competition = getCompetitionForLeague(previous, league);
+
+          return {
+            ...league,
+            predictionSets: league.predictionSets.map((predictionSet) =>
+              predictionSet.userId === currentUser.id
+                ? refreshPredictionSet(competition, {
+                    ...predictionSet,
+                    dependencyWarnings: []
+                  })
+                : predictionSet
+            )
+          };
+        })
       }));
     },
     [currentUser.id]
@@ -528,9 +536,10 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
           return league;
         }
 
+        const competition = getCompetitionForLeague(previous, league);
         const sourceResultVersion = `mock-result-${league.leaderboardSnapshots.length + 1}`;
         const resultSet = createWorldCupMockResultSet({
-          competition: previous.competition,
+          competition,
           sourceResultVersion,
           createdAtUtc: "2030-06-08T21:15:00.000Z"
         });
@@ -544,7 +553,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
           .reverse()
           .find((snapshot) => snapshot.sourceResultVersion !== sourceResultVersion);
         const recalculation = recalculateTournamentScoring({
-          competition: previous.competition,
+          competition,
           leagueId: league.id,
           competitionEditionId: league.competitionEditionId,
           scoringRuleVersion: league.scoringRuleVersion,

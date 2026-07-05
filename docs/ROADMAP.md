@@ -105,6 +105,15 @@
 - Supabase migration and seed data for versioned template catalog tables and edition version references.
 - Tests for template shape, versioning, immutable snapshots, competition-specific scoring presets, prediction requirements, migration contracts, and seed contracts.
 
+## Completed in Milestone 7.2
+
+- Complete seeded versioned scoring presets for World Cup 2026, EURO 2028, Champions League 2026/27, and draft World Cup 2030 placeholder references.
+- Complete seeded format stage payloads for World Cup, EURO, and Champions League lock snapshots.
+- `create_private_league` updated to use edition-specific version references and reject incomplete scoring configs.
+- `world_cup_2030` kept as a disabled future placeholder with draft version references instead of an enabled incomplete edition.
+- Static tests added for seed scoring config parity, stage completeness, version-reference mapping, and the league creation contract.
+- Mock provider operations now resolve competition context per league for multi-edition local demo safety.
+
 ## Next Authorized Milestone
 
 Milestone 8 should be defined by the next authorized prompt. Likely candidates are scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, or a separately authorized real provider adapter.

@@ -111,3 +111,15 @@ Milestone 7.1 keeps the engine pure and configuration-driven while adding multip
 The stage set now includes `PLAYOFF` so Champions League-style two-leg playoff rounds can be scored through the same configured stage map as round of 16, quarterfinals, semifinals, and finals. EURO and Champions League presets set unused stages such as round of 32 or third-place final to zero values instead of requiring UI or engine conditionals.
 
 Versioned scoring preset payloads are stored in the competition bundle and copied into the league competition snapshot at lock. Rule editor overrides remain league-specific and are included in the locked snapshot checksum. The scoring engine still receives a `ScoringRuleConfig`; it does not know whether a rule came from World Cup, EURO, Champions League, or a future custom edition.
+
+## Milestone 7.2 Versioned Preset Seed Contract
+
+The Supabase seed now stores complete versioned scoring preset payloads for:
+
+- `WORLD_CUP_DEFAULT`;
+- `EURO_DEFAULT`;
+- `CHAMPIONS_LEAGUE_DEFAULT`.
+
+These JSON payloads mirror the TypeScript defaults in `src/domain/scoring/presets.ts`. Static tests parse `supabase/seed.sql` and compare the seeded configs to the domain presets so an empty `stages`, `antepost`, or `stacking` object fails fast.
+
+`create_private_league` creates the draft league rule version from `scoring_preset_versions` and rejects incomplete configs. The legacy `scoring_presets` table can still be used only as an explicit compatibility override, not as the default source for new multi-competition leagues.

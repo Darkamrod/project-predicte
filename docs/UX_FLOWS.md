@@ -59,3 +59,9 @@ The home route now exposes a compact mock edition selector before league creatio
 4. Locking a mock league captures an immutable competition snapshot and checksum.
 
 The prediction workflow remains data-driven. It renders group-stage sections only when the selected competition has groups, generated bracket rounds only when they exist, optional third-place finals only when configured, and antepost fields from the edition requirements. The screen does not describe template mechanics in product copy; the technical details stay in domain configuration and documentation.
+
+## Milestone 7.2 Multi-League Mock Context
+
+The mock provider now resolves the competition context from each league's `competitionEditionId` when predictions are edited, dependency warnings are cleared, rules are locked, or mock results are settled. This keeps local demo leagues for different editions from accidentally using the last selected global competition context.
+
+The create-league screen still uses one compact edition selector. Separate controls for sport, competition family, edition, and regulation preset are intentionally deferred so Milestone 7.2 stays focused on the blocking seed and creation contract fixes.

@@ -12,6 +12,12 @@ import {
   createWorldCup2030MockSeed
 } from "@/domain/competitions/versionedTemplates";
 import { generatePredictedBracket } from "@/domain/predictions/bracket";
+import {
+  championsLeagueDefaultScoringConfig,
+  euroDefaultScoringConfig,
+  worldCupDefaultScoringConfig
+} from "@/domain/scoring/presets";
+import type { ScoringRuleConfig } from "@/domain/scoring/types";
 import { createMockLeague, createPredictionSet } from "@/services/mock/mockLeagueFactory";
 
 const migration = readFileSync(
@@ -21,7 +27,57 @@ const migration = readFileSync(
   ),
   "utf8"
 );
+const leagueCreationContractMigration = readFileSync(
+  join(
+    process.cwd(),
+    "supabase/migrations/20260705050000_milestone7_2_versioned_league_creation_contract.sql"
+  ),
+  "utf8"
+);
 const seedSql = readFileSync(join(process.cwd(), "supabase/seed.sql"), "utf8");
+
+const versionIds = {
+  worldCup2026Format: "00000000-0000-4000-8000-000000000531",
+  worldCup2030Format: "00000000-0000-4000-8000-000000000534",
+  euro2028Format: "00000000-0000-4000-8000-000000000532",
+  championsLeague2026_27Format: "00000000-0000-4000-8000-000000000533",
+  worldCup2026Scoring: "00000000-0000-4000-8000-000000000561",
+  worldCup2030Scoring: "00000000-0000-4000-8000-000000000564",
+  euro2028Scoring: "00000000-0000-4000-8000-000000000562",
+  championsLeague2026_27Scoring: "00000000-0000-4000-8000-000000000563"
+} as const;
+
+const worldCupStageCodes = [
+  "GROUP_STAGE",
+  "BEST_THIRDS",
+  "ROUND_OF_32",
+  "ROUND_OF_16",
+  "QUARTER_FINAL",
+  "SEMI_FINAL",
+  "THIRD_PLACE",
+  "FINAL",
+  "ANTEPOST"
+] as const;
+
+const euroStageCodes = [
+  "GROUP_STAGE",
+  "BEST_THIRDS",
+  "ROUND_OF_16",
+  "QUARTER_FINAL",
+  "SEMI_FINAL",
+  "FINAL",
+  "ANTEPOST"
+] as const;
+
+const championsLeagueStageCodes = [
+  "LEAGUE_PHASE",
+  "PLAYOFF",
+  "ROUND_OF_16",
+  "QUARTER_FINAL",
+  "SEMI_FINAL",
+  "FINAL",
+  "ANTEPOST"
+] as const;
 
 const owner = {
   id: "user-owner",
@@ -30,6 +86,115 @@ const owner = {
   locale: "it-IT",
   timezone: "Europe/Rome"
 } as const;
+
+function extractSeedValueRow(firstUuid: string): string {
+  const marker = `'${firstUuid}'::uuid`;
+  const markerStart = seedSql.indexOf(marker);
+
+  if (markerStart < 0) {
+    throw new Error(`Seed row not found for ${firstUuid}`);
+  }
+
+  const start = seedSql.lastIndexOf("(", markerStart);
+
+  if (start < 0) {
+    throw new Error(`Seed row start not found for ${firstUuid}`);
+  }
+
+  let depth = 0;
+  let inString = false;
+
+  for (let index = start; index < seedSql.length; index += 1) {
+    const character = seedSql[index];
+    const nextCharacter = seedSql[index + 1];
+
+    if (character === "'") {
+      if (inString && nextCharacter === "'") {
+        index += 1;
+        continue;
+      }
+
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return seedSql.slice(start, index + 1);
+      }
+    }
+  }
+
+  throw new Error(`Seed row did not terminate for ${firstUuid}`);
+}
+
+function parseJsonbLiterals(row: string): unknown[] {
+  return Array.from(row.matchAll(/'((?:[^']|'')*)'::jsonb/g)).map((match) => {
+    const literal = match[1];
+
+    if (literal === undefined) {
+      throw new Error("Invalid jsonb literal in seed row");
+    }
+
+    return JSON.parse(literal.replace(/''/g, "'")) as unknown;
+  });
+}
+
+function extractScoringConfig(scoringVersionId: string): ScoringRuleConfig {
+  const [config] = parseJsonbLiterals(extractSeedValueRow(scoringVersionId));
+
+  if (!isScoringRuleConfig(config)) {
+    throw new Error(`Invalid scoring config for ${scoringVersionId}`);
+  }
+
+  return config;
+}
+
+function extractFormatStageCodes(formatVersionId: string): string[] {
+  const jsonbLiterals = parseJsonbLiterals(extractSeedValueRow(formatVersionId));
+  const stages = jsonbLiterals[2];
+
+  if (!Array.isArray(stages)) {
+    throw new Error(`Invalid stages config for ${formatVersionId}`);
+  }
+
+  return stages.map((stage) => {
+    if (!isObjectWithStringCode(stage)) {
+      throw new Error(`Invalid stage code in ${formatVersionId}`);
+    }
+
+    return stage.code;
+  });
+}
+
+function isScoringRuleConfig(value: unknown): value is ScoringRuleConfig {
+  return (
+    isRecord(value) &&
+    typeof value.presetCode === "string" &&
+    isRecord(value.stages) &&
+    Object.keys(value.stages).length > 0 &&
+    isRecord(value.antepost) &&
+    Object.keys(value.antepost).length > 0 &&
+    isRecord(value.stacking) &&
+    Object.keys(value.stacking).length > 0
+  );
+}
+
+function isObjectWithStringCode(value: unknown): value is { code: string } {
+  return isRecord(value) && typeof value.code === "string";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 describe("Milestone 7.1 versioned competition templates", () => {
   it("models FIFA World Cup 2026 with 48 teams, best thirds, round of 32, and third-place final", () => {
@@ -205,8 +370,60 @@ describe("Milestone 7.1 Supabase migration and seed contract", () => {
     expect(seedSql).toContain("ucl_2026_27_seeded_playoff");
   });
 
+  it("seeds complete format stages for World Cup, EURO, and Champions League editions", () => {
+    expect(extractFormatStageCodes(versionIds.worldCup2026Format)).toEqual(worldCupStageCodes);
+    expect(extractFormatStageCodes(versionIds.worldCup2030Format)).toEqual(worldCupStageCodes);
+    expect(extractFormatStageCodes(versionIds.euro2028Format)).toEqual(euroStageCodes);
+    expect(extractFormatStageCodes(versionIds.championsLeague2026_27Format)).toEqual(
+      championsLeagueStageCodes
+    );
+  });
+
+  it("seeds non-empty versioned scoring presets aligned with the domain defaults", () => {
+    expect(extractScoringConfig(versionIds.worldCup2026Scoring)).toEqual(
+      worldCupDefaultScoringConfig
+    );
+    expect(extractScoringConfig(versionIds.worldCup2030Scoring)).toEqual(
+      worldCupDefaultScoringConfig
+    );
+    expect(extractScoringConfig(versionIds.euro2028Scoring)).toEqual(euroDefaultScoringConfig);
+    expect(extractScoringConfig(versionIds.championsLeague2026_27Scoring)).toEqual(
+      championsLeagueDefaultScoringConfig
+    );
+  });
+
+  it("keeps the World Cup 2030 placeholder disabled but fully version-referenced", () => {
+    expect(seedSql).toMatch(
+      /edition_code = 'world_cup_2030'[\s\S]*?enabled = false[\s\S]*?data_completeness = 'future_placeholder'/
+    );
+    expect(seedSql).toMatch(
+      /'00000000-0000-4000-8000-000000000003'::uuid,\s*'00000000-0000-4000-8000-000000000534'::uuid,\s*'00000000-0000-4000-8000-000000000544'::uuid,\s*'00000000-0000-4000-8000-000000000554'::uuid,\s*'00000000-0000-4000-8000-000000000564'::uuid/
+    );
+  });
+
+  it("creates leagues from edition version refs and rejects empty rule configs", () => {
+    expect(leagueCreationContractMigration).toContain("target_edition.scoring_preset_version_id");
+    expect(leagueCreationContractMigration).toContain("from public.scoring_preset_versions spv");
+    expect(leagueCreationContractMigration).toContain(
+      "Competition edition is missing version references"
+    );
+    expect(leagueCreationContractMigration).toContain("Scoring preset config is incomplete");
+    expect(leagueCreationContractMigration).toContain(
+      "Legacy scoring_presets is accepted only for backward-compatible explicit overrides"
+    );
+    expect(leagueCreationContractMigration).toContain(
+      "selected_scoring_preset_version_id := target_edition.scoring_preset_version_id"
+    );
+    expect(leagueCreationContractMigration).toMatch(
+      /insert into public\.leagues \([\s\S]*format_template_version_id[\s\S]*ruleset_version_id[\s\S]*prediction_requirement_version_id[\s\S]*scoring_preset_version_id/
+    );
+    expect(leagueCreationContractMigration).not.toContain(
+      "coalesce(selected_preset_config, '{}'::jsonb)"
+    );
+  });
+
   it("does not introduce excluded money, advertising, wagering, or real provider API features", () => {
-    expect(`${migration}\n${seedSql}`).not.toMatch(
+    expect(`${migration}\n${leagueCreationContractMigration}\n${seedSql}`).not.toMatch(
       /payment|paid|payout|prize|advertising|betting|odds|wagering|gambling|Sportmonks/i
     );
   });

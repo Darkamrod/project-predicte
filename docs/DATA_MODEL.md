@@ -171,3 +171,14 @@ The initial seeded templates are:
 - `champions_league_2026_27`: 36-team league phase, top 8 direct to round of 16, positions 9-24 into two-leg playoffs, two-leg round of 16/quarterfinals/semifinals, and single-leg final.
 
 The JSON payloads are intentionally flexible at this stage. They can represent future editions such as `world_cup_2030`, `euro_2032`, or `champions_league_2027_28` without changing UI components or freezing a family-level format forever.
+
+## Milestone 7.2 Seed and Creation Contract
+
+Milestone 7.2 tightens the versioned catalog contract used by local Supabase resets:
+
+- `scoring_preset_versions.config` must contain a real non-empty `ScoringRuleConfig` shape: `presetCode`, stage values, antepost values, and stacking flags.
+- `format_template_versions.stages` must describe every configured stage that can be copied into a locked league snapshot.
+- Enabled competition editions must carry all four version references: `format_template_version_id`, `ruleset_version_id`, `prediction_requirement_version_id`, and `scoring_preset_version_id`.
+- `create_private_league` now copies those version ids from the selected enabled edition into the league row and creates the draft rule version from the selected versioned scoring preset.
+- The legacy `scoring_presets` table remains only for explicit backward-compatible overrides. It is no longer the primary source for multi-competition league creation and cannot silently produce an empty rule config.
+- `world_cup_2030` remains in the seed as a disabled future placeholder with draft version rows. It is fully referenceable for catalog tests, but unavailable for league creation until a future milestone explicitly enables it.

@@ -191,3 +191,18 @@
 - Initial team names and fixtures for EURO and Champions League are mock data intended to validate shape, prediction workflow, and scoring compatibility, not official calendars.
 - Champions League playoff and two-leg rounds are modeled structurally. Aggregate/two-leg scoring nuances beyond configured match-level predictions remain future work.
 - Official source URLs are stored as metadata only. They do not connect to or scrape a real sports-provider API.
+
+## 2026-07-05 - Milestone 7.2 Versioned Seed and League Creation Contract
+
+- Replaced empty seeded `scoring_preset_versions` payloads with complete configs aligned with `src/domain/scoring/presets.ts` for World Cup, EURO, and Champions League.
+- Updated `create_private_league` to derive league version references from `competition_editions` and `scoring_preset_versions`. A league cannot be created from an enabled edition unless format, ruleset, prediction requirement, and scoring preset version ids are present.
+- Kept `scoring_presets` only as an explicit legacy override path for backward compatibility. New versioned leagues still store the edition's `scoring_preset_version_id`, and empty or incomplete rule configs are rejected instead of defaulting to `{}`.
+- Completed the seeded `format_template_versions.stages` payloads so lock snapshots include all configured World Cup, EURO, and Champions League stages.
+- Kept `world_cup_2030` as a future mock placeholder with complete draft version references, but set `enabled = false` so it cannot be used for league creation until intentionally activated.
+- Updated the mock provider to resolve competition context per league when editing predictions, clearing dependency warnings, locking, and settling mock results. This removes the previous local-demo risk where simultaneous leagues of different editions could use the last selected competition.
+- Left the Home create-league flow as a compact edition selector for now. Separate sport, family, edition, and preset selectors remain a future UX refinement.
+
+## Milestone 7.2 Assumptions
+
+- `world_cup_2030` uses mock placeholder metadata and draft version rows only; it is not an official calendar or enabled production edition.
+- Versioned scoring presets are duplicated in the seed as JSON so local Supabase resets can validate league creation without requiring TypeScript runtime code inside SQL.
