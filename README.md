@@ -33,8 +33,17 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=...
 
 Google and Apple OAuth providers must be enabled in Supabase and configured with the `predicte://auth/callback` redirect flow. Without these variables, the app keeps using the Milestone 0 mock flow.
 
+## Trusted Worker Configuration
+
+Milestone 7 adds a deployable Supabase Edge Function wrapper for server-side mock result import and trusted scoring:
+
+- `supabase/functions/trusted-result-import/index.ts`
+- `supabase/functions/import_map.json`
+
+The Edge runtime must provide `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. These values are server-only and must not be exposed through Expo public variables or mobile client code.
+
 ## Milestone 0 Scope
 
 This repository intentionally does not include payments, entry fees, prize pools, paid/unpaid member status, betting, odds, advertising SDKs, or real sports-provider connections.
 
-The app currently uses in-memory mock adapters. Supabase is represented by deterministic local migrations and architecture docs for the next milestones.
+The app still preserves mock flows for local development. Supabase migrations, server modules, and the Edge Function wrapper prepare the trusted backend path without connecting a real sports-provider API.

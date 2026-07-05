@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@/": "../../src/",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.0",
+    "zod": "npm:zod@4.4.3"
+  }
+}

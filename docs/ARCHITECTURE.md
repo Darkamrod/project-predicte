@@ -74,3 +74,14 @@ The mobile app remains mock-first unless Supabase is configured, and it does not
 - `supabase/migrations/20260705020000_milestone6_provider_import_foundation.sql`: provider import metadata, retry/correction fields, service-role RPCs, and audit linkage.
 
 Milestone 6 still uses mock provider data only. The trusted runtime is ready to wrap in a deployed worker, but no service-role key or provider credential is exposed to the Expo/mobile app.
+
+## Milestone 7 Additions
+
+- `supabase/functions/trusted-result-import/index.ts`: Supabase Edge Function wrapper around `handleTrustedScoringRuntimeRequest`. It reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` only from the server runtime.
+- `supabase/functions/import_map.json`: Deno import map for shared TypeScript server modules and pinned npm imports used by the Edge runtime.
+- `src/server/results/retryQueue.ts`: pure retry classification and due-candidate helpers for provider import retries.
+- `trusted_provider_retry_candidates`: service-role-only RPC that selects retryable failed provider imports by UTC `next_retry_at`.
+- `supabase/migrations/20260705030000_milestone7_worker_deployment_auth_tests.sql`: explicit client write revokes for provider/scoring runtime tables, retry classification columns, and retry candidate RPC.
+- `tests/server/supabaseAuthenticatedRls.test.ts`: authenticated local Supabase RLS/grant test harness for owner/admin/member/non-member/anon/service-role behavior when the local database is available and migrated.
+
+The deployed-entrypoint shape is now concrete, but the provider remains `MOCK_RESULTS` only. The mobile app still uses public Supabase credentials only and does not import server-side provider/scoring persistence modules.

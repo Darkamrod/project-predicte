@@ -1,5 +1,6 @@
 import type { Json } from "@/services/supabase/database.types";
 import type { SupabaseRpcClient } from "@/services/supabase/rpcClient";
+import type { ProviderImportRetryCandidate } from "./retryQueue";
 import type {
   ProviderImportRecord,
   ProviderImportRecordInput,
@@ -52,5 +53,41 @@ export class SupabaseProviderResultImportRepository implements ProviderResultImp
       providerPayloadId: record.provider_payload_id,
       ingestionRunId: record.ingestion_run_id
     };
+  }
+
+  async listRetryCandidates(limit = 50): Promise<ProviderImportRetryCandidate[]> {
+    const { data, error } = await this.client.rpc("trusted_provider_retry_candidates", {
+      p_limit: limit
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data.flatMap((candidate) => {
+      if (
+        candidate.provider !== "MOCK_RESULTS" ||
+        !candidate.external_fixture_key ||
+        !candidate.next_retry_at
+      ) {
+        return [];
+      }
+
+      return [
+        {
+          leagueId: candidate.league_id,
+          provider: "MOCK_RESULTS",
+          externalFixtureKey: candidate.external_fixture_key,
+          sourceResultKey: candidate.source_result_key,
+          retryAttempt: candidate.retry_attempt,
+          maxRetries: candidate.max_retries,
+          nextRetryAtUtc: candidate.next_retry_at,
+          ...(candidate.correction_of_source_result_key
+            ? { correctionOfSourceResultKey: candidate.correction_of_source_result_key }
+            : {}),
+          ...(candidate.error_message ? { errorMessage: candidate.error_message } : {})
+        }
+      ];
+    });
   }
 }

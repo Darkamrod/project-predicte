@@ -137,3 +137,17 @@ New service-role-only RPCs:
 - `record_provider_result_import`: records accepted, scored, and failed provider import states; stores the raw payload reference; writes sync, provider payload, result ingestion, and audit rows.
 
 `correction_status` is `not_required`, `verified`, or `missing`. A missing or not-yet-scored correction source can be recorded only as a failed import. This keeps correction attempts auditable while preventing a new scoring snapshot from being produced for an unknown or unscored source.
+
+## Milestone 7 Retry and Deployment Model
+
+Milestone 7 adds retry classification to the provider import audit trail:
+
+- `sync_runs.failure_kind`: `none`, `retryable`, or `non_retryable`.
+- `result_ingestion_runs.failure_kind`: the same classification, used by the trusted retry candidate selector.
+- `result_ingestion_runs_m7_retry_idx`: partial index for failed, retryable rows ordered by `next_retry_at`.
+
+`record_provider_result_import` now classifies failed imports while preserving the Milestone 6 correction semantics. Missing correction sources are non-retryable unless future product rules explicitly change that behavior. Other failures become retryable only when attempts remain and a UTC `next_retry_at` is supplied.
+
+`trusted_provider_retry_candidates(limit)` is service-role-only and returns due failed imports that are still retryable. It is a queue foundation, not a scheduler: no background job is started in Milestone 7.
+
+The Edge Function wrapper does not add new persisted domain tables. It exposes the existing trusted runtime through a deployable server entrypoint that can import mock provider results, persist provider/import audit rows, run trusted scoring, and preserve idempotency through `source_result_key`.

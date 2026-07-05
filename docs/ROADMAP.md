@@ -84,8 +84,19 @@
 - Deployable-compatible TypeScript runtime boundary and server-only dependency factory.
 - Tests for mock provider normalization, runtime parsing, retries, corrections, idempotency, context loading, static RPC grants, and client import boundaries.
 
+## Completed in Milestone 7
+
+- Supabase Edge Function wrapper for trusted mock provider import and scoring execution.
+- Deno import map for shared server-side TypeScript modules.
+- Explicit client write revokes for provider sync/payload tables and trusted scoring/runtime tables.
+- Retry failure classification on sync and result-ingestion runs.
+- Service-role-only retry candidate RPC for due provider import retries.
+- Pure retry queue helpers for retryable/non-retryable classification and UTC due checks.
+- Authenticated local Supabase RLS/grant tests for owner/admin/member/non-member/anon/service-role behavior where local Docker Supabase is available.
+- Static tests for the Edge Function boundary, import map, server-only imports, secrets boundary, and ignored runtime paths.
+
 ## Next Authorized Milestone
 
-Milestone 7 should be defined by the next authorized prompt. Likely candidates are production worker deployment, real provider adapter authorization, richer result correction UX/audit views, retry scheduling, and authenticated Supabase integration tests.
+Milestone 8 should be defined by the next authorized prompt. Likely candidates are scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, or a separately authorized real provider adapter.
 
-Do not start Milestone 7 without explicit authorization.
+Do not start Milestone 8 without explicit authorization.

@@ -7,6 +7,7 @@ import type {
   TrustedResultIngestionRepository,
   TrustedResultIngestionStatus
 } from "@/server/scoring/types";
+import type { ProviderImportRetryCandidate } from "./retryQueue";
 
 export type ResultProviderCode = "MOCK_RESULTS";
 
@@ -64,6 +65,7 @@ export interface ProviderImportRecord {
 export interface ProviderResultImportRepository {
   resultIngestionExists(leagueId: string, sourceResultKey: string): Promise<boolean>;
   recordProviderImport(input: ProviderImportRecordInput): Promise<ProviderImportRecord>;
+  listRetryCandidates(limit?: number): Promise<ProviderImportRetryCandidate[]>;
 }
 
 export interface ProviderResultImportWorkerDependencies {

@@ -10,6 +10,13 @@ const milestone6Migration = readFileSync(
   ),
   "utf8"
 );
+const milestone7Migration = readFileSync(
+  join(
+    process.cwd(),
+    "supabase/migrations/20260705030000_milestone7_worker_deployment_auth_tests.sql"
+  ),
+  "utf8"
+);
 const docs = [
   "docs/ARCHITECTURE.md",
   "docs/DATA_MODEL.md",
@@ -32,6 +39,8 @@ describe("Milestone 6 provider result import migration contract", () => {
     expect(milestone6Migration).toContain("correction_status");
     expect(milestone6Migration).toContain("provider_payload_id");
     expect(milestone6Migration).toContain("sync_run_id");
+    expect(milestone7Migration).toContain("failure_kind");
+    expect(milestone7Migration).toContain("trusted_provider_retry_candidates");
   });
 
   it("keeps provider import and correction lookup RPCs service-role-only", () => {
@@ -52,6 +61,27 @@ describe("Milestone 6 provider result import migration contract", () => {
     expect(milestone6Migration).not.toMatch(
       /grant execute on function public\.trusted_result_ingestion_exists[\s\S]*to authenticated/i
     );
+    expect(milestone7Migration).toMatch(
+      /grant execute on function public\.trusted_provider_retry_candidates[\s\S]*to service_role/i
+    );
+    expect(milestone7Migration).not.toMatch(
+      /grant execute on function public\.trusted_provider_retry_candidates[\s\S]*to authenticated/i
+    );
+  });
+
+  it("adds explicit provider runtime revokes and retry classification", () => {
+    expect(milestone7Migration).toContain(
+      "revoke insert, update, delete on public.sync_runs from anon, authenticated"
+    );
+    expect(milestone7Migration).toContain(
+      "revoke insert, update, delete on public.provider_payloads from anon, authenticated"
+    );
+    expect(milestone7Migration).toContain("grant select on public.scoring_events to authenticated");
+    expect(milestone7Migration).toContain(
+      "grant select on public.leaderboard_entries to authenticated"
+    );
+    expect(milestone7Migration).toContain("failure_kind in ('none', 'retryable', 'non_retryable')");
+    expect(milestone7Migration).toContain("and rir.failure_kind = 'retryable'");
   });
 
   it("documents the mock provider import and server-only scoring persistence boundary", () => {
@@ -60,6 +90,8 @@ describe("Milestone 6 provider result import migration contract", () => {
     expect(docs).toContain("record_provider_result_import");
     expect(docs).toContain("SupabaseScoringContextLoader");
     expect(docs).toContain("src/server/scoring/supabaseScoringPersistenceRepository.ts");
+    expect(docs).toContain("Milestone 7");
+    expect(docs).toContain("trusted_provider_retry_candidates");
   });
 
   it("does not keep the official scoring persistence adapter in client services", () => {
@@ -83,6 +115,9 @@ describe("Milestone 6 provider result import migration contract", () => {
 
   it("does not introduce excluded money, advertising, wagering, or real sports API features", () => {
     expect(milestone6Migration).not.toMatch(
+      /payment|paid|payout|prize|advertising|betting|odds|wagering|gambling|Sportmonks/i
+    );
+    expect(milestone7Migration).not.toMatch(
       /payment|paid|payout|prize|advertising|betting|odds|wagering|gambling|Sportmonks/i
     );
   });

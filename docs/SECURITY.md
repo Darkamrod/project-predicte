@@ -89,3 +89,16 @@ Milestone 6 keeps provider import and official scoring persistence server-only:
 - no provider credential, service-role key, or real sports-provider integration is added to the mobile client.
 
 The mock fallback UX remains available, but it is not an authority for official Supabase scoring artifacts.
+
+## Milestone 7 Worker Deployment Security
+
+Milestone 7 adds a deployable server entrypoint while keeping the client boundary unchanged:
+
+- `supabase/functions/trusted-result-import/index.ts` reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from the Edge runtime environment only.
+- The mobile app does not read service-role env vars and does not import `src/server/results` or server-side scoring persistence modules.
+- `record_provider_result_import`, `trusted_result_ingestion_exists`, and `trusted_provider_retry_candidates` are service-role-only RPCs.
+- `sync_runs` and `provider_payloads` now have explicit insert/update/delete revokes for `anon` and `authenticated`.
+- The same explicit client write-deny posture is repeated for result ingestion runs, scoring events, leaderboard snapshots, leaderboard entries, scoring breakdown items, and recalculation runs.
+- Authenticated RLS tests verify member-readable scoring artifacts, organizer-only result ingestion visibility, non-member denial, client write denial, and service-role-only RPC execution when local Supabase is available.
+
+Retry metadata remains auditable and UTC-based. `failure_kind = 'retryable'` only means a trusted server process may retry the import later; it does not grant any client write capability.

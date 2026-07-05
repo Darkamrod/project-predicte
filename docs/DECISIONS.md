@@ -155,3 +155,21 @@
 - The mock provider's `external_fixture_key` identifies a provider-side fixture/result reference for audit and future mapping, but it is not yet a real provider id.
 - Retry scheduling metadata is stored and validated, but no scheduler or background retry queue is started in Milestone 6.
 - The TypeScript runtime boundary can be wrapped by a Supabase Edge Function, Node worker, or scheduled job in a later milestone without moving scoring business logic into UI code.
+
+## 2026-07-05 - Milestone 7 Trusted Worker Deployment and Authenticated Supabase Tests
+
+- Wrapped the trusted provider/scoring runtime in a Supabase Edge Function at `supabase/functions/trusted-result-import/index.ts`. The wrapper is intentionally thin: request parsing and business orchestration remain in `src/server/scoring` and `src/server/results`.
+- Added a Deno import map for shared server modules instead of duplicating scoring/provider logic inside the Edge Function.
+- Kept `SUPABASE_SERVICE_ROLE_KEY` usage server-only. The Expo/mobile app still uses only public Supabase env vars and does not import `src/server/results` or server scoring persistence modules.
+- Added explicit database revokes for `sync_runs` and `provider_payloads`, and repeated the same write-deny posture for trusted scoring/runtime tables.
+- Added `failure_kind` to `sync_runs` and `result_ingestion_runs` so retryable provider-import failures are distinguishable from non-retryable failures.
+- Chose `trusted_provider_retry_candidates` as a service-role-only retry queue foundation. It returns due retry candidates but does not schedule or execute background retries in Milestone 7.
+- Kept missing correction sources non-retryable. A correction can be scored only when the referenced source result already exists as a scored ingestion for the same league.
+- Added local authenticated Supabase RLS tests that run when the Docker-backed database is reachable and contains the Milestone 7 migration. They cover owner/admin/member/non-member/anon reads, client write denial, and service-role-only RPC grants.
+- No real sports provider, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 7 Assumptions
+
+- Deploying the Edge Function to a remote Supabase project remains an operational step outside the repository.
+- Retry scheduling is represented by data model, pure helpers, and a service-role candidate RPC; a cron/scheduler is deferred.
+- Edge Function runtime typechecking is covered by static tests and shared TypeScript module tests; `supabase/functions/**` is still excluded from the Expo app TypeScript program because it uses Deno globals.

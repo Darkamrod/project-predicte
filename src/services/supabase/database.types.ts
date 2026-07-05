@@ -225,6 +225,7 @@ export interface Database {
           retry_attempt: number;
           max_retries: number;
           next_retry_at: string | null;
+          failure_kind: "none" | "retryable" | "non_retryable";
         };
         Insert: never;
         Update: never;
@@ -480,6 +481,7 @@ export interface Database {
           max_retries: number;
           next_retry_at: string | null;
           correction_status: "not_required" | "verified" | "missing";
+          failure_kind: "none" | "retryable" | "non_retryable";
         };
         Insert: never;
         Update: never;
@@ -668,6 +670,22 @@ export interface Database {
           sync_run_id: string;
           provider_payload_id: string;
           ingestion_run_id: string;
+        }[];
+      };
+      trusted_provider_retry_candidates: {
+        Args: {
+          p_limit?: number;
+        };
+        Returns: {
+          league_id: string;
+          source_result_key: string;
+          correction_of_source_result_key: string | null;
+          provider: string | null;
+          external_fixture_key: string | null;
+          retry_attempt: number;
+          max_retries: number;
+          next_retry_at: string | null;
+          error_message: string | null;
         }[];
       };
     };

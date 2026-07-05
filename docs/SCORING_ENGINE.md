@@ -87,3 +87,15 @@ Milestone 6 keeps the scoring engine unchanged and adds a provider-import wrappe
 - `trustedScoringRuntime.ts` is the deployable-compatible parsing boundary; service-role wiring stays in `trustedScoringRuntimeFactory.ts`.
 
 Official persisted scoring still happens only through service-role RPCs. Clients may read permitted scoring artifacts, but they do not calculate or persist official leaderboard state.
+
+## Milestone 7 Deployable Trusted Entry Point
+
+Milestone 7 wraps the existing trusted runtime in `supabase/functions/trusted-result-import/index.ts`:
+
+- the Edge Function accepts a server-side POST request and forwards the body to `handleTrustedScoringRuntimeRequest`;
+- `trustedScoringRuntimeFactory.ts` creates service-role Supabase dependencies inside the server runtime only;
+- the scoring engine remains the pure `src/domain/scoring` implementation used by the trusted worker;
+- `source_result_key` remains the idempotency key for provider import, trusted ingestion, scoring events, leaderboard snapshots, and recalculation runs;
+- corrections still exclude superseded events from the new snapshot through the trusted scoring worker path.
+
+Retry scheduling is not part of the scoring calculation. Milestone 7 adds `failure_kind` and `trusted_provider_retry_candidates` so a future scheduler can safely select due retryable imports without granting client write access to official scoring artifacts.

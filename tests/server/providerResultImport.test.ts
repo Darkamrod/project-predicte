@@ -300,7 +300,8 @@ function createDependencies(
             providerPayloadId: `payload-${calls.providerImports.length}`,
             ingestionRunId: `provider-ingestion-${calls.providerImports.length}`
           };
-        }
+        },
+        listRetryCandidates: async () => []
       }
     }
   };
