@@ -1,5 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { ChevronRight, Plus, UserPlus } from "lucide-react-native";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { AppCard } from "@/components/AppCard";
@@ -18,8 +19,13 @@ import { usePredicteMock } from "@/state/PredicteMockProvider";
 export function HomeScreen(): React.ReactNode {
   const router = useRouter();
   const { theme } = useAppTheme();
-  const { leagues, currentUser, competition, createLeague, joinLeague } = usePredicteMock();
+  const { leagues, currentUser, competition, competitions, createLeague, joinLeague } =
+    usePredicteMock();
+  const [selectedEditionId, setSelectedEditionId] = useState(competition.edition.id);
   const activeLeague = leagues[0];
+  const activeCompetition =
+    competitions.find((item) => item.edition.id === activeLeague?.competitionEditionId) ??
+    competition;
   const activePredictionSet = activeLeague?.predictionSets.find(
     (set) => set.userId === currentUser.id
   );
@@ -30,12 +36,39 @@ export function HomeScreen(): React.ReactNode {
   return (
     <AppScreen>
       <AppHeader title={strings.appName} subtitle={strings.copy.mockOnly} />
+      <AppCard>
+        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Competizione mock</Text>
+        <View style={styles.editionGrid}>
+          {competitions.map((item) => (
+            <SecondaryButton
+              key={item.edition.id}
+              accessibilityLabel={`Seleziona ${item.edition.name}`}
+              label={item.edition.name}
+              onPress={() => setSelectedEditionId(item.edition.id)}
+              style={[
+                styles.editionChip,
+                selectedEditionId === item.edition.id
+                  ? {
+                      backgroundColor: theme.colors.primaryContainer,
+                      borderColor: theme.colors.primary
+                    }
+                  : undefined
+              ]}
+            />
+          ))}
+        </View>
+        <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
+          Sport: calcio. Famiglia:{" "}
+          {competitions.find((item) => item.edition.id === selectedEditionId)?.family?.name ??
+            "famiglia competizione"}
+        </Text>
+      </AppCard>
       <View style={styles.actions}>
         <PrimaryButton
           icon={Plus}
           label={strings.actions.createLeague}
           onPress={() => {
-            const leagueId = createLeague();
+            const leagueId = createLeague({ competitionEditionId: selectedEditionId });
             router.push({ pathname: "/league/[leagueId]", params: { leagueId } });
           }}
         />
@@ -57,7 +90,7 @@ export function HomeScreen(): React.ReactNode {
                 {activeLeague.name}
               </Text>
               <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-                {competition.edition.name}
+                {activeCompetition.edition.name}
               </Text>
             </View>
             <StatusBadge label={strings.status[activeLeague.status]} tone="primary" />
@@ -94,6 +127,16 @@ const styles = StyleSheet.create({
   cardTitleBlock: {
     flex: 1,
     gap: 4
+  },
+  editionChip: {
+    minHeight: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 8
+  },
+  editionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
   },
   title: {
     fontSize: 20,

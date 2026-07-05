@@ -43,6 +43,7 @@ export interface AntepostPrediction {
   predictionSetId: string;
   definitionId: string;
   selectedTeamId?: string | undefined;
+  selectedTeamIds?: string[] | undefined;
   selectedPlayerId?: string | undefined;
   numericValue?: number | undefined;
   syncStatus: PredictionSyncStatus;

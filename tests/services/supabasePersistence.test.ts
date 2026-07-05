@@ -141,7 +141,7 @@ describe("Milestone 4 Supabase repositories", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]?.fn).toBe("save_match_prediction");
-    expect(getArgs(calls[0]).p_match_id).toBeNull();
+    expect(getArgs(calls[0])).not.toHaveProperty("p_match_id");
     expect(getArgs(calls[0]).p_prediction_ref).toBe("predicted-final-1");
     expect(getArgs(calls[0]).p_stage_code).toBe("FINAL");
     expect(getArgs(calls[0]).p_depends_on_prediction_refs).toEqual([

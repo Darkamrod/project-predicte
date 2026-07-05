@@ -204,6 +204,7 @@ describe("Milestone 2 prediction workflow", () => {
 function bracketWithFinal(homeTeamId: string, awayTeamId: string): PredictedBracket {
   return {
     groupTables: [],
+    leagueTable: [],
     bestThirdPlaceQualifiers: [],
     matches: [
       {

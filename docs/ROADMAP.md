@@ -95,6 +95,16 @@
 - Authenticated local Supabase RLS/grant tests for owner/admin/member/non-member/anon/service-role behavior where local Docker Supabase is available.
 - Static tests for the Edge Function boundary, import map, server-only imports, secrets boundary, and ignored runtime paths.
 
+## Completed in Milestone 7.1
+
+- Versioned competition family, edition, format template, ruleset, prediction requirement, and scoring preset domain model.
+- Initial templates for World Cup 2026, EURO 2028, and Champions League 2026/27.
+- Future-edition versioning proof with a separate World Cup 2030 mock template that supersedes the 2026 format version.
+- Data-driven bracket generation for group-stage tournaments, best thirds, league phase, Champions League-style playoffs, optional third-place finals, and configured stage legs.
+- Mock create-league edition selection with immutable competition snapshot capture at lock.
+- Supabase migration and seed data for versioned template catalog tables and edition version references.
+- Tests for template shape, versioning, immutable snapshots, competition-specific scoring presets, prediction requirements, migration contracts, and seed contracts.
+
 ## Next Authorized Milestone
 
 Milestone 8 should be defined by the next authorized prompt. Likely candidates are scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, or a separately authorized real provider adapter.

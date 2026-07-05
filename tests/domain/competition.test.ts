@@ -7,10 +7,13 @@ import type { MatchPrediction } from "@/domain/predictions/types";
 describe("mock competition seed", () => {
   it("models a World Cup-style group stage from configuration", () => {
     const seed = createWorldCup2030MockSeed();
+    const groupStageIds = new Set(
+      seed.stages.filter((stage) => stage.code === "GROUP_STAGE").map((stage) => stage.id)
+    );
 
     expect(seed.groups).toHaveLength(12);
     expect(seed.teams).toHaveLength(48);
-    expect(seed.matches.filter((match) => match.stageId === "stage-group")).toHaveLength(72);
+    expect(seed.matches.filter((match) => groupStageIds.has(match.stageId))).toHaveLength(72);
     expect(seed.edition.format.bestThirdPlacedTeams).toBe(8);
     expect(seed.bracketSlots).toHaveLength(32);
   });

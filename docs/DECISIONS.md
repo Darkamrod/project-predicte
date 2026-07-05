@@ -173,3 +173,21 @@
 - Deploying the Edge Function to a remote Supabase project remains an operational step outside the repository.
 - Retry scheduling is represented by data model, pure helpers, and a service-role candidate RPC; a cron/scheduler is deferred.
 - Edge Function runtime typechecking is covered by static tests and shared TypeScript module tests; `supabase/functions/**` is still excluded from the Expo app TypeScript program because it uses Deno globals.
+
+## 2026-07-05 - Milestone 7.1 Versioned Multi-Competition Templates
+
+- Modeled competitions as family plus edition plus versioned format/ruleset/prediction/scoring bundle. A family such as World Cup, EURO, or Champions League no longer implies a permanent structure.
+- Added initial domain templates for `world_cup_2026`, `euro_2028`, and `champions_league_2026_27`, plus a future-compatible `world_cup_2030` mock edition to prove template supersession and independent edition versions.
+- Chose JSON-backed Supabase template payloads for format, ruleset, prediction requirements, and scoring preset versions. This avoids overfitting the schema to one tournament family while the domain model is still evolving.
+- Added immutable league competition snapshots at lock time. The snapshot includes the selected format template, prediction requirements, scoring preset, admin overrides, ruleset metadata, and checksum so later catalog updates cannot alter a locked league.
+- Extended the bracket domain to support group-stage tournaments, league-phase tournaments, optional best-thirds ranking, optional playoff rounds, optional third-place finals, single-leg stages, and two-leg stage metadata.
+- Added `PLAYOFF` as a scoring/prediction stage key for Champions League-style qualification rounds. Scoring values for the new stage remain preset configuration.
+- Kept ranking-rule codes as structured metadata. FIFA-style, UEFA head-to-head-first, best-thirds, and Champions League table ranking are represented in templates; full official head-to-head implementation beyond existing deterministic tie-break handling remains future work.
+- Updated the mock create-league flow to choose among available competition editions. The mock provider still keeps one active competition context in state, so simultaneous editing of multiple leagues from different editions remains a known local-demo limitation.
+- No real sports provider, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 7.1 Assumptions
+
+- Initial team names and fixtures for EURO and Champions League are mock data intended to validate shape, prediction workflow, and scoring compatibility, not official calendars.
+- Champions League playoff and two-leg rounds are modeled structurally. Aggregate/two-leg scoring nuances beyond configured match-level predictions remain future work.
+- Official source URLs are stored as metadata only. They do not connect to or scrape a real sports-provider API.

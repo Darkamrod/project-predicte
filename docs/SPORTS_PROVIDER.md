@@ -35,3 +35,14 @@ Milestone 7 keeps `MOCK_RESULTS` as the only provider and wraps the existing run
 - Missing correction source results remain non-retryable and auditable failed imports.
 
 A future real provider must stay server-side, reuse the same provider interface, and keep provider credentials out of the Expo/mobile app.
+
+## Milestone 7.1 Official Rules Metadata
+
+Milestone 7.1 adds official rules source metadata to versioned competition templates, but it does not connect a real provider:
+
+- source fields store labels, URLs, publication dates, and notes for the human-readable regulation source;
+- seeded URLs are catalog metadata, not API endpoints used by the app;
+- template versions can supersede older versions when a competition edition changes format or regulation;
+- provider result import remains mock-only and server-side.
+
+Future provider adapters should map provider competition ids and fixtures to edition-specific templates instead of assuming that a competition family always has the same structure.

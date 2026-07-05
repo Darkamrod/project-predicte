@@ -30,7 +30,7 @@ export class SupabaseLeagueRepository {
       p_competition_edition_id: input.competitionEditionId,
       p_name: input.name,
       p_deadline_at: input.deadlineAtUtc,
-      p_scoring_preset_id: input.scoringPresetId ?? null
+      ...(input.scoringPresetId ? { p_scoring_preset_id: input.scoringPresetId } : {})
     });
 
     if (error) {
@@ -44,8 +44,8 @@ export class SupabaseLeagueRepository {
     const client = requireSupabaseClient();
     const { data, error } = await client.rpc("create_league_invite", {
       p_league_id: input.leagueId,
-      p_expires_at: input.expiresAtUtc ?? null,
-      p_max_uses: input.maxUses ?? null
+      ...(input.expiresAtUtc ? { p_expires_at: input.expiresAtUtc } : {}),
+      ...(input.maxUses !== undefined ? { p_max_uses: input.maxUses } : {})
     });
 
     if (error) {

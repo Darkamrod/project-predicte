@@ -31,11 +31,13 @@ export class SupabaseProviderResultImportRepository implements ProviderResultImp
       p_source_result_key: input.sourceResultKey,
       p_payload: input.payload as Json,
       p_status: input.status,
-      p_correction_of_source_result_key: input.correctionOfSourceResultKey ?? null,
-      p_error_message: input.errorMessage ?? null,
       p_retry_attempt: input.retryAttempt,
       p_max_retries: input.maxRetries,
-      p_next_retry_at: input.nextRetryAtUtc ?? null
+      ...(input.correctionOfSourceResultKey
+        ? { p_correction_of_source_result_key: input.correctionOfSourceResultKey }
+        : {}),
+      ...(input.errorMessage ? { p_error_message: input.errorMessage } : {}),
+      ...(input.nextRetryAtUtc ? { p_next_retry_at: input.nextRetryAtUtc } : {})
     });
 
     if (error) {

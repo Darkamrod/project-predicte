@@ -89,6 +89,10 @@ export function isRequiredAntepostComplete(
     return Boolean(prediction.selectedTeamId);
   }
 
+  if (definition.valueType === "TEAM_PAIR") {
+    return (prediction.selectedTeamIds ?? []).length === 2;
+  }
+
   if (definition.valueType === "PLAYER") {
     return Boolean(prediction.selectedPlayerId);
   }
@@ -99,6 +103,7 @@ export function isRequiredAntepostComplete(
 function isAntepostPredictionComplete(prediction: AntepostPrediction): boolean {
   return Boolean(
     prediction.selectedTeamId ||
+    (prediction.selectedTeamIds ?? []).length > 0 ||
     prediction.selectedPlayerId ||
     (Number.isInteger(prediction.numericValue) && (prediction.numericValue ?? -1) >= 0)
   );

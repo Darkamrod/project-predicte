@@ -1,4 +1,4 @@
-import type { CompetitionSeed } from "@/domain/competitions/types";
+import type { CompetitionSeed, LeagueCompetitionSnapshot } from "@/domain/competitions/types";
 import type { LeaderboardSnapshot } from "@/domain/leaderboard/types";
 import type { LeagueStatus, PredictionSet } from "@/domain/predictions/types";
 import type {
@@ -29,6 +29,7 @@ export interface League {
   members: LeagueMember[];
   scoringRuleVersion: ScoringRuleVersion;
   scoringRuleHistory: ScoringRuleChange[];
+  competitionSnapshot?: LeagueCompetitionSnapshot | undefined;
   predictionSets: PredictionSet[];
   scoringEvents: ScoringEvent[];
   scoringBreakdowns: UserScoringBreakdown[];
@@ -37,5 +38,6 @@ export interface League {
 
 export interface MockLeagueState {
   competition: CompetitionSeed;
+  competitions: CompetitionSeed[];
   leagues: League[];
 }

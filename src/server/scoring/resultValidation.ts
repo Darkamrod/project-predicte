@@ -8,6 +8,7 @@ import type {
 
 const stageKeySchema = z.enum([
   "GROUP_STAGE",
+  "PLAYOFF",
   "ROUND_OF_32",
   "ROUND_OF_16",
   "QUARTER_FINAL",

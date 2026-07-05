@@ -447,6 +447,7 @@ function inferStageFromReference(
     .split(":")
     .find((part): part is KnockoutRoundCode =>
       [
+        "PLAYOFF",
         "ROUND_OF_32",
         "ROUND_OF_16",
         "QUARTER_FINAL",

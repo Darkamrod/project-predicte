@@ -47,6 +47,7 @@ const sectionLabels: Record<WorkflowSection, string> = {
 };
 
 const roundOrder: KnockoutRoundCode[] = [
+  "PLAYOFF",
   "ROUND_OF_32",
   "ROUND_OF_16",
   "QUARTER_FINAL",
@@ -537,6 +538,7 @@ function renderAntepostSection(params: {
     leagueId: string;
     definitionId: string;
     selectedTeamId?: string | undefined;
+    selectedTeamIds?: string[] | undefined;
     selectedPlayerId?: string | undefined;
     numericValue?: number | undefined;
   }): void;
@@ -570,6 +572,39 @@ function renderAntepostSection(params: {
                   style={styles.smallChip}
                 />
               ))}
+            </View>
+          </>
+        ) : null}
+        {definition.valueType === "TEAM_PAIR" ? (
+          <>
+            <ThemedText tone="secondary" style={styles.body}>
+              {(prediction?.selectedTeamIds ?? [])
+                .map((teamId) => params.teamsById.get(teamId)?.name ?? teamId)
+                .join(" - ") || "Mancante"}
+            </ThemedText>
+            <View style={styles.rowWrap}>
+              {params.teams.slice(0, 8).map((team) => {
+                const selected = prediction?.selectedTeamIds ?? [];
+                const nextSelection = selected.includes(team.id)
+                  ? selected.filter((teamId) => teamId !== team.id)
+                  : [...selected, team.id].slice(-2);
+
+                return (
+                  <SecondaryButton
+                    key={team.id}
+                    accessibilityLabel={`Seleziona finalista ${team.name}`}
+                    label={team.shortName}
+                    onPress={() =>
+                      params.updateAntepostPrediction({
+                        leagueId: params.leagueId,
+                        definitionId: definition.id,
+                        selectedTeamIds: nextSelection
+                      })
+                    }
+                    style={styles.smallChip}
+                  />
+                );
+              })}
             </View>
           </>
         ) : null}

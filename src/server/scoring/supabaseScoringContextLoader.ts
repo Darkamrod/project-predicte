@@ -340,7 +340,7 @@ export class SupabaseScoringContextLoader implements TrustedScoringContextLoader
 function mapSport(row: Row<"sports">): Sport {
   return {
     id: row.id,
-    code: row.code,
+    code: row.code as Sport["code"],
     name: row.name
   };
 }
@@ -349,7 +349,7 @@ function mapTemplate(row: Row<"competition_templates">): CompetitionTemplate {
   return {
     id: row.id,
     sportId: row.sport_id,
-    code: row.code,
+    code: row.code as CompetitionTemplate["code"],
     name: row.name
   };
 }
@@ -463,9 +463,9 @@ function mapAntepostDefinition(row: Row<"competition_antepost_definitions">): An
   return {
     id: row.id,
     editionId: row.edition_id,
-    code: row.code,
+    code: row.code as AntepostDefinition["code"],
     label: row.label,
-    valueType: row.value_type,
+    valueType: row.value_type as AntepostDefinition["valueType"],
     required: row.required
   };
 }

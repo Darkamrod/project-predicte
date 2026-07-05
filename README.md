@@ -2,15 +2,15 @@
 
 Project Predicte is a mobile-first Expo app for private football prediction leagues.
 
-Milestone 0 establishes a verified vertical slice with mock adapters only:
+The current codebase contains the mock-first mobile app, secure Supabase lifecycle foundations, trusted server scoring/runtime foundations, and versioned competition templates.
 
 - Expo Router navigation.
 - Light and dark token-based themes.
 - Reusable UI components.
-- A data-driven World Cup-style mock competition.
+- Versioned football competition templates for World Cup, EURO, Champions League, and future editions.
 - Mock auth, league, prediction, result, and leaderboard flows.
 - A pure configurable scoring engine with unit tests.
-- Initial Supabase project structure and migrations.
+- Supabase project structure, migrations, RLS policies, RPC contracts, and a trusted Edge Function wrapper.
 
 ## Commands
 
@@ -41,6 +41,19 @@ Milestone 7 adds a deployable Supabase Edge Function wrapper for server-side moc
 - `supabase/functions/import_map.json`
 
 The Edge runtime must provide `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. These values are server-only and must not be exposed through Expo public variables or mobile client code.
+
+## Versioned Competition Templates
+
+Milestone 7.1 models each competition as a family, edition, and versioned bundle:
+
+- format template version;
+- ruleset version;
+- prediction requirement version;
+- scoring preset version;
+- official rules source metadata;
+- immutable league competition snapshot and checksum at lock.
+
+The initial seeded templates are `world_cup_2026`, `euro_2028`, and `champions_league_2026_27`. Future editions can supersede older template versions without changing locked league history.
 
 ## Milestone 0 Scope
 

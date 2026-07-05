@@ -85,3 +85,14 @@ Milestone 6 still uses mock provider data only. The trusted runtime is ready to 
 - `tests/server/supabaseAuthenticatedRls.test.ts`: authenticated local Supabase RLS/grant test harness for owner/admin/member/non-member/anon/service-role behavior when the local database is available and migrated.
 
 The deployed-entrypoint shape is now concrete, but the provider remains `MOCK_RESULTS` only. The mobile app still uses public Supabase credentials only and does not import server-side provider/scoring persistence modules.
+
+## Milestone 7.1 Additions
+
+- `src/domain/competitions/versionedTemplates.ts`: versioned football catalog for competition families, edition-specific format templates, rulesets, prediction requirements, scoring preset versions, official source metadata, and immutable lock snapshots.
+- `src/domain/scoring/presets.ts`: scoring presets for World Cup, EURO, and Champions League editions. Point values remain configuration data and are not embedded in scoring logic.
+- `src/domain/predictions/bracket.ts`: data-driven bracket generator that supports group-stage tournaments, best-third rankings, league-phase competitions, optional playoffs, optional third-place finals, and configured single-leg or two-leg stage metadata.
+- `src/services/mock/mockLeagueFactory.ts` and `src/state/PredicteMockProvider.tsx`: mock league creation can now select a competition edition and carry the associated version bundle into league state.
+- `src/features/home/HomeScreen.tsx`: the mock create-league flow surfaces available football editions instead of assuming a single World Cup-like format.
+- `supabase/migrations/20260705040000_milestone7_1_versioned_competition_templates.sql`: versioned catalog tables and league lock-snapshot fields/triggers.
+
+The architecture now treats World Cup, EURO, Champions League, and future football tournaments as competition families with edition-specific template versions. UI components consume configured competition seeds; they do not own permanent tournament-format rules.

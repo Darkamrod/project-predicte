@@ -37,14 +37,18 @@ import type { League, MockLeagueState } from "@/services/leagues/types";
 import {
   createInitialMockLeagueState,
   createMockLeague,
-  createPredictionSet
+  createPredictionSet,
+  lockMockLeagueCompetitionSnapshot
 } from "@/services/mock/mockLeagueFactory";
 import { createWorldCupMockResultSet } from "@/services/mock/mockResults";
 
 interface PredicteMockContextValue extends MockLeagueState {
   currentUser: AuthUser;
   serverNowUtc: string;
-  createLeague(): string;
+  createLeague(params?: {
+    competitionEditionId?: string | undefined;
+    name?: string | undefined;
+  }): string;
   joinLeague(inviteCode: string): string;
   getLeague(leagueId: string): League | undefined;
   updateMatchPrediction(params: {
@@ -65,6 +69,7 @@ interface PredicteMockContextValue extends MockLeagueState {
     leagueId: string;
     definitionId: string;
     selectedTeamId?: string | undefined;
+    selectedTeamIds?: string[] | undefined;
     selectedPlayerId?: string | undefined;
     numericValue?: number | undefined;
   }): void;
@@ -104,22 +109,29 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
     [state.leagues]
   );
 
-  const createLeague = useCallback(() => {
-    const id = `league-mock-${state.leagues.length + 1}`;
-    const league = createMockLeague({
-      id,
-      name: `Lega mock ${state.leagues.length + 1}`,
-      owner: currentUser,
-      competition: state.competition
-    });
+  const createLeague = useCallback(
+    (params: { competitionEditionId?: string | undefined; name?: string | undefined } = {}) => {
+      const id = `league-mock-${state.leagues.length + 1}`;
+      const competition =
+        state.competitions.find((item) => item.edition.id === params.competitionEditionId) ??
+        state.competition;
+      const league = createMockLeague({
+        id,
+        name: params.name ?? `Lega mock ${state.leagues.length + 1}`,
+        owner: currentUser,
+        competition
+      });
 
-    setState((previous) => ({
-      ...previous,
-      leagues: [...previous.leagues, league]
-    }));
+      setState((previous) => ({
+        ...previous,
+        competition,
+        leagues: [...previous.leagues, league]
+      }));
 
-    return id;
-  }, [currentUser, state.competition, state.leagues.length]);
+      return id;
+    },
+    [currentUser, state.competition, state.competitions, state.leagues.length]
+  );
 
   const joinLeague = useCallback(
     (inviteCode: string) => {
@@ -341,6 +353,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
       leagueId: string;
       definitionId: string;
       selectedTeamId?: string | undefined;
+      selectedTeamIds?: string[] | undefined;
       selectedPlayerId?: string | undefined;
       numericValue?: number | undefined;
     }) => {
@@ -370,6 +383,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
               predictionSetId: predictionSet.id,
               definitionId: params.definitionId,
               selectedTeamId: params.selectedTeamId,
+              selectedTeamIds: params.selectedTeamIds,
               selectedPlayerId: params.selectedPlayerId,
               numericValue: params.numericValue,
               syncStatus: "SYNCED",
@@ -479,19 +493,28 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
     (leagueId: string) => {
       setState((previous) => ({
         ...previous,
-        leagues: previous.leagues.map((league) =>
-          league.id === leagueId
-            ? {
-                ...league,
-                status: "locked" satisfies LeagueStatus,
-                scoringRuleVersion: lockScoringRuleVersion(league.scoringRuleVersion, serverNowUtc),
-                predictionSets: league.predictionSets.map((predictionSet) => ({
-                  ...predictionSet,
-                  status: "locked"
-                }))
-              }
-            : league
-        )
+        leagues: previous.leagues.map((league) => {
+          if (league.id !== leagueId) {
+            return league;
+          }
+
+          const competition = getCompetitionForLeague(previous, league);
+          const leagueWithSnapshot = lockMockLeagueCompetitionSnapshot({
+            league,
+            competition,
+            lockedAtUtc: serverNowUtc
+          });
+
+          return {
+            ...leagueWithSnapshot,
+            status: "locked" satisfies LeagueStatus,
+            scoringRuleVersion: lockScoringRuleVersion(league.scoringRuleVersion, serverNowUtc),
+            predictionSets: league.predictionSets.map((predictionSet) => ({
+              ...predictionSet,
+              status: "locked"
+            }))
+          };
+        })
       }));
     },
     [serverNowUtc]
@@ -675,6 +698,14 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
   );
 
   return <PredicteMockContext.Provider value={value}>{children}</PredicteMockContext.Provider>;
+}
+
+function getCompetitionForLeague(state: MockLeagueState, league: League): CompetitionSeed {
+  return (
+    state.competitions.find(
+      (competition) => competition.edition.id === league.competitionEditionId
+    ) ?? state.competition
+  );
 }
 
 export function usePredicteMock(): PredicteMockContextValue {

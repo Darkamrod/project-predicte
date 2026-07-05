@@ -48,3 +48,14 @@ The mock result action recalculates events and leaderboard snapshots through the
 Milestone 4 does not change the visible mock-first UX. It adds Supabase repositories behind the complete prediction, rule, scoring, and leaderboard concepts so the same flows can be backed by real persistence when Supabase is configured.
 
 The existing mock screens still simulate saved/synced states locally. Real sync error handling can now use the repository-level RPC failures without moving database logic into UI components.
+
+## Milestone 7.1 Multi-Competition Create League Flow
+
+The home route now exposes a compact mock edition selector before league creation:
+
+1. The user chooses from the seeded football editions.
+2. Creating a league stores the selected `competitionEditionId` and uses the edition's version bundle for format, prediction requirements, and scoring preset.
+3. The active-league summary shows the selected competition display name and family metadata.
+4. Locking a mock league captures an immutable competition snapshot and checksum.
+
+The prediction workflow remains data-driven. It renders group-stage sections only when the selected competition has groups, generated bracket rounds only when they exist, optional third-place finals only when configured, and antepost fields from the edition requirements. The screen does not describe template mechanics in product copy; the technical details stay in domain configuration and documentation.

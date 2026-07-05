@@ -20,6 +20,7 @@ import { usePredicteMock } from "@/state/PredicteMockProvider";
 
 const stageOrder: ScoringStageKey[] = [
   "GROUP_STAGE",
+  "PLAYOFF",
   "ROUND_OF_32",
   "ROUND_OF_16",
   "QUARTER_FINAL",
@@ -30,6 +31,7 @@ const stageOrder: ScoringStageKey[] = [
 
 const stageLabels: Record<ScoringStageKey, string> = {
   GROUP_STAGE: "Fase a gironi",
+  PLAYOFF: "Playoff",
   ROUND_OF_32: "Sedicesimi",
   ROUND_OF_16: "Ottavi",
   QUARTER_FINAL: "Quarti",

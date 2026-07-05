@@ -1,4 +1,8 @@
-import { createWorldCup2030MockSeed } from "@/domain/competitions/worldCupMock";
+import {
+  createCompetitionSnapshot,
+  createInitialCompetitionSeeds,
+  createWorldCup2026MockSeed
+} from "@/domain/competitions/versionedTemplates";
 import type { CompetitionSeed } from "@/domain/competitions/types";
 import { createLeaderboardSnapshot } from "@/domain/leaderboard/leaderboard";
 import type { LeaderboardParticipant, LeaderboardSnapshot } from "@/domain/leaderboard/types";
@@ -6,7 +10,7 @@ import { generatePredictedBracket } from "@/domain/predictions/bracket";
 import type { MatchPrediction, PredictionSet } from "@/domain/predictions/types";
 import { createDraftScoringRuleVersion } from "@/domain/scoring/ruleVersions";
 import { recalculateTournamentScoring } from "@/domain/scoring/tournamentScoring";
-import type { ScoringEvent, UserScoringBreakdown } from "@/domain/scoring/types";
+import type { ScoringEvent, ScoringRuleConfig, UserScoringBreakdown } from "@/domain/scoring/types";
 import { worldCupDefaultScoringConfig } from "@/domain/scoring/worldCupPreset";
 import type { AuthUser } from "@/services/auth/types";
 import type { League, LeagueMember, MockLeagueState } from "@/services/leagues/types";
@@ -39,10 +43,11 @@ const mockMembers: LeagueMember[] = [
 ];
 
 export function createInitialMockLeagueState(currentUser: AuthUser): MockLeagueState {
-  const competition = createWorldCup2030MockSeed();
+  const competitions = createInitialCompetitionSeeds();
+  const competition = competitions[0] ?? createWorldCup2026MockSeed();
   const league = createMockLeague({
     id: "league-predicte-friends",
-    name: "Predicte Friends 2030",
+    name: "Predicte Friends 2026",
     owner: currentUser,
     competition
   });
@@ -51,6 +56,7 @@ export function createInitialMockLeagueState(currentUser: AuthUser): MockLeagueS
 
   return {
     competition,
+    competitions,
     leagues: [
       {
         ...league,
@@ -66,11 +72,13 @@ export function createMockLeague(params: {
   id: string;
   name: string;
   owner: AuthUser;
-  competition: ReturnType<typeof createWorldCup2030MockSeed>;
+  competition: CompetitionSeed;
 }): League {
+  const versionedScoringConfig = params.competition.versionBundle?.scoringPreset.config as
+    ScoringRuleConfig | undefined;
   const scoringRuleVersion = createDraftScoringRuleVersion({
     leagueId: params.id,
-    config: worldCupDefaultScoringConfig,
+    config: versionedScoringConfig ?? worldCupDefaultScoringConfig,
     createdAtUtc: nowUtc
   });
   const members: LeagueMember[] = [
@@ -90,8 +98,8 @@ export function createMockLeague(params: {
     competitionEditionId: params.competition.edition.id,
     ownerUserId: params.owner.id,
     status: "open",
-    deadlineAtUtc: "2030-06-08T18:30:00.000Z",
-    inviteCode: "PREDICTE2030",
+    deadlineAtUtc: params.competition.edition.maximumDeadlineAtUtc,
+    inviteCode: params.competition.edition.editionCode?.toUpperCase() ?? "PREDICTE",
     members,
     scoringRuleVersion,
     predictionSets: members.map((member) =>
@@ -104,13 +112,34 @@ export function createMockLeague(params: {
   };
 }
 
+export function lockMockLeagueCompetitionSnapshot(params: {
+  league: League;
+  competition: CompetitionSeed;
+  lockedAtUtc: string;
+}): League {
+  return {
+    ...params.league,
+    competitionSnapshot: createCompetitionSnapshot({
+      leagueId: params.league.id,
+      competition: params.competition,
+      lockedAtUtc: params.lockedAtUtc,
+      adminOverrides: {
+        scoringRuleVersionId: params.league.scoringRuleVersion.id
+      }
+    })
+  };
+}
+
 export function createPredictionSet(
   leagueId: string,
   userId: string,
   competition: CompetitionSeed
 ): PredictionSet {
   const matches = competition.matches;
-  const groupMatches = matches.filter((match) => match.stageId === "stage-group");
+  const initialStageIds = new Set(
+    competition.stages.filter((stage) => stage.code === "GROUP_STAGE").map((stage) => stage.id)
+  );
+  const groupMatches = matches.filter((match) => initialStageIds.has(match.stageId));
   const defaultScores = getDefaultScores(userId);
   const matchPredictions: MatchPrediction[] = groupMatches.map((match, index) => ({
     id: `${leagueId}:${userId}:${match.id}`,

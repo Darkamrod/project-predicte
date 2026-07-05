@@ -99,3 +99,15 @@ Milestone 7 wraps the existing trusted runtime in `supabase/functions/trusted-re
 - corrections still exclude superseded events from the new snapshot through the trusted scoring worker path.
 
 Retry scheduling is not part of the scoring calculation. Milestone 7 adds `failure_kind` and `trusted_provider_retry_candidates` so a future scheduler can safely select due retryable imports without granting client write access to official scoring artifacts.
+
+## Milestone 7.1 Versioned Presets
+
+Milestone 7.1 keeps the engine pure and configuration-driven while adding multiple scoring presets:
+
+- `WORLD_CUP_DEFAULT` for the 2026 World Cup template.
+- `EURO_DEFAULT` for the 2028 EURO template.
+- `CHAMPIONS_LEAGUE_DEFAULT` for the 2026/27 Champions League template.
+
+The stage set now includes `PLAYOFF` so Champions League-style two-leg playoff rounds can be scored through the same configured stage map as round of 16, quarterfinals, semifinals, and finals. EURO and Champions League presets set unused stages such as round of 32 or third-place final to zero values instead of requiring UI or engine conditionals.
+
+Versioned scoring preset payloads are stored in the competition bundle and copied into the league competition snapshot at lock. Rule editor overrides remain league-specific and are included in the locked snapshot checksum. The scoring engine still receives a `ScoringRuleConfig`; it does not know whether a rule came from World Cup, EURO, Champions League, or a future custom edition.

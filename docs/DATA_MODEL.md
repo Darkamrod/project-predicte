@@ -151,3 +151,23 @@ Milestone 7 adds retry classification to the provider import audit trail:
 `trusted_provider_retry_candidates(limit)` is service-role-only and returns due failed imports that are still retryable. It is a queue foundation, not a scheduler: no background job is started in Milestone 7.
 
 The Edge Function wrapper does not add new persisted domain tables. It exposes the existing trusted runtime through a deployable server entrypoint that can import mock provider results, persist provider/import audit rows, run trusted scoring, and preserve idempotency through `source_result_key`.
+
+## Milestone 7.1 Versioned Competition Template Model
+
+Milestone 7.1 adds a versioned competition catalog so leagues reference an edition-specific rules bundle instead of a permanent hardcoded tournament format:
+
+- `competition_families`: stable family codes such as `world_cup`, `euro`, and `champions_league`.
+- `format_template_versions`: JSON format payloads for one edition/stage structure, including stage kinds, advancement rules, ranking rules, bracket strategy, valid dates, supersession, and status.
+- `ruleset_versions`: official regulation metadata and ranking-rule details for the edition.
+- `prediction_requirement_versions`: required or optional user prediction items for the edition.
+- `scoring_preset_versions`: versioned scoring configuration payloads linked to an edition/template.
+- `competition_editions`: now points at the active family, format template version, ruleset version, prediction requirement version, and scoring preset version.
+- `leagues`: now stores the selected version ids plus `locked_competition_snapshot` and `locked_competition_snapshot_checksum` at lock time.
+
+The initial seeded templates are:
+
+- `world_cup_2026`: 48 teams, 12 groups, 8 best thirds, round of 32, round of 16, quarterfinals, semifinals, third-place final, and final.
+- `euro_2028`: 24 teams, 6 groups, 4 best thirds, round of 16 through final, no round of 32, no third-place final, and UEFA-style head-to-head ranking metadata.
+- `champions_league_2026_27`: 36-team league phase, top 8 direct to round of 16, positions 9-24 into two-leg playoffs, two-leg round of 16/quarterfinals/semifinals, and single-leg final.
+
+The JSON payloads are intentionally flexible at this stage. They can represent future editions such as `world_cup_2030`, `euro_2032`, or `champions_league_2027_28` without changing UI components or freezing a family-level format forever.

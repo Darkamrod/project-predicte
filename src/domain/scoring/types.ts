@@ -15,6 +15,7 @@ export type ScoringEventType =
 
 export type ScoringStageKey =
   | "GROUP_STAGE"
+  | "PLAYOFF"
   | "ROUND_OF_32"
   | "ROUND_OF_16"
   | "QUARTER_FINAL"
@@ -47,7 +48,7 @@ export interface ScoringStackingConfig {
 
 export interface ScoringRuleConfig {
   schemaVersion: 1;
-  presetCode: "WORLD_CUP_DEFAULT";
+  presetCode: "WORLD_CUP_DEFAULT" | "EURO_DEFAULT" | "CHAMPIONS_LEAGUE_DEFAULT";
   maxPointsPerField: number;
   stages: Record<ScoringStageKey, StageScoringRule>;
   antepost: AntepostScoringRule;

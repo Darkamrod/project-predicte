@@ -102,3 +102,14 @@ Milestone 7 adds a deployable server entrypoint while keeping the client boundar
 - Authenticated RLS tests verify member-readable scoring artifacts, organizer-only result ingestion visibility, non-member denial, client write denial, and service-role-only RPC execution when local Supabase is available.
 
 Retry metadata remains auditable and UTC-based. `failure_kind = 'retryable'` only means a trusted server process may retry the import later; it does not grant any client write capability.
+
+## Milestone 7.1 Template and Snapshot Security
+
+Milestone 7.1 treats competition templates as read-only catalog data for normal clients:
+
+- `competition_families`, `format_template_versions`, `ruleset_versions`, `prediction_requirement_versions`, and `scoring_preset_versions` grant read access to authenticated users and revoke direct client writes.
+- Leagues reference the selected version ids when created. The database can populate missing version ids from the selected edition to keep local seed flows coherent.
+- When a league status changes to locked, the database captures a competition snapshot and checksum from the versioned catalog. Future catalog edits or superseded templates do not mutate locked league history.
+- The snapshot contains configuration and metadata only. It does not expose service-role secrets, provider credentials, payment data, or real sports-provider integrations.
+
+Official scoring and provider import RPCs remain service-role-only. Template versioning does not reintroduce any client path for writing scoring artifacts or provider payloads.

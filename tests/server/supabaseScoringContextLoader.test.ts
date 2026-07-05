@@ -135,17 +135,31 @@ function createRows(): RowMap {
   return {
     sports: [{ id: sportId, code: "FOOTBALL", name: "Football" }],
     competition_templates: [
-      { id: templateId, sport_id: sportId, code: "FIFA_WORLD_CUP", name: "World Cup" }
+      {
+        id: templateId,
+        sport_id: sportId,
+        family_id: null,
+        code: "FIFA_WORLD_CUP",
+        name: "World Cup",
+        status: "active"
+      }
     ],
     competition_editions: [
       {
         id: editionId,
         template_id: templateId,
+        edition_code: "world_cup_mock",
+        family_id: null,
         name: "World Cup Mock",
         season_label: "2030",
         enabled: true,
         first_kickoff_at: "2030-06-08T19:00:00.000Z",
         maximum_deadline_at: "2030-06-08T18:30:00.000Z",
+        format_template_version_id: null,
+        ruleset_version_id: null,
+        prediction_requirement_version_id: null,
+        scoring_preset_version_id: null,
+        official_rules_source: null,
         data_completeness: "MOCK_COMPLETE",
         created_at: "2026-07-05T00:00:00.000Z",
         format: {
@@ -232,6 +246,12 @@ function createRows(): RowMap {
         status: "locked",
         deadline_at: "2030-06-08T18:30:00.000Z",
         current_scoring_rule_version_id: ruleVersionId,
+        format_template_version_id: null,
+        ruleset_version_id: null,
+        prediction_requirement_version_id: null,
+        scoring_preset_version_id: null,
+        locked_competition_snapshot: null,
+        locked_competition_snapshot_checksum: null,
         invite_settings: {},
         created_at: "2026-07-05T00:00:00.000Z",
         updated_at: "2026-07-05T00:00:00.000Z"

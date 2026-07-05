@@ -34,16 +34,18 @@ export interface PredictedBracketMatch {
 
 export interface PredictedBracket {
   groupTables: PredictedGroupTable[];
+  leagueTable: GroupStandingRow[];
   bestThirdPlaceQualifiers: BestThirdPlaceQualifier[];
   matches: PredictedBracketMatch[];
 }
 
 const roundNames: Record<KnockoutRoundCode, string> = {
+  PLAYOFF: "Playoff",
   ROUND_OF_32: "Sedicesimi",
   ROUND_OF_16: "Ottavi",
   QUARTER_FINAL: "Quarti",
   SEMI_FINAL: "Semifinali",
-  THIRD_PLACE: "Finale 3° posto",
+  THIRD_PLACE: "Finale 3 posto",
   FINAL: "Finale"
 };
 
@@ -66,6 +68,23 @@ export function calculatePredictedGroupTables(params: {
         scopeRef: groupScopeRef(group.code)
       })
     };
+  });
+}
+
+export function calculatePredictedLeagueTable(params: {
+  competition: CompetitionSeed;
+  predictionSet: PredictionSet;
+}): GroupStandingRow[] {
+  if (params.competition.edition.format.initialStageKind !== "league_phase") {
+    return [];
+  }
+
+  return calculatePredictedGroupStandings({
+    teams: params.competition.teams,
+    matches: params.competition.matches,
+    predictions: params.predictionSet.matchPredictions,
+    tiebreakOverrides: params.predictionSet.tiebreakOverrides ?? [],
+    scopeRef: "league_phase"
   });
 }
 
@@ -97,52 +116,62 @@ export function generatePredictedBracket(params: {
   predictionSet: PredictionSet;
 }): PredictedBracket {
   const groupTables = calculatePredictedGroupTables(params);
+  const leagueTable = calculatePredictedLeagueTable(params);
   const bestThirdPlaceQualifiers = selectBestThirdPlacedTeams(
     groupTables,
     params.competition.edition.format.bestThirdPlacedTeams
   );
-  const firstRoundMatches = generateRoundOf32Matches(
-    params.competition,
-    groupTables,
-    bestThirdPlaceQualifiers
-  );
-  const roundOf16Matches = generateNextRoundMatches({
-    roundCode: "ROUND_OF_16",
-    previousMatches: firstRoundMatches,
-    predictionSet: params.predictionSet
-  });
-  const quarterFinalMatches = generateNextRoundMatches({
-    roundCode: "QUARTER_FINAL",
-    previousMatches: roundOf16Matches,
-    predictionSet: params.predictionSet
-  });
-  const semiFinalMatches = generateNextRoundMatches({
-    roundCode: "SEMI_FINAL",
-    previousMatches: quarterFinalMatches,
-    predictionSet: params.predictionSet
-  });
-  const finalMatches = generateNextRoundMatches({
-    roundCode: "FINAL",
-    previousMatches: semiFinalMatches,
-    predictionSet: params.predictionSet
-  });
-  const thirdPlaceMatches = generateThirdPlaceMatches({
-    previousMatches: semiFinalMatches,
-    predictionSet: params.predictionSet
-  });
-  const matches = orderConfiguredRounds(params.competition.edition.format.knockoutRounds, [
-    ...firstRoundMatches,
-    ...roundOf16Matches,
-    ...quarterFinalMatches,
-    ...semiFinalMatches,
-    ...thirdPlaceMatches,
-    ...finalMatches
-  ]);
+  const matches: PredictedBracketMatch[] = [];
+  let previousRoundMatches: PredictedBracketMatch[] = [];
+  let semiFinalMatches: PredictedBracketMatch[] = [];
+
+  for (const roundCode of params.competition.edition.format.knockoutRounds) {
+    const configuredSlots = params.competition.bracketSlots.filter(
+      (slot) => slot.roundCode === roundCode
+    );
+    const roundMatches =
+      configuredSlots.length > 0
+        ? pairSlots(
+            roundCode,
+            configuredSlots.map((slot) =>
+              resolveBracketSlot({
+                slotId: slot.id,
+                source: slot.source,
+                groupTables,
+                leagueTable,
+                bestThirds: bestThirdPlaceQualifiers,
+                generatedMatches: matches,
+                predictionSet: params.predictionSet
+              })
+            )
+          )
+        : roundCode === "THIRD_PLACE"
+          ? generateThirdPlaceMatches({
+              previousMatches: semiFinalMatches,
+              predictionSet: params.predictionSet
+            })
+          : generateNextRoundMatches({
+              roundCode,
+              previousMatches: previousRoundMatches,
+              predictionSet: params.predictionSet
+            });
+
+    matches.push(...roundMatches);
+
+    if (roundCode === "SEMI_FINAL") {
+      semiFinalMatches = roundMatches;
+    }
+
+    if (roundCode !== "THIRD_PLACE") {
+      previousRoundMatches = roundMatches;
+    }
+  }
 
   return {
     groupTables,
+    leagueTable,
     bestThirdPlaceQualifiers,
-    matches
+    matches: orderConfiguredRounds(params.competition.edition.format.knockoutRounds, matches)
   };
 }
 
@@ -197,30 +226,23 @@ export function getTeamLabel(teamsById: Map<string, Team>, teamId?: string): str
   return teamsById.get(teamId)?.name ?? teamId;
 }
 
-function generateRoundOf32Matches(
-  competition: CompetitionSeed,
-  groupTables: PredictedGroupTable[],
-  bestThirds: BestThirdPlaceQualifier[]
-): PredictedBracketMatch[] {
-  const slots = competition.bracketSlots
-    .filter((slot) => slot.roundCode === "ROUND_OF_32")
-    .map((slot) => resolveInitialSlot(slot.id, slot.source, groupTables, bestThirds));
+function resolveBracketSlot(params: {
+  slotId: string;
+  source: CompetitionSeed["bracketSlots"][number]["source"];
+  groupTables: PredictedGroupTable[];
+  leagueTable: GroupStandingRow[];
+  bestThirds: BestThirdPlaceQualifier[];
+  generatedMatches: PredictedBracketMatch[];
+  predictionSet: PredictionSet;
+}): PredictedBracketSlot {
+  const source = params.source;
 
-  return pairSlots("ROUND_OF_32", slots);
-}
-
-function resolveInitialSlot(
-  slotId: string,
-  source: CompetitionSeed["bracketSlots"][number]["source"],
-  groupTables: PredictedGroupTable[],
-  bestThirds: BestThirdPlaceQualifier[]
-): PredictedBracketSlot {
   if (source.type === "GROUP_POSITION") {
-    const table = groupTables.find((item) => item.group.code === source.groupCode);
+    const table = params.groupTables.find((item) => item.group.code === source.groupCode);
     const row = table?.rows.find((item) => item.position === source.position);
 
     return {
-      id: slotId,
+      id: params.slotId,
       label: `${source.groupCode}${source.position}`,
       teamId: row?.teamId,
       sourceRef: groupScopeRef(source.groupCode)
@@ -228,19 +250,47 @@ function resolveInitialSlot(
   }
 
   if (source.type === "BEST_THIRD") {
-    const bestThird = bestThirds.find((item) => item.rank === source.rank);
+    const bestThird = params.bestThirds.find((item) => item.rank === source.rank);
 
     return {
-      id: slotId,
-      label: `3ª #${source.rank}`,
+      id: params.slotId,
+      label: `3a #${source.rank}`,
       teamId: bestThird?.row.teamId,
       sourceRef: "best-third"
     };
   }
 
+  if (source.type === "LEAGUE_POSITION") {
+    const row = params.leagueTable.find((item) => item.position === source.position);
+
+    return {
+      id: params.slotId,
+      label: `#${source.position}`,
+      teamId: row?.teamId,
+      sourceRef: "league_phase"
+    };
+  }
+
+  const sourceMatch = params.generatedMatches.find((match) => match.id === source.matchId);
+  const prediction = sourceMatch
+    ? getMatchPrediction(params.predictionSet, sourceMatch.id)
+    : undefined;
+  const teamId =
+    source.type === "WINNER_OF_MATCH"
+      ? sourceMatch
+        ? getPredictedQualifiedTeamId(sourceMatch, prediction)
+        : undefined
+      : sourceMatch
+        ? getPredictedEliminatedTeamId(sourceMatch, prediction)
+        : undefined;
+
   return {
-    id: slotId,
-    label: "Da definire",
+    id: params.slotId,
+    label:
+      source.type === "WINNER_OF_MATCH"
+        ? `Vincente ${source.matchId}`
+        : `Perdente ${source.matchId}`,
+    teamId,
     sourceRef: source.matchId
   };
 }
@@ -266,7 +316,7 @@ function pairSlots(
 }
 
 function generateNextRoundMatches(params: {
-  roundCode: Exclude<KnockoutRoundCode, "ROUND_OF_32" | "THIRD_PLACE">;
+  roundCode: Exclude<KnockoutRoundCode, "THIRD_PLACE">;
   previousMatches: PredictedBracketMatch[];
   predictionSet: PredictionSet;
 }): PredictedBracketMatch[] {

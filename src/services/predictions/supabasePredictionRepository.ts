@@ -97,21 +97,25 @@ export class SupabasePredictionRepository {
 
   async saveMatchPrediction(input: SaveMatchPredictionInput): Promise<string> {
     const client = resolveSupabaseRpcClient(this.client);
-    const matchId = getUuidOrNull(input.prediction.matchId);
+    const matchId = getUuidOrUndefined(input.prediction.matchId);
     const { data, error } = await client.rpc("save_match_prediction", {
       p_league_id: input.leagueId,
-      p_match_id: matchId,
       p_prediction_ref: input.prediction.matchId,
       p_stage_code: input.prediction.stageCode,
       p_regulation_home_goals: input.prediction.homeGoals,
       p_regulation_away_goals: input.prediction.awayGoals,
-      p_qualified_team_id: input.prediction.qualifiedTeamId ?? null,
-      p_advancement_method: input.prediction.advancementMethod ?? null,
-      p_home_team_id: input.metadata?.homeTeamId ?? null,
-      p_away_team_id: input.metadata?.awayTeamId ?? null,
       p_depends_on_prediction_refs: input.metadata?.dependsOnPredictionRefs ?? [],
       p_validation_status: input.validationStatus ?? "valid",
-      p_sync_status: input.prediction.syncStatus
+      p_sync_status: input.prediction.syncStatus,
+      ...(matchId ? { p_match_id: matchId } : {}),
+      ...(input.prediction.qualifiedTeamId
+        ? { p_qualified_team_id: input.prediction.qualifiedTeamId }
+        : {}),
+      ...(input.prediction.advancementMethod
+        ? { p_advancement_method: input.prediction.advancementMethod }
+        : {}),
+      ...(input.metadata?.homeTeamId ? { p_home_team_id: input.metadata.homeTeamId } : {}),
+      ...(input.metadata?.awayTeamId ? { p_away_team_id: input.metadata.awayTeamId } : {})
     });
 
     if (error) {
@@ -194,6 +198,10 @@ function createAntepostPayload(prediction: AntepostPrediction): Json {
     payload.selectedTeamId = prediction.selectedTeamId;
   }
 
+  if (prediction.selectedTeamIds) {
+    payload.selectedTeamIds = prediction.selectedTeamIds;
+  }
+
   if (prediction.selectedPlayerId) {
     payload.selectedPlayerId = prediction.selectedPlayerId;
   }
@@ -205,8 +213,8 @@ function createAntepostPayload(prediction: AntepostPrediction): Json {
   return payload;
 }
 
-function getUuidOrNull(value: string): string | null {
-  return uuidPattern.test(value) ? value : null;
+function getUuidOrUndefined(value: string): string | undefined {
+  return uuidPattern.test(value) ? value : undefined;
 }
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

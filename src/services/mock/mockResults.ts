@@ -77,11 +77,16 @@ function createKnockoutResults(
   tournamentWinnerTeamId?: string | undefined;
 } {
   const configuredRounds = competition.edition.format.knockoutRounds;
-  const initialTeams = resolveInitialKnockoutTeams(competition, groupPositions);
+  const leaguePositions = competition.teams.map((team, index) => ({
+    position: index + 1,
+    teamId: team.id
+  }));
   const matchResults: OfficialMatchResult[] = [];
   const stageQualifications: OfficialStageQualification[] = [];
   const pairings: OfficialPairing[] = [];
-  let incomingTeams = initialTeams;
+  const winnersByMatchId = new Map<string, string>();
+  const losersByMatchId = new Map<string, string>();
+  let incomingTeams: string[] = [];
   let semifinalLosers: string[] = [];
   let tournamentWinnerTeamId: string | undefined;
 
@@ -94,11 +99,43 @@ function createKnockoutResults(
       continue;
     }
 
-    stageQualifications.push(createStageQualification(roundCode, incomingTeams));
+    const configuredSlots = competition.bracketSlots.filter((slot) => slot.roundCode === roundCode);
+    const roundTeams =
+      configuredSlots.length > 0
+        ? configuredSlots
+            .map((slot) =>
+              resolveSlotTeamId({
+                source: slot.source,
+                groupPositions,
+                leaguePositions,
+                winnersByMatchId,
+                losersByMatchId
+              })
+            )
+            .filter((teamId): teamId is string => Boolean(teamId))
+        : incomingTeams;
 
-    const round = createRoundMatches(roundCode, incomingTeams);
+    if (roundTeams.length === 0) {
+      continue;
+    }
+
+    stageQualifications.push(createStageQualification(roundCode, roundTeams));
+
+    const round = createRoundMatches(roundCode, roundTeams);
     matchResults.push(...round.matchResults);
     pairings.push(...round.pairings);
+    round.matchResults.forEach((matchResult, index) => {
+      const winner = round.winners[index];
+      const loser = round.losers[index];
+
+      if (winner) {
+        winnersByMatchId.set(matchResult.matchId, winner);
+      }
+
+      if (loser) {
+        losersByMatchId.set(matchResult.matchId, loser);
+      }
+    });
 
     if (roundCode === "SEMI_FINAL") {
       semifinalLosers = round.losers;
@@ -119,31 +156,36 @@ function createKnockoutResults(
   };
 }
 
-function resolveInitialKnockoutTeams(
-  competition: CompetitionSeed,
-  groupPositions: OfficialGroupPosition[]
-): string[] {
-  return competition.bracketSlots
-    .filter((slot) => slot.roundCode === "ROUND_OF_32")
-    .map((slot) => {
-      const source = slot.source;
+function resolveSlotTeamId(params: {
+  source: CompetitionSeed["bracketSlots"][number]["source"];
+  groupPositions: OfficialGroupPosition[];
+  leaguePositions: Array<{ position: number; teamId: string }>;
+  winnersByMatchId: Map<string, string>;
+  losersByMatchId: Map<string, string>;
+}): string | undefined {
+  const source = params.source;
 
-      if (source.type === "GROUP_POSITION") {
-        return groupPositions.find(
-          (position) =>
-            position.groupCode === source.groupCode && position.position === source.position
-        )?.teamId;
-      }
+  if (source.type === "GROUP_POSITION") {
+    return params.groupPositions.find(
+      (position) => position.groupCode === source.groupCode && position.position === source.position
+    )?.teamId;
+  }
 
-      if (source.type === "BEST_THIRD") {
-        const bestThirds = groupPositions.filter((position) => position.position === 3);
+  if (source.type === "BEST_THIRD") {
+    const bestThirds = params.groupPositions.filter((position) => position.position === 3);
 
-        return bestThirds[source.rank - 1]?.teamId;
-      }
+    return bestThirds[source.rank - 1]?.teamId;
+  }
 
-      return undefined;
-    })
-    .filter((teamId): teamId is string => Boolean(teamId));
+  if (source.type === "LEAGUE_POSITION") {
+    return params.leaguePositions.find((position) => position.position === source.position)?.teamId;
+  }
+
+  if (source.type === "WINNER_OF_MATCH") {
+    return params.winnersByMatchId.get(source.matchId);
+  }
+
+  return params.losersByMatchId.get(source.matchId);
 }
 
 function createRoundMatches(

@@ -26,8 +26,10 @@ export class SupabaseTrustedScoringRepository
       p_source_result_key: input.sourceResultKey,
       p_payload: input.payload as unknown as Json,
       p_status: input.status,
-      p_correction_of_source_result_key: input.correctionOfSourceResultKey ?? null,
-      p_error_message: input.errorMessage ?? null
+      ...(input.correctionOfSourceResultKey
+        ? { p_correction_of_source_result_key: input.correctionOfSourceResultKey }
+        : {}),
+      ...(input.errorMessage ? { p_error_message: input.errorMessage } : {})
     });
 
     if (error) {
