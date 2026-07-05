@@ -114,8 +114,19 @@
 - Static tests added for seed scoring config parity, stage completeness, version-reference mapping, and the league creation contract.
 - Mock provider operations now resolve competition context per league for multi-edition local demo safety.
 
+## Completed in Milestone 8
+
+- Mobile-first prediction entry now starts with Quick or Expert mode selection.
+- Quick mode provides outcome buttons, score chips, manual `Altro` score entry, and swipe-compatible side selection while keeping visible accessible controls.
+- Expert mode provides numeric score entry and explicit knockout draw resolution.
+- The prediction workflow now uses a pure domain entry orchestrator for initial phase, tie-break overrides, knockout, derived antepost, manual antepost, review, and next-missing navigation.
+- Tournament winner and finalists are derived from the predicted bracket; top scorer and top-scorer goals remain manual.
+- Mock prediction updates preserve dependency warnings and automatically refresh derived antepost values.
+- League-phase mock competitions receive initial predictions through the mock factory, and two-legged knockout stages are shown as documented aggregate placeholders.
+- Tests cover Quick/Expert normalization, initial/knockout validation, extra time, penalties, two-legged placeholders, derived/manual antepost, tie-break routing, World Cup/EURO/Champions flows, and UI hardcode guards.
+
 ## Next Authorized Milestone
 
-Milestone 8 should be defined by the next authorized prompt. Likely candidates are scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, or a separately authorized real provider adapter.
+Milestone 9 should be defined by the next authorized prompt. Likely candidates are scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.
 
-Do not start Milestone 8 without explicit authorization.
+Do not start Milestone 9 without explicit authorization.

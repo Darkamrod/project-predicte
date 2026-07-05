@@ -45,6 +45,7 @@ export interface AntepostPrediction {
   selectedTeamId?: string | undefined;
   selectedTeamIds?: string[] | undefined;
   selectedPlayerId?: string | undefined;
+  textValue?: string | undefined;
   numericValue?: number | undefined;
   syncStatus: PredictionSyncStatus;
   updatedAtUtc: string;

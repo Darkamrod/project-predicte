@@ -206,3 +206,20 @@
 
 - `world_cup_2030` uses mock placeholder metadata and draft version rows only; it is not an official calendar or enabled production edition.
 - Versioned scoring presets are duplicated in the seed as JSON so local Supabase resets can validate league creation without requiring TypeScript runtime code inside SQL.
+
+## 2026-07-05 - Milestone 8 Prediction Entry UX
+
+- Added a pure `entryWorkflow` domain module for prediction-entry sequencing, Quick/Expert normalization, score chips, tie-break targets, knockout validation, derived antepost, and manual antepost completion. The UI consumes this module instead of encoding competition rules in components.
+- Chose two entry modes with the same final data model. `QUICK` optimizes for large mobile cards and chips; `EXPERT` exposes direct numeric score inputs. Neither mode changes scoring or persistence semantics.
+- Kept tournament winner and finalists as derived antepost values from the predicted bracket. Users manually enter only top scorer and top-scorer goals in this milestone.
+- Added free-text top-scorer support via `AntepostPrediction.textValue` while preserving player-id selection when a mock catalog entry is chosen.
+- Added a lightweight tie-break override step between initial predictions and bracket entry. It orders unresolved tied teams from the domain-generated target and writes the existing mock `PredictionTiebreakOverride` shape.
+- Treated Champions League-style two-legged knockout rounds as one aggregate prediction placeholder. This avoids inventing leg-by-leg UX, aggregate tiebreak rules, or scoring changes before a dedicated milestone.
+- Updated mock league initial prediction creation to populate all concrete initial-stage matches for league-phase editions, not just World Cup/EURO group fixtures.
+- No real sports provider, Sportmonks integration, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 8 Assumptions
+
+- Quick mode swipe support is additive to visible buttons; buttons remain the accessible primary path.
+- League-phase tie-break handling is still simplified. The current validation blocks unresolved group-table ties; full official Champions League ranking override UX can be expanded once real edition/provider data is introduced.
+- Two-legged rounds store one aggregate prediction in Milestone 8. Future leg-level predictions may require either child prediction records or an expanded prediction payload contract.

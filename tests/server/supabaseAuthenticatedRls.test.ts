@@ -33,7 +33,7 @@ describeLocalSupabase("Milestone 7 authenticated Supabase RLS", () => {
     } finally {
       cleanupFixture();
     }
-  });
+  }, 20_000);
 });
 
 function canUseLocalSupabase(): boolean {

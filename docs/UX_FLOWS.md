@@ -65,3 +65,25 @@ The prediction workflow remains data-driven. It renders group-stage sections onl
 The mock provider now resolves the competition context from each league's `competitionEditionId` when predictions are edited, dependency warnings are cleared, rules are locked, or mock results are settled. This keeps local demo leagues for different editions from accidentally using the last selected global competition context.
 
 The create-league screen still uses one compact edition selector. Separate controls for sport, competition family, edition, and regulation preset are intentionally deferred so Milestone 7.2 stays focused on the blocking seed and creation contract fixes.
+
+## Milestone 8 Prediction Entry UX
+
+The prediction route now starts with `Come vuoi compilare?` and stores a local workflow mode:
+
+1. `Modalita Semplificata`: large match cards, outcome buttons, score chips, an `Altro` manual score path, and swipe-compatible side selection. Initial group/league-phase predictions do not expose qualified team, extra time, or penalties.
+2. `Modalita Esperto`: numeric score inputs for every match. Knockout non-draws derive the qualified team and regulation method; knockout draws require an explicit qualified team plus extra time or penalties.
+
+Both modes write the same typed prediction model. The user can change mode before final confirmation without changing the stored data shape.
+
+The guided order is:
+
+1. initial phase, either group stage or league phase depending on the selected edition;
+2. unresolved predicted standings, where the user can manually order tied teams before the bracket;
+3. generated knockout bracket;
+4. derived antepost facts such as winner and finalists;
+5. manual antepost fields for top scorer and top-scorer goals;
+6. final review and local confirmation.
+
+The `Mancante` action jumps to the next domain-reported missing or invalid item. Dependency warnings are still explicit and never delete downstream predictions silently.
+
+Two-legged knockout rounds, currently used by the Champions League mock template, are shown as an aggregate placeholder. The UI records one aggregate score, qualified team, and advancement method; leg-by-leg entry and aggregate-away-goal-style edge cases are deferred until a dedicated future milestone.

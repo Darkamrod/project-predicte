@@ -182,3 +182,15 @@ Milestone 7.2 tightens the versioned catalog contract used by local Supabase res
 - `create_private_league` now copies those version ids from the selected enabled edition into the league row and creates the draft rule version from the selected versioned scoring preset.
 - The legacy `scoring_presets` table remains only for explicit backward-compatible overrides. It is no longer the primary source for multi-competition league creation and cannot silently produce an empty rule config.
 - `world_cup_2030` remains in the seed as a disabled future placeholder with draft version rows. It is fully referenceable for catalog tests, but unavailable for league creation until a future milestone explicitly enables it.
+
+## Milestone 8 Prediction Entry Model
+
+Milestone 8 adds a TypeScript-only entry workflow layer without a new SQL migration:
+
+- `PredictionEntryWorkflow` describes the current entry mode, next target, initial-phase targets, tie-break targets, knockout targets, derived antepost summary, validation issues, and confirmability.
+- `PredictionEntryMode` is local workflow state (`QUICK` or `EXPERT`). It is not a persisted business distinction because both modes write the same `MatchPrediction`, `PredictionTiebreakOverride`, and `AntepostPrediction` records.
+- `NormalizedMatchPredictionInput` is the shared output from Quick and Expert controls. Initial-phase normalization rejects knockout-only fields; knockout normalization validates qualified team and advancement method.
+- `AntepostPrediction.textValue` supports free-text top-scorer entry when no player catalog choice is selected. Supabase persistence already stores antepost payloads as JSON, so no table change is required.
+- Derived antepost values for tournament winner and finalists are generated from the predicted bracket and upserted by the mock adapter after relevant prediction edits. Manual antepost remains top scorer plus top-scorer goals.
+
+Two-legged knockout rounds continue to use one aggregate prediction record in Milestone 8. This keeps the current persisted `match_predictions` shape stable while leaving leg-by-leg records and aggregate-specific validation for a future authorized milestone.

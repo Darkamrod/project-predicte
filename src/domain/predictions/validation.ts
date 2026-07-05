@@ -48,7 +48,10 @@ export function validatePredictionSet(params: {
       id: `missing:${match.id}`,
       kind: "MISSING_MATCH",
       severity: "error",
-      message: "Pronostico girone mancante",
+      message:
+        params.competition.edition.format.initialStageKind === "league_phase"
+          ? "Pronostico league phase mancante"
+          : "Pronostico girone mancante",
       referenceId: match.id
     });
     nextIncomplete ??= { kind: "GROUP_MATCH", matchId: match.id };

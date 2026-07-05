@@ -206,6 +206,10 @@ function createAntepostPayload(prediction: AntepostPrediction): Json {
     payload.selectedPlayerId = prediction.selectedPlayerId;
   }
 
+  if (prediction.textValue) {
+    payload.textValue = prediction.textValue;
+  }
+
   if (prediction.numericValue !== undefined) {
     payload.numericValue = prediction.numericValue;
   }

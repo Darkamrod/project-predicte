@@ -9,6 +9,7 @@ The current codebase contains the mock-first mobile app, secure Supabase lifecyc
 - Reusable UI components.
 - Versioned football competition templates for World Cup, EURO, Champions League, and future editions.
 - Mock auth, league, prediction, result, and leaderboard flows.
+- Quick and Expert prediction-entry modes with generated bracket, tie-break, and antepost completion flows.
 - A pure configurable scoring engine with unit tests.
 - Supabase project structure, migrations, RLS policies, RPC contracts, and a trusted Edge Function wrapper.
 

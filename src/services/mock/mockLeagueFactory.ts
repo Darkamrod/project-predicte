@@ -137,7 +137,7 @@ export function createPredictionSet(
 ): PredictionSet {
   const matches = competition.matches;
   const initialStageIds = new Set(
-    competition.stages.filter((stage) => stage.code === "GROUP_STAGE").map((stage) => stage.id)
+    competition.stages.filter((stage) => stage.kind === "GROUP").map((stage) => stage.id)
   );
   const groupMatches = matches.filter((match) => initialStageIds.has(match.stageId));
   const defaultScores = getDefaultScores(userId);

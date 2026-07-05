@@ -96,3 +96,12 @@ The deployed-entrypoint shape is now concrete, but the provider remains `MOCK_RE
 - `supabase/migrations/20260705040000_milestone7_1_versioned_competition_templates.sql`: versioned catalog tables and league lock-snapshot fields/triggers.
 
 The architecture now treats World Cup, EURO, Champions League, and future football tournaments as competition families with edition-specific template versions. UI components consume configured competition seeds; they do not own permanent tournament-format rules.
+
+## Milestone 8 Additions
+
+- `src/domain/predictions/entryWorkflow.ts`: pure prediction-entry orchestration for mode selection, initial-phase targets, tie-break targets, knockout targets, derived antepost, manual antepost requirements, and validation-friendly normalized prediction payloads.
+- `src/features/predictions/PredictionWorkflowScreen.tsx`: mobile-first Quick/Expert entry shell. It renders the same domain targets in simplified card/chip mode or expert numeric-input mode without owning competition-format logic.
+- `src/state/PredicteMockProvider.tsx`: mock prediction writes now apply derived antepost values after upstream match or knockout edits, while preserving explicit manual top-scorer fields.
+- `src/services/mock/mockLeagueFactory.ts`: initial mock prediction creation uses the concrete initial competition stage rather than assuming only one tournament shape, so league-phase editions are populated for local flows.
+
+The Milestone 8 UI is still mock-first when Supabase is not configured. It does not calculate official scoring, connect provider APIs, or expose server credentials. Two-legged knockout rounds are represented as an aggregate prediction placeholder until a future milestone defines leg-by-leg UX and scoring semantics.

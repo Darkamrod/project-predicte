@@ -122,4 +122,18 @@ The Supabase seed now stores complete versioned scoring preset payloads for:
 
 These JSON payloads mirror the TypeScript defaults in `src/domain/scoring/presets.ts`. Static tests parse `supabase/seed.sql` and compare the seeded configs to the domain presets so an empty `stages`, `antepost`, or `stacking` object fails fast.
 
+## Milestone 8 Entry UX Boundary
+
+Milestone 8 does not change official scoring calculation. The new Quick/Expert prediction entry workflow normalizes user input into the existing prediction model:
+
+- initial group/league-phase scores;
+- knockout scores, qualified team, and advancement method;
+- tie-break override order;
+- derived winner/finalists antepost values;
+- manual top scorer and top-scorer goals.
+
+Official scoring remains configuration-driven and server-authoritative through the trusted worker path introduced in earlier milestones. The mobile UI does not persist official scoring events or leaderboard snapshots.
+
+Two-legged knockout rounds are still scored through the existing configured stage keys. Milestone 8 records one aggregate placeholder prediction for those rounds; leg-by-leg scoring or aggregate-specific bonuses remain out of scope.
+
 `create_private_league` creates the draft league rule version from `scoring_preset_versions` and rejects incomplete configs. The legacy `scoring_presets` table can still be used only as an explicit compatibility override, not as the default source for new multi-competition leagues.

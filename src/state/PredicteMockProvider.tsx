@@ -10,6 +10,7 @@ import {
   calculateDependencyInvalidation,
   mergeDependencyWarnings
 } from "@/domain/predictions/invalidation";
+import { applyDerivedAntepostPredictions } from "@/domain/predictions/entryWorkflow";
 import { assertPredictionWritable } from "@/domain/predictions/locks";
 import { validatePredictionSet } from "@/domain/predictions/validation";
 import type {
@@ -71,6 +72,7 @@ interface PredicteMockContextValue extends MockLeagueState {
     selectedTeamId?: string | undefined;
     selectedTeamIds?: string[] | undefined;
     selectedPlayerId?: string | undefined;
+    textValue?: string | undefined;
     numericValue?: number | undefined;
   }): void;
   setTiebreakOverride(params: {
@@ -229,9 +231,18 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
               ...predictionSet,
               matchPredictions
             };
+            const derivedAntepost = applyDerivedAntepostPredictions({
+              competition,
+              predictionSet: nextPredictionSet,
+              updatedAtUtc: serverNowUtc
+            });
+            const nextPredictionSetWithDerived = {
+              ...nextPredictionSet,
+              antepostPredictions: derivedAntepost.predictions
+            };
             const afterBracket = generatePredictedBracket({
               competition,
-              predictionSet: nextPredictionSet
+              predictionSet: nextPredictionSetWithDerived
             });
             const dependencyWarnings = mergeDependencyWarnings(
               predictionSet.dependencyWarnings ?? [],
@@ -244,7 +255,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
             );
 
             return refreshPredictionSet(competition, {
-              ...nextPredictionSet,
+              ...nextPredictionSetWithDerived,
               dependencyWarnings,
               lastServerSyncedAtUtc: serverNowUtc
             });
@@ -319,9 +330,18 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
                 nextPrediction
               )
             };
+            const derivedAntepost = applyDerivedAntepostPredictions({
+              competition,
+              predictionSet: nextPredictionSet,
+              updatedAtUtc: serverNowUtc
+            });
+            const nextPredictionSetWithDerived = {
+              ...nextPredictionSet,
+              antepostPredictions: derivedAntepost.predictions
+            };
             const afterBracket = generatePredictedBracket({
               competition,
-              predictionSet: nextPredictionSet
+              predictionSet: nextPredictionSetWithDerived
             });
             const dependencyWarnings = mergeDependencyWarnings(
               predictionSet.dependencyWarnings ?? [],
@@ -334,7 +354,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
             );
 
             return refreshPredictionSet(competition, {
-              ...nextPredictionSet,
+              ...nextPredictionSetWithDerived,
               dependencyWarnings,
               lastServerSyncedAtUtc: serverNowUtc
             });
@@ -357,6 +377,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
       selectedTeamId?: string | undefined;
       selectedTeamIds?: string[] | undefined;
       selectedPlayerId?: string | undefined;
+      textValue?: string | undefined;
       numericValue?: number | undefined;
     }) => {
       setState((previous) => ({
@@ -388,6 +409,7 @@ export function PredicteMockProvider({ children }: { children: ReactNode }): Rea
               selectedTeamId: params.selectedTeamId,
               selectedTeamIds: params.selectedTeamIds,
               selectedPlayerId: params.selectedPlayerId,
+              textValue: params.textValue,
               numericValue: params.numericValue,
               syncStatus: "SYNCED",
               updatedAtUtc: serverNowUtc
