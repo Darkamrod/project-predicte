@@ -76,3 +76,16 @@ Milestone 5 makes the trusted backend worker the official scoring actor:
 - the database still verifies locked league/rule state before accepting persisted scoring output.
 
 Authenticated clients should read official results, leaderboard snapshots, and point breakdowns through RLS. They should not calculate or persist official standings.
+
+## Milestone 6 Provider Import Security
+
+Milestone 6 keeps provider import and official scoring persistence server-only:
+
+- `record_provider_result_import` and `trusted_result_ingestion_exists` both require `auth.role() = 'service_role'`.
+- provider raw payload references, sync runs, retry metadata, correction metadata, and result ingestion state are written by server code only.
+- `src/server/scoring/supabaseScoringPersistenceRepository.ts` replaces the old client-service location for official scoring persistence.
+- `trustedScoringRuntime.ts` validates the runtime request shape, while `trustedScoringRuntimeFactory.ts` is the only module that creates service-role Supabase dependencies.
+- correction imports must reference an existing scored source result key before scoring can run. Missing or unscored corrections are recorded as failed provider imports.
+- no provider credential, service-role key, or real sports-provider integration is added to the mobile client.
+
+The mock fallback UX remains available, but it is not an authority for official Supabase scoring artifacts.

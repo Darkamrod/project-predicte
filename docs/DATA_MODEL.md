@@ -122,3 +122,18 @@ Milestone 5 adds the first trusted result-ingestion foundation:
 `record_trusted_result_ingestion` is service-role-only and records ingestion state transitions. `persist_scoring_recalculation` remains the persistence RPC for derived scoring artifacts, but from Milestone 5 onward it is also service-role-only. Authenticated clients keep read access through RLS policies where appropriate; they do not insert, update, or delete scoring artifacts directly.
 
 This keeps the database ready for future provider imports, corrections, retries, and result versioning without connecting a real sports-provider API in Milestone 5.
+
+## Milestone 6 Provider Import Model
+
+Milestone 6 adds structured provider-import metadata while still using mock provider payloads only:
+
+- `sync_runs.external_fixture_key`, `source_result_key`, `correction_of_source_result_key`, `retry_attempt`, `max_retries`, and `next_retry_at` record provider import attempts and retry scheduling metadata.
+- `provider_payloads.sync_run_id`, `payload_kind`, `source_result_key`, and `correction_of_source_result_key` keep the raw mock/provider payload linked to a sync attempt and scoring source key.
+- `result_ingestion_runs.provider`, `external_fixture_key`, `provider_payload_id`, `sync_run_id`, retry metadata, and `correction_status` connect trusted scoring ingestion to the provider import trail.
+
+New service-role-only RPCs:
+
+- `trusted_result_ingestion_exists`: verifies that a correction source key already exists as a scored ingestion for the league before a correction import can be scored.
+- `record_provider_result_import`: records accepted, scored, and failed provider import states; stores the raw payload reference; writes sync, provider payload, result ingestion, and audit rows.
+
+`correction_status` is `not_required`, `verified`, or `missing`. A missing or not-yet-scored correction source can be recorded only as a failed import. This keeps correction attempts auditable while preventing a new scoring snapshot from being produced for an unknown or unscored source.

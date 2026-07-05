@@ -6,9 +6,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { LeaderboardSnapshot } from "@/domain/leaderboard/types";
 import type { MatchPrediction, PredictionSet } from "@/domain/predictions/types";
 import type { ScoringEvent, UserScoringBreakdown } from "@/domain/scoring/types";
+import { SupabaseScoringPersistenceRepository } from "@/server/scoring/supabaseScoringPersistenceRepository";
 import { SupabasePredictionRepository } from "@/services/predictions/supabasePredictionRepository";
 import { SupabaseRuleRepository } from "@/services/rules/supabaseRuleRepository";
-import { SupabaseScoringRepository } from "@/services/scoring/supabaseScoringRepository";
 import type { SupabaseRpcClient } from "@/services/supabase/rpcClient";
 
 vi.mock("@/services/supabase/client", () => ({
@@ -216,7 +216,7 @@ describe("Milestone 4 Supabase repositories", () => {
     const { client, calls } = createRpcClient({
       persist_scoring_recalculation: [{ run_id: runId, snapshot_id: snapshotId }]
     });
-    const repository = new SupabaseScoringRepository(client);
+    const repository = new SupabaseScoringPersistenceRepository(client);
 
     const persisted = await repository.persistRecalculation({
       leagueId,
@@ -263,7 +263,7 @@ describe("Milestone 4 Supabase repositories", () => {
         [{ run_id: secondRunId, snapshot_id: secondSnapshotId }]
       ]
     });
-    const repository = new SupabaseScoringRepository(client);
+    const repository = new SupabaseScoringPersistenceRepository(client);
 
     await repository.persistRecalculation({
       leagueId,

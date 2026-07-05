@@ -73,8 +73,19 @@
 - Server Supabase repository for trusted scoring persistence and result ingestion.
 - Tests for server-side scoring execution, repeated idempotent source keys, result corrections, failed ingestion, RPC contracts, and static RLS/grant expectations.
 
+## Completed in Milestone 6
+
+- Structured mock provider result import via `MOCK_RESULTS`.
+- Provider import worker that records accepted, scored, and failed states before and after trusted scoring.
+- Service-role-only RPCs for provider import recording and correction-source lookup.
+- Provider payload, sync run, retry, correction, and result ingestion metadata linked in Supabase.
+- Supabase scoring context loader for competition, predictions, locked rules, existing events, and leaderboard context.
+- Server-only scoring persistence repository moved out of `src/services`.
+- Deployable-compatible TypeScript runtime boundary and server-only dependency factory.
+- Tests for mock provider normalization, runtime parsing, retries, corrections, idempotency, context loading, static RPC grants, and client import boundaries.
+
 ## Next Authorized Milestone
 
-Milestone 6 should be defined by the next authorized prompt. Likely candidates are provider import adapters, richer result correction UX/audit views, retry scheduling, authenticated Supabase integration tests, and production deployment wiring for the trusted worker.
+Milestone 7 should be defined by the next authorized prompt. Likely candidates are production worker deployment, real provider adapter authorization, richer result correction UX/audit views, retry scheduling, and authenticated Supabase integration tests.
 
-Do not start Milestone 6 without explicit authorization.
+Do not start Milestone 7 without explicit authorization.

@@ -138,3 +138,20 @@
 - The trusted worker is exercised through unit tests and Supabase RPC contracts; deploying it to Supabase Edge Functions or another worker runtime is deferred.
 - Result ingestion uses deterministic mock/server-side payloads only. Real provider payload normalization and provider credentials remain future work.
 - Full authenticated RLS end-to-end tests are still limited by local test harness complexity; Milestone 5 adds static SQL contract tests plus local Supabase reset/lint verification.
+
+## 2026-07-05 - Milestone 6 Provider Result Import Foundation
+
+- Added a structured `MOCK_RESULTS` provider adapter under `src/server/results` instead of connecting a real sports provider. It returns raw mock payload metadata plus the normalized `OfficialTournamentResultSet` consumed by the trusted scoring worker.
+- Kept the deployable runtime as TypeScript server modules rather than committing a Supabase Edge Function wrapper. `trustedScoringRuntime.ts` parses requests and stays free of service-role client creation; `trustedScoringRuntimeFactory.ts` wires server-only Supabase dependencies for a future worker/Edge deployment.
+- Moved official scoring persistence from `src/services/scoring/supabaseScoringRepository.ts` to `src/server/scoring/supabaseScoringPersistenceRepository.ts`. This makes the service-role-only persistence boundary explicit and reduces accidental client imports.
+- Added `SupabaseScoringContextLoader` so trusted server execution can load competition config, prediction sets, tie-break overrides, antepost predictions, locked rule snapshots, existing scoring events, and leaderboard context from Supabase.
+- Added `record_provider_result_import` and `trusted_result_ingestion_exists` as service-role-only RPCs. Provider import, correction-source lookup, retry metadata, raw payload references, and audit rows remain server-side.
+- Chose strict correction semantics: a correction with `correction_of_source_result_key` can be scored only if the corrected source key already exists as a scored ingestion for the league. Missing or unscored correction sources are recorded as failed imports and do not trigger scoring.
+- Preserved scoring idempotency by `source_result_key`; repeated provider imports with the same key reuse the trusted recalculation path and the Milestone 4.1 snapshot FK behavior.
+- No real sports provider, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 6 Assumptions
+
+- The mock provider's `external_fixture_key` identifies a provider-side fixture/result reference for audit and future mapping, but it is not yet a real provider id.
+- Retry scheduling metadata is stored and validated, but no scheduler or background retry queue is started in Milestone 6.
+- The TypeScript runtime boundary can be wrapped by a Supabase Edge Function, Node worker, or scheduled job in a later milestone without moving scoring business logic into UI code.

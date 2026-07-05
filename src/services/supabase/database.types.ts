@@ -31,6 +31,205 @@ export interface Database {
         };
         Relationships: [];
       };
+      sports: {
+        Row: {
+          id: string;
+          code: "FOOTBALL";
+          name: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      competition_templates: {
+        Row: {
+          id: string;
+          sport_id: string;
+          code: "FIFA_WORLD_CUP" | "UEFA_EURO" | "UEFA_CHAMPIONS_LEAGUE";
+          name: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      competition_editions: {
+        Row: {
+          id: string;
+          template_id: string;
+          name: string;
+          season_label: string;
+          enabled: boolean;
+          first_kickoff_at: string | null;
+          maximum_deadline_at: string | null;
+          format: Json;
+          data_completeness: string;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      stages: {
+        Row: {
+          id: string;
+          edition_id: string;
+          code: string;
+          kind: string;
+          name: string;
+          sort_order: number;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      groups: {
+        Row: {
+          id: string;
+          edition_id: string;
+          stage_id: string;
+          code: string;
+          name: string;
+          sort_order: number;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      rounds: {
+        Row: {
+          id: string;
+          edition_id: string;
+          stage_id: string;
+          code: string;
+          name: string;
+          sort_order: number;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      teams: {
+        Row: {
+          id: string;
+          name: string;
+          short_name: string;
+          country_code: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      players: {
+        Row: {
+          id: string;
+          team_id: string | null;
+          display_name: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      edition_teams: {
+        Row: {
+          edition_id: string;
+          team_id: string;
+          seed_group_id: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      matches: {
+        Row: {
+          id: string;
+          edition_id: string;
+          stage_id: string;
+          group_id: string | null;
+          round_id: string | null;
+          home_team_id: string | null;
+          away_team_id: string | null;
+          bracket_payload: Json;
+          kickoff_at: string | null;
+          status:
+            | "NOT_STARTED"
+            | "LIVE"
+            | "HALFTIME"
+            | "FULL_TIME"
+            | "AFTER_EXTRA_TIME"
+            | "AFTER_PENALTIES"
+            | "POSTPONED"
+            | "SUSPENDED"
+            | "CANCELLED"
+            | "ABANDONED"
+            | "AWARDED"
+            | "UNKNOWN";
+          sort_order: number;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      bracket_slots: {
+        Row: {
+          id: string;
+          edition_id: string;
+          round_id: string;
+          source_type: string;
+          source_payload: Json;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      competition_antepost_definitions: {
+        Row: {
+          id: string;
+          edition_id: string;
+          code: "TOURNAMENT_WINNER" | "TOP_SCORER" | "TOP_SCORER_GOALS";
+          label: string;
+          value_type: "TEAM" | "PLAYER" | "NUMBER";
+          required: boolean;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      provider_payloads: {
+        Row: {
+          id: string;
+          provider: string;
+          external_id: string;
+          payload: Json;
+          received_at: string;
+          sync_run_id: string | null;
+          payload_kind: string;
+          source_result_key: string | null;
+          correction_of_source_result_key: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      sync_runs: {
+        Row: {
+          id: string;
+          provider: string;
+          sync_type: string;
+          status: string;
+          started_at: string;
+          finished_at: string | null;
+          error_message: string | null;
+          external_fixture_key: string | null;
+          source_result_key: string | null;
+          correction_of_source_result_key: string | null;
+          retry_attempt: number;
+          max_retries: number;
+          next_retry_at: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       leagues: {
         Row: {
           id: string;
@@ -273,6 +472,14 @@ export interface Database {
           error_message: string | null;
           created_at: string;
           completed_at: string | null;
+          provider: string | null;
+          external_fixture_key: string | null;
+          provider_payload_id: string | null;
+          sync_run_id: string | null;
+          retry_attempt: number;
+          max_retries: number;
+          next_retry_at: string | null;
+          correction_status: "not_required" | "verified" | "missing";
         };
         Insert: never;
         Update: never;
@@ -435,6 +642,33 @@ export interface Database {
           p_error_message?: string | null;
         };
         Returns: string;
+      };
+      trusted_result_ingestion_exists: {
+        Args: {
+          p_league_id: string;
+          p_source_result_key: string;
+        };
+        Returns: boolean;
+      };
+      record_provider_result_import: {
+        Args: {
+          p_league_id: string;
+          p_provider: string;
+          p_external_fixture_key: string;
+          p_source_result_key: string;
+          p_payload: Json;
+          p_status?: "accepted" | "scored" | "failed";
+          p_correction_of_source_result_key?: string | null;
+          p_error_message?: string | null;
+          p_retry_attempt?: number;
+          p_max_retries?: number;
+          p_next_retry_at?: string | null;
+        };
+        Returns: {
+          sync_run_id: string;
+          provider_payload_id: string;
+          ingestion_run_id: string;
+        }[];
       };
     };
     Enums: {

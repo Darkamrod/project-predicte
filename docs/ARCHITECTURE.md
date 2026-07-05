@@ -46,7 +46,6 @@ Rule editing and scoring remain separated from route files and UI components. Th
 
 - `src/services/predictions/supabasePredictionRepository.ts`: RPC-backed adapter for match predictions, tie-break overrides, antepost predictions, and completion counters.
 - `src/services/rules/supabaseRuleRepository.ts`: RPC-backed adapter for scoring rule edits and locked rule snapshots.
-- `src/services/scoring/supabaseScoringRepository.ts`: RPC-backed adapter for persisted scoring events, leaderboard snapshots, and point breakdowns.
 - `src/services/supabase/rpcClient.ts`: small injectable RPC client boundary used by repositories and tests.
 - `supabase/migrations/20260704030000_milestone4_prediction_scoring_persistence.sql`: persistence, RLS, RPC, checksum, and idempotency migration for the complete workflow.
 
@@ -62,3 +61,16 @@ The UI still uses the mock provider by default. Real Supabase persistence is ava
 - `supabase/migrations/20260705010000_milestone5_trusted_scoring_execution.sql`: service-role-only result ingestion audit table/RPC and official scoring persistence hardening.
 
 The mobile app remains mock-first unless Supabase is configured, and it does not receive service-role credentials. Official scoring artifacts are produced by trusted server code and read by clients through RLS.
+
+## Milestone 6 Additions
+
+- `src/server/results/providerResultImportWorker.ts`: server-side provider import orchestration for mock provider payloads, correction checks, trusted scoring execution, and retry metadata.
+- `src/server/results/mockResultProvider.ts`: structured `MOCK_RESULTS` adapter that normalizes deterministic result data without connecting to any real sports API.
+- `src/server/results/supabaseProviderResultImportRepository.ts`: service-role-only RPC adapter for provider import metadata and correction-source lookup.
+- `src/server/scoring/supabaseScoringContextLoader.ts`: Supabase server-side context loader for league, competition, predictions, locked rule snapshot, existing events, and leaderboard context.
+- `src/server/scoring/supabaseScoringPersistenceRepository.ts`: server-only RPC adapter for persisted scoring events, leaderboard snapshots, and point breakdowns. It was moved out of `src/services` so mobile/client modules do not accidentally import official scoring persistence.
+- `src/server/scoring/trustedScoringRuntime.ts`: deployable-compatible request parsing boundary for provider result imports.
+- `src/server/scoring/trustedScoringRuntimeFactory.ts`: server-only factory that wires service-role Supabase dependencies for a future Edge Function or worker runtime.
+- `supabase/migrations/20260705020000_milestone6_provider_import_foundation.sql`: provider import metadata, retry/correction fields, service-role RPCs, and audit linkage.
+
+Milestone 6 still uses mock provider data only. The trusted runtime is ready to wrap in a deployed worker, but no service-role key or provider credential is exposed to the Expo/mobile app.

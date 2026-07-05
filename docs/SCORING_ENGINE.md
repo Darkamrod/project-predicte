@@ -51,7 +51,7 @@ The engine remains configuration-driven. No point values are hardcoded into UI o
 
 Milestone 4 keeps calculation in the pure `src/domain/scoring` modules and adds a Supabase persistence contract around its output:
 
-- `SupabaseScoringRepository.persistRecalculation` serializes `ScoringEvent`, `LeaderboardSnapshot`, and `UserScoringBreakdown` values.
+- `SupabaseScoringPersistenceRepository.persistRecalculation` is the server-only adapter that serializes `ScoringEvent`, `LeaderboardSnapshot`, and `UserScoringBreakdown` values.
 - `persist_scoring_recalculation` stores the payload only after the league and rule snapshot are locked.
 - The RPC replaces all scoring rows for the same `source_result_key`, then writes fresh scoring events, one leaderboard snapshot, leaderboard entries, breakdown rows, and a recalculation run.
 - Scoring event payloads must reference the locked scoring rule version. The database rejects events for a different rule version.
@@ -76,3 +76,14 @@ Milestone 5 moves official scoring execution behind a server-side trusted worker
 - `record_trusted_result_ingestion` records accepted, scored, and failed ingestion runs in `result_ingestion_runs` for audit, retries, corrections, and future provider result versioning.
 
 The recalculation remains deterministic and idempotent by `source_result_key`. Result corrections can use a new stable correction source key while setting `correction_of_source_result_key`; the worker excludes the superseded source's events from the new snapshot calculation, while historical rows remain available for audit. A correction can also intentionally reuse a source key when the desired final state is replacement of that source's scoring artifacts.
+
+## Milestone 6 Provider Import Execution
+
+Milestone 6 keeps the scoring engine unchanged and adds a provider-import wrapper around trusted execution:
+
+- `MOCK_RESULTS` normalizes a structured mock provider payload into `OfficialTournamentResultSet`.
+- `executeProviderResultImport` records provider import state, verifies correction sources, calls the trusted scoring worker, then records the scored or failed state with retry metadata.
+- `SupabaseScoringContextLoader` supplies the trusted worker with persisted prediction sets, tie-break overrides, antepost predictions, locked scoring rules, existing scoring events, previous leaderboard snapshot, and competition context.
+- `trustedScoringRuntime.ts` is the deployable-compatible parsing boundary; service-role wiring stays in `trustedScoringRuntimeFactory.ts`.
+
+Official persisted scoring still happens only through service-role RPCs. Clients may read permitted scoring artifacts, but they do not calculate or persist official leaderboard state.

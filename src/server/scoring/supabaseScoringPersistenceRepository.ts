@@ -1,7 +1,7 @@
 import type { LeaderboardSnapshot } from "@/domain/leaderboard/types";
 import type { ScoringEvent, UserScoringBreakdown } from "@/domain/scoring/types";
 import type { Json } from "@/services/supabase/database.types";
-import { resolveSupabaseRpcClient, type SupabaseRpcClient } from "@/services/supabase/rpcClient";
+import type { SupabaseRpcClient } from "@/services/supabase/rpcClient";
 
 export interface PersistScoringRecalculationInput {
   leagueId: string;
@@ -18,14 +18,13 @@ export interface PersistedScoringRecalculation {
   snapshotId: string;
 }
 
-export class SupabaseScoringRepository {
-  constructor(private readonly client?: SupabaseRpcClient) {}
+export class SupabaseScoringPersistenceRepository {
+  constructor(private readonly client: SupabaseRpcClient) {}
 
   async persistRecalculation(
     input: PersistScoringRecalculationInput
   ): Promise<PersistedScoringRecalculation> {
-    const client = resolveSupabaseRpcClient(this.client);
-    const { data, error } = await client.rpc("persist_scoring_recalculation", {
+    const { data, error } = await this.client.rpc("persist_scoring_recalculation", {
       p_league_id: input.leagueId,
       p_source_result_key: input.sourceResultKey,
       p_calculation_version: input.calculationVersion,

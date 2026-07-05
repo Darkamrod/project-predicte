@@ -1,8 +1,8 @@
 import {
-  SupabaseScoringRepository,
+  SupabaseScoringPersistenceRepository,
   type PersistScoringRecalculationInput,
   type PersistedScoringRecalculation
-} from "@/services/scoring/supabaseScoringRepository";
+} from "@/server/scoring/supabaseScoringPersistenceRepository";
 import type { Json } from "@/services/supabase/database.types";
 import type { SupabaseRpcClient } from "@/services/supabase/rpcClient";
 import type {
@@ -14,10 +14,10 @@ import type {
 export class SupabaseTrustedScoringRepository
   implements TrustedResultIngestionRepository, TrustedScoringPersistence
 {
-  private readonly scoringRepository: SupabaseScoringRepository;
+  private readonly scoringRepository: SupabaseScoringPersistenceRepository;
 
   constructor(private readonly client: SupabaseRpcClient) {
-    this.scoringRepository = new SupabaseScoringRepository(client);
+    this.scoringRepository = new SupabaseScoringPersistenceRepository(client);
   }
 
   async recordResultIngestion(input: TrustedResultIngestionInput): Promise<string> {

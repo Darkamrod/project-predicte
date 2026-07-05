@@ -9,7 +9,7 @@ import type {
 import type {
   PersistedScoringRecalculation,
   PersistScoringRecalculationInput
-} from "@/services/scoring/supabaseScoringRepository";
+} from "@/server/scoring/supabaseScoringPersistenceRepository";
 
 export type TrustedResultIngestionStatus = "accepted" | "scored" | "failed";
 

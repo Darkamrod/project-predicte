@@ -13,7 +13,7 @@ import type {
   TrustedScoringWorkerDependencies
 } from "@/server/scoring/types";
 import { createMockLeague } from "@/services/mock/mockLeagueFactory";
-import type { PersistScoringRecalculationInput } from "@/services/scoring/supabaseScoringRepository";
+import type { PersistScoringRecalculationInput } from "@/server/scoring/supabaseScoringPersistenceRepository";
 
 const leagueId = "league-trusted-scoring";
 const requestedAtUtc = "2030-07-15T21:30:00.000Z";
