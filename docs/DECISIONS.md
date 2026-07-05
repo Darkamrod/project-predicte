@@ -114,3 +114,10 @@
 - The current app still runs the pure TypeScript scoring engine locally for mock and repository contract tests. The database is authoritative for accepting, locking, auditing, and idempotently storing recalculation output. A future backend worker or Edge Function can execute the same domain engine server-side.
 - Generated bracket IDs remain deterministic `prediction_ref` values until provider-backed bracket templates introduce stable real identifiers.
 - Full Supabase integration tests with authenticated users are still represented by local `db reset`, `db lint`, static migration tests, and repository RPC contract tests.
+
+## 2026-07-04 - Milestone 4.1 Scoring Recalculation Idempotency
+
+- Changed the `scoring_recalculation_runs.snapshot_id` foreign key to `ON DELETE SET NULL`. This is the narrowest fix for repeated `persist_scoring_recalculation` calls with the same `source_result_key`.
+- Historical recalculation runs remain available as audit metadata, but they release their previous snapshot reference when an idempotent recalculation replaces the leaderboard snapshot for the same source key.
+- Kept the Milestone 4 replacement strategy: events, breakdown rows, and the leaderboard snapshot for one `source_result_key` are deleted and rebuilt so the final persisted state matches the latest recalculation payload.
+- Added `supabase/.branches/` to ignored runtime paths alongside `supabase/.temp/`.

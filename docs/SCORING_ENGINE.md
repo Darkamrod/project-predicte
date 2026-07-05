@@ -58,3 +58,9 @@ Milestone 4 keeps calculation in the pure `src/domain/scoring` modules and adds 
 - Direct table writes remain unavailable to normal clients; leaderboard and breakdown data are derived artifacts.
 
 This preserves deterministic idempotency from Milestone 3 while preparing the same domain engine to run from a trusted server worker in a later milestone.
+
+## Milestone 4.1 Idempotency Fix
+
+Repeated persistence for the same `source_result_key` uses the Milestone 4 replacement strategy and no longer conflicts with historical recalculation runs.
+
+`scoring_recalculation_runs.snapshot_id` uses `ON DELETE SET NULL`, so deleting the previous leaderboard snapshot releases old run references while retaining run audit rows. The new recalculation then writes fresh scoring events, a fresh leaderboard snapshot, entries, breakdown rows, and a new successful run that points to the current snapshot.

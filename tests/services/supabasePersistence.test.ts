@@ -24,6 +24,16 @@ const milestone4Migration = readFileSync(
   ),
   "utf8"
 );
+const milestone41Migration = readFileSync(
+  join(
+    process.cwd(),
+    "supabase/migrations/20260704040000_milestone4_1_scoring_recalculation_idempotency.sql"
+  ),
+  "utf8"
+);
+const decisionsDoc = readFileSync(join(process.cwd(), "docs/DECISIONS.md"), "utf8");
+const dataModelDoc = readFileSync(join(process.cwd(), "docs/DATA_MODEL.md"), "utf8");
+const scoringEngineDoc = readFileSync(join(process.cwd(), "docs/SCORING_ENGINE.md"), "utf8");
 
 describe("Milestone 4 Supabase migration contract", () => {
   it("adds persistence support for complete predictions, rules, scoring, and leaderboard", () => {
@@ -65,6 +75,30 @@ describe("Milestone 4 Supabase migration contract", () => {
     expect(leaderboardDelete).toBeGreaterThan(breakdownDelete);
     expect(eventsDelete).toBeGreaterThan(leaderboardDelete);
     expect(eventsInsert).toBeGreaterThan(eventsDelete);
+  });
+
+  it("keeps repeated recalculation from being blocked by historical snapshot references", () => {
+    expect(milestone4Migration).toContain(
+      "add column if not exists snapshot_id uuid references public.leaderboard_snapshots (id)"
+    );
+    expect(milestone41Migration).toContain(
+      "alter table public.scoring_recalculation_runs drop constraint"
+    );
+    expect(milestone41Migration).toContain(
+      "constraint scoring_recalculation_runs_snapshot_id_fkey"
+    );
+    expect(milestone41Migration).toContain("on delete set null");
+    expect(milestone41Migration).toContain(
+      "historical recalculation runs keep audit metadata but release snapshot references"
+    );
+  });
+
+  it("documents the Milestone 4.1 ON DELETE SET NULL idempotency strategy", () => {
+    const docs = `${decisionsDoc}\n${dataModelDoc}\n${scoringEngineDoc}`;
+
+    expect(docs).toContain("Milestone 4.1");
+    expect(docs).toContain("ON DELETE SET NULL");
+    expect(docs).toContain("source_result_key");
   });
 
   it("keeps scoring tables RPC-written and member-readable through explicit RLS", () => {
@@ -221,6 +255,56 @@ describe("Milestone 4 Supabase repositories", () => {
       })
     ]);
   });
+
+  it("can call scoring persistence twice with the same source result key and final payload", async () => {
+    const { client, calls } = createRpcClient({
+      persist_scoring_recalculation: [
+        [{ run_id: runId, snapshot_id: snapshotId }],
+        [{ run_id: secondRunId, snapshot_id: secondSnapshotId }]
+      ]
+    });
+    const repository = new SupabaseScoringRepository(client);
+
+    await repository.persistRecalculation({
+      leagueId,
+      sourceResultKey: "official-result-v1",
+      calculationVersion: "scoring-engine-m3-v1",
+      events: [createScoringEvent()],
+      leaderboardSnapshot: createLeaderboardSnapshot(),
+      breakdowns: [createBreakdown()],
+      reason: "official_result_update"
+    });
+    const persisted = await repository.persistRecalculation({
+      leagueId,
+      sourceResultKey: "official-result-v1",
+      calculationVersion: "scoring-engine-m3-v1",
+      events: [createScoringEvent({ points: 12, reason: "Risultato corretto dopo rettifica" })],
+      leaderboardSnapshot: createLeaderboardSnapshot({
+        totalPoints: 12,
+        latestPoints: 12,
+        snapshotId: secondSnapshotId
+      }),
+      breakdowns: [createBreakdown({ points: 12, reason: "Risultato corretto dopo rettifica" })],
+      reason: "official_result_correction"
+    });
+
+    expect(persisted).toEqual({ runId: secondRunId, snapshotId: secondSnapshotId });
+    expect(calls).toHaveLength(2);
+    expect(getArgs(calls[0]).p_source_result_key).toBe("official-result-v1");
+    expect(getArgs(calls[1]).p_source_result_key).toBe("official-result-v1");
+    expect(getArgs(calls[1]).p_events).toEqual([
+      expect.objectContaining({
+        points: 12,
+        reason: "Risultato corretto dopo rettifica"
+      })
+    ]);
+    expect(getArgs(calls[1]).p_leaderboard_entries).toEqual([
+      expect.objectContaining({
+        total_points: 12,
+        latest_points: 12
+      })
+    ]);
+  });
 });
 
 interface RpcCall {
@@ -233,12 +317,16 @@ function createRpcClient(responses: Record<string, unknown>): {
   calls: RpcCall[];
 } {
   const calls: RpcCall[] = [];
+  const responseIndexes = new Map<string, number>();
   const client = {
     rpc: async (fn: string, args: Record<string, unknown>) => {
       calls.push({ fn, args });
+      const response = responses[fn];
+      const index = responseIndexes.get(fn) ?? 0;
+      responseIndexes.set(fn, index + 1);
 
       return {
-        data: responses[fn],
+        data: Array.isArray(response) && Array.isArray(response[0]) ? response[index] : response,
         error: null
       };
     }
@@ -305,7 +393,9 @@ function createPredictionSet(): PredictionSet {
   };
 }
 
-function createScoringEvent(): ScoringEvent {
+function createScoringEvent(
+  overrides: Partial<Pick<ScoringEvent, "points" | "reason">> = {}
+): ScoringEvent {
   return {
     id: scoringEventId,
     leagueId,
@@ -318,13 +408,16 @@ function createScoringEvent(): ScoringEvent {
     reason: "Risultato esatto",
     calculationVersion: "scoring-engine-m3-v1",
     createdAtUtc: "2030-06-08T21:00:00.000Z",
-    sourceResultVersion: "official-result-v1"
+    sourceResultVersion: "official-result-v1",
+    ...overrides
   };
 }
 
-function createLeaderboardSnapshot(): LeaderboardSnapshot {
+function createLeaderboardSnapshot(
+  overrides: { latestPoints?: number; snapshotId?: string; totalPoints?: number } = {}
+): LeaderboardSnapshot {
   return {
-    id: snapshotId,
+    id: overrides.snapshotId ?? snapshotId,
     leagueId,
     createdAtUtc: "2030-06-08T21:00:00.000Z",
     sourceResultVersion: "official-result-v1",
@@ -334,8 +427,8 @@ function createLeaderboardSnapshot(): LeaderboardSnapshot {
         displayName: "Ada",
         avatarInitials: "AD",
         rank: 1,
-        totalPoints: 10,
-        latestPoints: 10,
+        totalPoints: overrides.totalPoints ?? 10,
+        latestPoints: overrides.latestPoints ?? 10,
         positionDelta: 1,
         tied: false
       }
@@ -343,10 +436,12 @@ function createLeaderboardSnapshot(): LeaderboardSnapshot {
   };
 }
 
-function createBreakdown(): UserScoringBreakdown {
+function createBreakdown(
+  overrides: { points?: number; reason?: string } = {}
+): UserScoringBreakdown {
   return {
     userId,
-    totalPoints: 10,
+    totalPoints: overrides.points ?? 10,
     items: [
       {
         id: `${scoringEventId}:breakdown`,
@@ -355,8 +450,8 @@ function createBreakdown(): UserScoringBreakdown {
         referenceId: matchId,
         stage: "GROUP_STAGE",
         type: "EXACT_SCORE",
-        points: 10,
-        reason: "Risultato esatto"
+        points: overrides.points ?? 10,
+        reason: overrides.reason ?? "Risultato esatto"
       }
     ]
   };
@@ -374,3 +469,5 @@ const competitionEditionId = "99999999-9999-4999-8999-999999999999";
 const scoringEventId = `${leagueId}:${userId}:${matchId}:EXACT_SCORE:official-result-v1`;
 const runId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const snapshotId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const secondRunId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const secondSnapshotId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";

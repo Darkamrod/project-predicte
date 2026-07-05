@@ -103,3 +103,9 @@ New RPCs own write access for the complete workflow:
 - `persist_scoring_recalculation`.
 
 The mock TypeScript model remains the default local UX path. Supabase repositories map the same domain concepts into these RPCs when a real Supabase client is configured.
+
+## Milestone 4.1 Recalculation Run Snapshot FK
+
+`scoring_recalculation_runs.snapshot_id` now references `leaderboard_snapshots(id)` with `ON DELETE SET NULL`.
+
+This preserves recalculation run rows as audit metadata while allowing `persist_scoring_recalculation` to replace the leaderboard snapshot for the same `source_result_key`. After a repeated recalculation, older runs can have `snapshot_id = null`; the latest successful run points at the current snapshot.
