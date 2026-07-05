@@ -109,3 +109,16 @@ The mock TypeScript model remains the default local UX path. Supabase repositori
 `scoring_recalculation_runs.snapshot_id` now references `leaderboard_snapshots(id)` with `ON DELETE SET NULL`.
 
 This preserves recalculation run rows as audit metadata while allowing `persist_scoring_recalculation` to replace the leaderboard snapshot for the same `source_result_key`. After a repeated recalculation, older runs can have `snapshot_id = null`; the latest successful run points at the current snapshot.
+
+## Milestone 5 Result Ingestion Model
+
+Milestone 5 adds the first trusted result-ingestion foundation:
+
+- `result_ingestion_runs`: service-role-written audit rows for accepted, scored, or failed server-side result payloads.
+- `result_ingestion_runs.source_result_key`: stable idempotency key shared with scoring events, leaderboard snapshots, breakdown rows, and recalculation runs.
+- `result_ingestion_runs.correction_of_source_result_key`: optional pointer to the result source corrected by a later ingestion.
+- `result_ingestion_runs.payload`: normalized mock/server-side result payload stored for audit and future retry/debug workflows.
+
+`record_trusted_result_ingestion` is service-role-only and records ingestion state transitions. `persist_scoring_recalculation` remains the persistence RPC for derived scoring artifacts, but from Milestone 5 onward it is also service-role-only. Authenticated clients keep read access through RLS policies where appropriate; they do not insert, update, or delete scoring artifacts directly.
+
+This keeps the database ready for future provider imports, corrections, retries, and result versioning without connecting a real sports-provider API in Milestone 5.

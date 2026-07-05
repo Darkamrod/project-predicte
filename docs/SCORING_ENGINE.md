@@ -64,3 +64,15 @@ This preserves deterministic idempotency from Milestone 3 while preparing the sa
 Repeated persistence for the same `source_result_key` uses the Milestone 4 replacement strategy and no longer conflicts with historical recalculation runs.
 
 `scoring_recalculation_runs.snapshot_id` uses `ON DELETE SET NULL`, so deleting the previous leaderboard snapshot releases old run references while retaining run audit rows. The new recalculation then writes fresh scoring events, a fresh leaderboard snapshot, entries, breakdown rows, and a new successful run that points to the current snapshot.
+
+## Milestone 5 Trusted Execution
+
+Milestone 5 moves official scoring execution behind a server-side trusted worker:
+
+- `src/server/scoring/trustedScoringWorker.ts` validates a result payload, loads the trusted league context, runs `recalculateTournamentScoring`, and persists the derived output.
+- `src/server/scoring/resultValidation.ts` uses Zod at the ingestion boundary for UTC timestamps, non-negative scores, valid stages, unique result keys, and source-key consistency.
+- `src/server/scoring/supabaseTrustedScoringRepository.ts` is the server adapter for service-role RPC calls. The service-role key is not used by the Expo/mobile client.
+- `persist_scoring_recalculation` is now service-role-only for official persistence. Authenticated clients can read permitted scoring artifacts through RLS but cannot submit official scoring events or leaderboard snapshots.
+- `record_trusted_result_ingestion` records accepted, scored, and failed ingestion runs in `result_ingestion_runs` for audit, retries, corrections, and future provider result versioning.
+
+The recalculation remains deterministic and idempotent by `source_result_key`. Result corrections can use a new stable correction source key while setting `correction_of_source_result_key`; the worker excludes the superseded source's events from the new snapshot calculation, while historical rows remain available for audit. A correction can also intentionally reuse a source key when the desired final state is replacement of that source's scoring artifacts.

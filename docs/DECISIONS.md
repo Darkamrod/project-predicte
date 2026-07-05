@@ -121,3 +121,20 @@
 - Historical recalculation runs remain available as audit metadata, but they release their previous snapshot reference when an idempotent recalculation replaces the leaderboard snapshot for the same source key.
 - Kept the Milestone 4 replacement strategy: events, breakdown rows, and the leaderboard snapshot for one `source_result_key` are deleted and rebuilt so the final persisted state matches the latest recalculation payload.
 - Added `supabase/.branches/` to ignored runtime paths alongside `supabase/.temp/`.
+
+## 2026-07-05 - Milestone 5 Trusted Server Scoring Execution
+
+- Added a server-side trusted scoring worker under `src/server/scoring`. It receives a mock/official result payload, validates it with Zod, loads a trusted scoring context, runs the pure `src/domain/scoring` engine, and persists the derived scoring artifacts.
+- Kept the existing domain scoring engine as the single calculation implementation. The mobile client may still use mock scoring for local fallback UX, but official Supabase scoring persistence is now a server concern.
+- Restricted `persist_scoring_recalculation` execution to `service_role` and revoked client execution. This prevents authenticated mobile users from submitting official scoring events, leaderboard snapshots, or point breakdown payloads.
+- Added `result_ingestion_runs` plus `record_trusted_result_ingestion` as a service-role-only audit/foundation path for mock result ingestion, future provider imports, result corrections, retries, and result versioning.
+- Preserved idempotency by `source_result_key`: the worker passes one stable key into the existing replacement strategy, and Milestone 4.1 `ON DELETE SET NULL` keeps repeated recalculations from being blocked by historical run references.
+- For corrections that use a new source key, the worker excludes events from `correction_of_source_result_key` before generating the new leaderboard snapshot. Historical rows stay available for audit and future result-version views.
+- Chose a TypeScript server worker foundation rather than wiring a deployed Edge Function in this milestone. The worker can be wrapped by an Edge Function or background job later without moving business logic into UI code.
+- No real sports provider, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 5 Assumptions
+
+- The trusted worker is exercised through unit tests and Supabase RPC contracts; deploying it to Supabase Edge Functions or another worker runtime is deferred.
+- Result ingestion uses deterministic mock/server-side payloads only. Real provider payload normalization and provider credentials remain future work.
+- Full authenticated RLS end-to-end tests are still limited by local test harness complexity; Milestone 5 adds static SQL contract tests plus local Supabase reset/lint verification.

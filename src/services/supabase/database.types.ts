@@ -261,6 +261,23 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      result_ingestion_runs: {
+        Row: {
+          id: string;
+          league_id: string;
+          source_result_key: string;
+          correction_of_source_result_key: string | null;
+          payload: Json;
+          status: "accepted" | "scored" | "failed";
+          trusted_actor: string;
+          error_message: string | null;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -407,6 +424,17 @@ export interface Database {
           run_id: string;
           snapshot_id: string;
         }[];
+      };
+      record_trusted_result_ingestion: {
+        Args: {
+          p_league_id: string;
+          p_source_result_key: string;
+          p_payload: Json;
+          p_status?: "accepted" | "scored" | "failed";
+          p_correction_of_source_result_key?: string | null;
+          p_error_message?: string | null;
+        };
+        Returns: string;
       };
     };
     Enums: {

@@ -59,7 +59,20 @@ Milestone 4 moves the complete prediction and scoring workflow onto RPC-backed S
 - scoring rule edits use owner/admin-only RPCs and require league status `open`, server time before deadline, and draft rule status;
 - `lock_scoring_rule_snapshot` requires owner/admin and server time at or after deadline, locks prediction sets, and writes a checksum snapshot;
 - `lock_due_leagues()` remains service-role only for scheduled locking;
-- scoring events, scoring breakdown items, leaderboard snapshots, leaderboard entries, rule changes, and recalculation runs have read policies only. Client writes are performed through security-definer RPCs;
-- `persist_scoring_recalculation` requires owner/admin, a locked league, and a locked scoring rule snapshot. It replaces rows for one `source_result_key` to keep recalculation idempotent.
+- scoring events, scoring breakdown items, leaderboard snapshots, leaderboard entries, rule changes, and recalculation runs have read policies only. Prediction and rule client writes are performed through security-definer RPCs;
+- `persist_scoring_recalculation` stores scoring output only for a locked league with a locked scoring rule snapshot. Milestone 5 narrows official execution to `service_role` so mobile clients cannot submit official scoring payloads.
 
 The repository does not expose service-role credentials to the mobile client. Future automated result ingestion should run from a trusted backend worker that calls the same database contract or a narrower service-role-only variant.
+
+## Milestone 5 Trusted Scoring Security
+
+Milestone 5 makes the trusted backend worker the official scoring actor:
+
+- the service-role key is used only by server code under `src/server/scoring` and is never read from Expo public environment variables;
+- `record_trusted_result_ingestion` is service-role-only and writes `result_ingestion_runs` for accepted, scored, and failed server result payloads;
+- `persist_scoring_recalculation` is revoked from `anon` and `authenticated` and granted only to `service_role`;
+- direct client insert/update/delete grants are revoked for scoring events, leaderboard snapshots, leaderboard entries, scoring breakdown items, and recalculation runs;
+- result payloads are validated before scoring and must use UTC timestamps and a matching `source_result_key`;
+- the database still verifies locked league/rule state before accepting persisted scoring output.
+
+Authenticated clients should read official results, leaderboard snapshots, and point breakdowns through RLS. They should not calculate or persist official standings.

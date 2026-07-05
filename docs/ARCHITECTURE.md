@@ -51,3 +51,14 @@ Rule editing and scoring remain separated from route files and UI components. Th
 - `supabase/migrations/20260704030000_milestone4_prediction_scoring_persistence.sql`: persistence, RLS, RPC, checksum, and idempotency migration for the complete workflow.
 
 The UI still uses the mock provider by default. Real Supabase persistence is available through service adapters and can be wired into screens without moving business logic out of `src/domain`.
+
+## Milestone 5 Additions
+
+- `src/server/scoring/trustedScoringWorker.ts`: trusted server orchestration for validating result payloads, loading scoring context, running the pure scoring engine, and persisting derived artifacts.
+- `src/server/scoring/resultValidation.ts`: Zod validation for mock/official result ingestion boundaries.
+- `src/server/scoring/supabaseTrustedScoringRepository.ts`: service-role-only Supabase adapter for result ingestion runs and scoring persistence.
+- `src/server/scoring/supabaseTrustedServerClient.ts`: server-only Supabase client factory for service-role execution.
+- `src/server/scoring/mockResultIngestion.ts`: deterministic mock result request factory for worker tests and future local server flows.
+- `supabase/migrations/20260705010000_milestone5_trusted_scoring_execution.sql`: service-role-only result ingestion audit table/RPC and official scoring persistence hardening.
+
+The mobile app remains mock-first unless Supabase is configured, and it does not receive service-role credentials. Official scoring artifacts are produced by trusted server code and read by clients through RLS.

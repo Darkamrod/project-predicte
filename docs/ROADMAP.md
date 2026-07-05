@@ -58,8 +58,23 @@
 - Supabase repository classes for predictions, rules, and scoring while preserving the mock fallback flow.
 - RLS read policies for new derived tables and no direct client write policies for scoring artifacts.
 
+## Completed in Milestone 4.1
+
+- Recalculation run snapshot FK changed to `ON DELETE SET NULL`.
+- Repeated recalculations with the same `source_result_key` can replace the leaderboard snapshot without historical run FK conflicts.
+- Supabase runtime folders `.temp` and `.branches` are ignored.
+
+## Completed in Milestone 5
+
+- Trusted TypeScript server worker foundation for result ingestion and scoring execution.
+- Zod validation for server-side official/mock result payloads.
+- Service-role-only result ingestion audit via `result_ingestion_runs` and `record_trusted_result_ingestion`.
+- Official scoring persistence narrowed to service-role execution; authenticated clients no longer execute scoring persistence.
+- Server Supabase repository for trusted scoring persistence and result ingestion.
+- Tests for server-side scoring execution, repeated idempotent source keys, result corrections, failed ingestion, RPC contracts, and static RLS/grant expectations.
+
 ## Next Authorized Milestone
 
-Milestone 5 should be defined by the next authorized prompt. Likely candidates are trusted server execution for scoring, result ingestion/import workflow, richer Supabase integration tests with authenticated users, and production-ready background recalculation plumbing.
+Milestone 6 should be defined by the next authorized prompt. Likely candidates are provider import adapters, richer result correction UX/audit views, retry scheduling, authenticated Supabase integration tests, and production deployment wiring for the trusted worker.
 
-Do not start Milestone 5 without explicit authorization.
+Do not start Milestone 6 without explicit authorization.
