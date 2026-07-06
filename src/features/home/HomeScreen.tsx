@@ -72,6 +72,9 @@ export function HomeScreen(): React.ReactNode {
             {selectedSummary.familyLabel} - {selectedSummary.seasonLabel} -{" "}
             {selectedSummary.formatHeadline}
           </Text>
+          <SummaryFactGrid
+            facts={[`Preset scoring: ${selectedSummary.presetLabel}`, selectedSummary.rulesetLabel]}
+          />
           <SummaryFactGrid facts={selectedSummary.facts} />
           <View style={styles.phaseRail}>
             {selectedSummary.phaseLabels.slice(0, 8).map((label) => (

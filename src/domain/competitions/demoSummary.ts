@@ -6,6 +6,7 @@ export interface CompetitionDemoSummary {
   editionLabel: string;
   seasonLabel: string;
   presetLabel: string;
+  rulesetLabel: string;
   formatHeadline: string;
   facts: string[];
   phaseLabels: string[];
@@ -57,8 +58,10 @@ export function getCompetitionDemoSummary(competition: CompetitionSeed): Competi
     editionLabel: competition.edition.name,
     seasonLabel: competition.edition.seasonLabel,
     presetLabel:
-      competition.versionBundle?.scoringPreset.presetCode.replaceAll("_", " ") ??
-      "Preset configurato",
+      formatCodeLabel(competition.versionBundle?.scoringPreset.presetCode) ?? "Preset configurato",
+    rulesetLabel: competition.versionBundle
+      ? `Regolamento ${competition.versionBundle.ruleset.version}`
+      : "Regolamento configurato",
     formatHeadline:
       format.initialStageKind === "league_phase"
         ? "League phase con tabellone"
@@ -99,4 +102,15 @@ function getKnockoutRoundLabel(round: KnockoutRoundCode): string {
 
 function uniqueLabels(labels: string[]): string[] {
   return Array.from(new Set(labels));
+}
+
+function formatCodeLabel(code: string | undefined): string | undefined {
+  if (!code) {
+    return undefined;
+  }
+
+  return code
+    .split("_")
+    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(" ");
 }

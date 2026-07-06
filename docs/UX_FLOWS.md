@@ -102,7 +102,7 @@ Champions League two-leg and playoff mapping remains an aggregate placeholder in
 
 The main demo flow is now optimized for a mobile walkthrough:
 
-1. Home shows a compact edition-driven create-league panel with sport, family, edition, format facts, phase labels, scoring preset context, and placeholder notes.
+1. Home shows a compact edition-driven create-league panel with sport, family, edition, scoring preset, ruleset version, format facts, phase labels, and placeholder notes.
 2. Creating a mock league keeps using the selected competition edition and opens the league flow without requiring real Supabase credentials.
 3. The prediction route keeps the Quick/Expert mode choice, but now shows competition facts and a clearer progression header with completed items, missing items, tie-break count, bracket count, and manual antepost count.
 4. Quick mode keeps large team cards, outcome buttons, score chips, `Altro`, and a visible confirm action. Swipe remains additive; tap controls remain the accessible path.
@@ -113,3 +113,7 @@ The main demo flow is now optimized for a mobile walkthrough:
 9. Leaderboard shows snapshot state, participants, leader, leader points, rank rows, and grouped point breakdown for match/stage/antepost scopes.
 
 World Cup 2026 is the strongest demo path. EURO 2028 is usable with the documented best-thirds mapping placeholder. Champions League remains useful to demonstrate versioned multi-competition support, but two-legged rounds and seeded draw/playoff behavior stay aggregate/placeholder until a later authorized milestone.
+
+## Milestone 9.1 Demo Cleanup
+
+The Home summary now displays scoring preset and ruleset labels from the domain demo summary instead of leaving that context only in documentation. The final prediction review no longer repeats the mode or shows the old `Partite compilate` count; completion is represented by the normalized completed/required and missing counters.

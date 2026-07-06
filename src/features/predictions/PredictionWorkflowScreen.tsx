@@ -1485,11 +1485,6 @@ function ReviewCard({
           value={canConfirm ? "Pronto per conferma" : "Completa i mancanti"}
         />
       </View>
-      <ReadOnlyFact label="Modalità" value={modeLabels[mode]} />
-      <ReadOnlyFact
-        label="Partite compilate"
-        value={`${matchCount - missingCount}/${matchCount}`}
-      />
       <ReadOnlyFact
         label="Vincitrice derivata"
         value={getTeamLabel(teamsById, derived.winnerTeamId)}

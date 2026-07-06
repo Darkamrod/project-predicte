@@ -1,7 +1,15 @@
 import { readFileSync } from "node:fs";
 
+import { getCompetitionDemoSummary } from "@/domain/competitions/demoSummary";
+import {
+  createChampionsLeague2026_27MockSeed,
+  createEuro2028MockSeed,
+  createWorldCup2026MockSeed
+} from "@/domain/competitions/versionedTemplates";
 import { describe, expect, it } from "vitest";
 
+// Lightweight source/domain contracts: they avoid a fragile React Native render setup while
+// still guarding the demo copy and data-driven UI boundaries introduced in Milestone 9/9.1.
 describe("Milestone 9 demo flow UI contract", () => {
   it("keeps create-league UI edition-driven and demo-summary based", () => {
     const source = readFileSync("src/features/home/HomeScreen.tsx", "utf8");
@@ -10,6 +18,26 @@ describe("Milestone 9 demo flow UI contract", () => {
     expect(source).toContain("Crea lega demo");
     expect(source).toContain("EditionOptionCard");
     expect(source).not.toMatch(/World Cup|ROUND_OF_32|THIRD_PLACE|world_cup/);
+  });
+
+  it("surfaces domain-driven scoring preset and ruleset labels in Home", () => {
+    const summaries = [
+      getCompetitionDemoSummary(createWorldCup2026MockSeed()),
+      getCompetitionDemoSummary(createEuro2028MockSeed()),
+      getCompetitionDemoSummary(createChampionsLeague2026_27MockSeed())
+    ];
+    const source = readFileSync("src/features/home/HomeScreen.tsx", "utf8");
+
+    expect(summaries.map((summary) => summary.presetLabel)).toEqual([
+      "World Cup Default",
+      "Euro Default",
+      "Champions League Default"
+    ]);
+    expect(summaries.every((summary) => summary.rulesetLabel === "Regolamento 1.0.0")).toBe(true);
+    expect(source).toContain("selectedSummary.presetLabel");
+    expect(source).toContain("selectedSummary.rulesetLabel");
+    expect(source).toContain("Preset scoring:");
+    expect(source).not.toMatch(/WORLD_CUP_DEFAULT|EURO_DEFAULT|CHAMPIONS_LEAGUE_DEFAULT/);
   });
 
   it("keeps Quick and Expert prediction entry demo-ready without changing stored model", () => {
@@ -22,6 +50,9 @@ describe("Milestone 9 demo flow UI contract", () => {
     expect(source).toContain("TargetStatusStrip");
     expect(source).toContain("Vincitrice derivata");
     expect(source).toContain("ScoreInput");
+    expect(source).toContain("Completati");
+    expect(source).toContain("Mancanti");
+    expect(source).not.toContain("Partite compilate");
     expect(source).not.toMatch(/World Cup|ROUND_OF_32|THIRD_PLACE|world_cup/);
   });
 
