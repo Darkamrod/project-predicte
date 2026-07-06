@@ -105,3 +105,13 @@ The architecture now treats World Cup, EURO, Champions League, and future footba
 - `src/services/mock/mockLeagueFactory.ts`: initial mock prediction creation uses the concrete initial competition stage rather than assuming only one tournament shape, so league-phase editions are populated for local flows.
 
 The Milestone 8 UI is still mock-first when Supabase is not configured. It does not calculate official scoring, connect provider APIs, or expose server credentials. Two-legged knockout rounds are represented as an aggregate prediction placeholder until a future milestone defines leg-by-leg UX and scoring semantics.
+
+## Milestone 9 Additions
+
+- `src/domain/competitions/demoSummary.ts`: pure helper that describes a competition edition for demo/create-league UI using the configured format, version bundle, phases, and placeholder metadata. This keeps visual polish data-driven instead of embedding World Cup-specific copy in feature components.
+- `src/features/home/HomeScreen.tsx`: clearer edition-driven mock league creation surface with format facts and phase chips.
+- `src/features/predictions/PredictionWorkflowScreen.tsx`: polished Quick/Expert cards, target status indicators, tie-break explanation, positive antepost validation, and final review metrics while still consuming domain workflow targets.
+- `src/features/leaderboard/LeaderboardScreen.tsx`: grouped point breakdown presentation over existing domain-generated scoring breakdowns.
+- `supabase/migrations/20260706010000_milestone9_tiebreak_exact_set_validation.sql`: narrow RPC hardening migration for exact tie-break team sets.
+
+Milestone 9 remains a demo hardening milestone. It does not change trusted scoring authority, does not connect real sports providers, and does not move business logic into UI components.

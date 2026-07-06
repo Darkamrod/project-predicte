@@ -124,3 +124,13 @@ Milestone 8.1 extends `upsert_prediction_tiebreak_override` with tie-group metad
 - tie-group identity prevents one unresolved tie in a scope from overwriting another, without broadening access to other users' predictions.
 
 No scoring, provider import, payment, advertising, betting, odds, wagering, gambling, or real sports API write path is added.
+
+## Milestone 9 Tie-Break Data Integrity
+
+Milestone 9 keeps the Milestone 8.1 tie-break write boundary but tightens the RPC payload contract:
+
+- `upsert_prediction_tiebreak_override` now requires `ordered_team_ids` and `tied_team_ids` to contain the same teams.
+- The RPC rejects extra teams and duplicate team ids before writing the override.
+- Deadline, lock, current-user prediction set lookup, and authenticated-only execution remain unchanged.
+
+This is a data-integrity hardening change, not a broader client write grant.

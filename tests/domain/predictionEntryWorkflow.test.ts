@@ -204,6 +204,16 @@ describe("Milestone 8 prediction entry workflow", () => {
         updatedAtUtc
       })
     ).toBe(true);
+    expect(
+      isManualAntepostComplete(goalDefinition!, {
+        id: "top-scorer-goals-zero",
+        predictionSetId: "set",
+        definitionId: goalDefinition!.id,
+        numericValue: 0,
+        syncStatus: "SYNCED",
+        updatedAtUtc
+      })
+    ).toBe(false);
   });
 
   it("moves from mode choice to next missing prediction and can reach final review", () => {

@@ -97,3 +97,19 @@ Best-thirds ties that affect qualification or bracket placement are also routed 
 After a successful match, tie-break, or knockout save, the screen waits for the updated workflow state and then jumps to the next missing target. This keeps `Mancante` and automatic progression aligned with newly resolved ties or newly generated bracket matches.
 
 Champions League two-leg and playoff mapping remains an aggregate placeholder in the UI. The template exposes league-phase and playoff structure, but leg-by-leg entry and official seeded draw behavior remain future authorized work.
+
+## Milestone 9 Demo Flow Hardening
+
+The main demo flow is now optimized for a mobile walkthrough:
+
+1. Home shows a compact edition-driven create-league panel with sport, family, edition, format facts, phase labels, scoring preset context, and placeholder notes.
+2. Creating a mock league keeps using the selected competition edition and opens the league flow without requiring real Supabase credentials.
+3. The prediction route keeps the Quick/Expert mode choice, but now shows competition facts and a clearer progression header with completed items, missing items, tie-break count, bracket count, and manual antepost count.
+4. Quick mode keeps large team cards, outcome buttons, score chips, `Altro`, and a visible confirm action. Swipe remains additive; tap controls remain the accessible path.
+5. Expert mode now shows a central score preview and touch-friendly +/- controls around numeric inputs.
+6. Tie-break steps show the scope, affected positions, tied teams, and icon controls for ordering the specific `tieGroupId`.
+7. Antepost shows derived winner/finalists as read-only facts and asks only for top scorer and positive top-scorer goals.
+8. The final review shows mode, completion, missing count, warning count, derived bracket facts, manual antepost values, edit, warning review, and local confirmation.
+9. Leaderboard shows snapshot state, participants, leader, leader points, rank rows, and grouped point breakdown for match/stage/antepost scopes.
+
+World Cup 2026 is the strongest demo path. EURO 2028 is usable with the documented best-thirds mapping placeholder. Champions League remains useful to demonstrate versioned multi-competition support, but two-legged rounds and seeded draw/playoff behavior stay aggregate/placeholder until a later authorized milestone.

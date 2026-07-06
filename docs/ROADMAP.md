@@ -134,8 +134,20 @@
 - Prediction-entry navigation now recomputes the workflow after successful saves before jumping to the next missing item.
 - Tests cover multiple tie groups in one scope, best-thirds tie overrides, Supabase RPC contract changes, migration contract changes, server-side context loading, and placeholder mapping metadata.
 
+## Completed in Milestone 9
+
+- Demo-ready Home/create-league flow with edition cards, format facts, phase labels, scoring preset context, and documented placeholder notes.
+- Data-driven competition demo summaries in `src/domain/competitions/demoSummary.ts` so UI polish remains template-aware and avoids World Cup-specific hardcoding.
+- Prediction workflow polish for mode selection, progress metrics, Quick mode cards, Expert mode score preview and +/- controls, target status/sync indicators, and clearer confirm progression.
+- Tie-break UX now presents scope, affected positions, tied teams, and icon-based ordering for the exact `tieGroupId`.
+- Antepost flow now keeps winner/finalists derived and read-only while validating positive top-scorer goals.
+- Final review now includes completion metrics, missing/warning counts, bracket-derived facts, manual antepost values, edit, warning review, and local confirmation.
+- Leaderboard now presents snapshot metadata, leader metrics, readable rank rows, and grouped breakdown by match/stage/antepost.
+- Supabase tie-break RPC hardening now requires `ordered_team_ids` and `tied_team_ids` to be the same set and rejects duplicates.
+- Tests cover demo summary generation, UI source contracts for demo surfaces, positive top-scorer goal completion, and the new tie-break exact-set migration contract.
+
 ## Next Authorized Milestone
 
-Milestone 9 should be defined by the next authorized prompt. Likely candidates are official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.
+Milestone 10 should be defined by the next authorized prompt. Likely candidates are official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.
 
-Do not start Milestone 9 without explicit authorization.
+Do not start Milestone 10 without explicit authorization.

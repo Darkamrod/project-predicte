@@ -647,7 +647,7 @@ export function isManualAntepostComplete(
   }
 
   if (definition.code === "TOP_SCORER_GOALS") {
-    return Number.isInteger(prediction.numericValue) && (prediction.numericValue ?? -1) >= 0;
+    return Number.isInteger(prediction.numericValue) && (prediction.numericValue ?? 0) > 0;
   }
 
   return true;

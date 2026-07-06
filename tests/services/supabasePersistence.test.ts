@@ -35,6 +35,13 @@ const milestone81Migration = readFileSync(
   join(process.cwd(), "supabase/migrations/20260705060000_milestone8_1_tiebreak_groups.sql"),
   "utf8"
 );
+const milestone9Migration = readFileSync(
+  join(
+    process.cwd(),
+    "supabase/migrations/20260706010000_milestone9_tiebreak_exact_set_validation.sql"
+  ),
+  "utf8"
+);
 const decisionsDoc = readFileSync(join(process.cwd(), "docs/DECISIONS.md"), "utf8");
 const dataModelDoc = readFileSync(join(process.cwd(), "docs/DATA_MODEL.md"), "utf8");
 const scoringEngineDoc = readFileSync(join(process.cwd(), "docs/SCORING_ENGINE.md"), "utf8");
@@ -115,6 +122,17 @@ describe("Milestone 4 Supabase migration contract", () => {
     expect(milestone81Migration).toContain("Tie-break order must include every tied team");
     expect(milestone81Migration).not.toContain(
       "on conflict on constraint prediction_tiebreak_overrides_prediction_set_scope_key"
+    );
+  });
+
+  it("hardens tiebreak override validation to reject extra or duplicate teams", () => {
+    expect(milestone9Migration).toContain("Tie-break order must match tied teams exactly");
+    expect(milestone9Migration).toContain("Tie-break order cannot contain duplicate teams");
+    expect(milestone9Migration).toContain("Tied teams cannot contain duplicate teams");
+    expect(milestone9Migration).toContain("from unnest(p_ordered_team_ids)");
+    expect(milestone9Migration).toContain("from unnest(normalized_tied_team_ids)");
+    expect(milestone9Migration).toContain(
+      "prediction_tiebreak_overrides_prediction_set_scope_group_key"
     );
   });
 

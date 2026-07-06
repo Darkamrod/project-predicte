@@ -1,4 +1,14 @@
-import { Check, ChevronRight, Edit3, Trophy } from "lucide-react-native";
+import {
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Edit3,
+  Minus,
+  Plus,
+  Trophy
+} from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PanResponder,
@@ -17,7 +27,11 @@ import { AppScreen } from "@/components/AppScreen";
 import { PrimaryButton, SecondaryButton } from "@/components/Buttons";
 import { DeadlineBanner } from "@/components/DeadlineBanner";
 import { ErrorState } from "@/components/ErrorState";
+import { IconButton } from "@/components/IconButton";
 import { ProgressBar } from "@/components/ProgressBar";
+import { StatusBadge } from "@/components/StatusBadge";
+import { SyncStatus } from "@/components/SyncStatus";
+import { getCompetitionDemoSummary } from "@/domain/competitions/demoSummary";
 import type { AntepostDefinition, Player, Team } from "@/domain/competitions/types";
 import { getTeamLabel } from "@/domain/predictions/bracket";
 import {
@@ -89,6 +103,7 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
   const activeCompetition = league
     ? (competitions.find((item) => item.edition.id === league.competitionEditionId) ?? competition)
     : competition;
+  const competitionSummary = getCompetitionDemoSummary(activeCompetition);
   const predictionSet = league?.predictionSets.find((set) => set.userId === currentUser.id);
   const workflow = predictionSet
     ? buildPredictionEntryWorkflow({
@@ -155,6 +170,10 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
   });
   const manualAntepostPredictions = predictionSet.antepostPredictions ?? [];
   const blockingIssues = workflow.issues.filter((issue) => issue.severity === "error");
+  const completionPercent =
+    predictionSet.totalRequired > 0
+      ? Math.round((predictionSet.completedItems / predictionSet.totalRequired) * 100)
+      : 0;
 
   if (!mode) {
     return (
@@ -163,6 +182,8 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
         <DeadlineBanner deadlineAtUtc={league.deadlineAtUtc} status={league.status} />
         <ModeSelectionCard
           competitionName={activeCompetition.edition.name}
+          facts={competitionSummary.facts}
+          phaseLabels={competitionSummary.phaseLabels}
           onSelect={(nextMode) => {
             const nextWorkflow = buildPredictionEntryWorkflow({
               competition: activeCompetition,
@@ -183,7 +204,7 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
       <AppHeader title={strings.leagueSections.predictions} subtitle={league.name} />
       <DeadlineBanner deadlineAtUtc={league.deadlineAtUtc} status={league.status} />
 
-      <AppCard>
+      <AppCard style={styles.workflowHeaderCard}>
         <View style={styles.headerRow}>
           <View style={styles.flex}>
             <Text style={[styles.eyebrow, { color: theme.colors.textSecondary }]}>
@@ -193,6 +214,10 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
               {modeLabels[mode]}
             </Text>
           </View>
+          <StatusBadge
+            label={blockingIssues.length === 0 ? "Completo" : `${blockingIssues.length} mancanti`}
+            tone={blockingIssues.length === 0 ? "success" : "warning"}
+          />
           <SecondaryButton
             accessibilityLabel="Cambia modalità"
             label="Cambia"
@@ -206,17 +231,19 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
             style={styles.compactButton}
           />
         </View>
-        <ProgressBar
-          value={
-            workflow.issues.some((issue) => issue.severity === "error")
-              ? 100 - Math.min(blockingIssues.length * 5, 75)
-              : 100
-          }
-          label="Avanzamento compilazione"
-        />
+        <ProgressBar value={completionPercent} label="Avanzamento compilazione" />
+        <View style={styles.metricGrid}>
+          <DemoMetric
+            label="Partite"
+            value={`${predictionSet.completedItems}/${predictionSet.totalRequired}`}
+          />
+          <DemoMetric label="Tie-break" value={String(workflow.tiebreakTargets.length)} />
+          <DemoMetric label="Tabellone" value={String(workflow.knockoutTargets.length)} />
+          <DemoMetric label="Antepost" value={String(workflow.manualAntepostDefinitions.length)} />
+        </View>
         <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-          {getInitialPhaseLabel(activeCompetition)} · {workflow.knockoutTargets.length} match
-          tabellone · {workflow.manualAntepostDefinitions.length} antepost manuali
+          {getInitialPhaseLabel(activeCompetition)} - {workflow.knockoutTargets.length} match
+          tabellone - {workflow.manualAntepostDefinitions.length} antepost manuali
         </Text>
       </AppCard>
 
@@ -369,6 +396,8 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
           mode={mode}
           matchCount={workflow.initialTargets.length + workflow.knockoutTargets.length}
           missingCount={blockingIssues.length}
+          completedCount={predictionSet.completedItems}
+          requiredCount={predictionSet.totalRequired}
           derived={derivedAntepost}
           predictions={manualAntepostPredictions}
           definitions={workflow.manualAntepostDefinitions}
@@ -390,9 +419,13 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
 
 function ModeSelectionCard({
   competitionName,
+  facts,
+  phaseLabels,
   onSelect
 }: {
   competitionName: string;
+  facts: string[];
+  phaseLabels: string[];
   onSelect(mode: PredictionEntryMode): void;
 }): React.ReactNode {
   const { theme } = useAppTheme();
@@ -402,6 +435,14 @@ function ModeSelectionCard({
       <Text style={[styles.kicker, { color: theme.colors.primary }]}>Come vuoi compilare?</Text>
       <Text style={[styles.heroTitle, { color: theme.colors.textPrimary }]}>
         Scegli il ritmo per {competitionName}
+      </Text>
+      <View style={styles.modeFactGrid}>
+        {facts.slice(0, 3).map((fact) => (
+          <DemoPill key={fact} label={fact} />
+        ))}
+      </View>
+      <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
+        {phaseLabels.slice(0, 6).join(" - ")}
       </Text>
       <View style={styles.modeGrid}>
         <Pressable
@@ -424,6 +465,10 @@ function ModeSelectionCard({
           <Text style={[styles.modeBody, { color: theme.colors.onPrimaryContainer }]}>
             Scelte rapide, card grandi e score chips dopo ogni esito.
           </Text>
+          <View style={styles.modeBulletList}>
+            <ModeBullet selected label="Tap su esito e risultato" />
+            <ModeBullet selected label="Avanza al prossimo mancante" />
+          </View>
         </Pressable>
         <Pressable
           accessibilityLabel="Scegli Modalità Esperto"
@@ -445,9 +490,61 @@ function ModeSelectionCard({
           <Text style={[styles.modeBody, { color: theme.colors.textSecondary }]}>
             Input risultato precisi, qualificata derivata quando possibile.
           </Text>
+          <View style={styles.modeBulletList}>
+            <ModeBullet label="Controlli + e - sui gol" />
+            <ModeBullet label="Validazioni knockout esplicite" />
+          </View>
         </Pressable>
       </View>
     </AppCard>
+  );
+}
+
+function ModeBullet({
+  label,
+  selected = false
+}: {
+  label: string;
+  selected?: boolean;
+}): React.ReactNode {
+  const { theme } = useAppTheme();
+
+  return (
+    <View style={styles.modeBullet}>
+      <CheckCircle2
+        color={selected ? theme.colors.onPrimaryContainer : theme.colors.success}
+        size={16}
+      />
+      <Text
+        style={[
+          styles.modeBulletText,
+          { color: selected ? theme.colors.onPrimaryContainer : theme.colors.textSecondary }
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function DemoMetric({ label, value }: { label: string; value: string }): React.ReactNode {
+  const { theme } = useAppTheme();
+
+  return (
+    <View style={[styles.demoMetric, { backgroundColor: theme.colors.surfaceVariant }]}>
+      <Text style={[styles.demoMetricValue, { color: theme.colors.textPrimary }]}>{value}</Text>
+      <Text style={[styles.demoMetricLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
+    </View>
+  );
+}
+
+function DemoPill({ label }: { label: string }): React.ReactNode {
+  const { theme } = useAppTheme();
+
+  return (
+    <View style={[styles.demoPill, { backgroundColor: theme.colors.surfaceVariant }]}>
+      <Text style={[styles.demoPillText, { color: theme.colors.textPrimary }]}>{label}</Text>
+    </View>
   );
 }
 
@@ -567,9 +664,16 @@ function TiebreakEntryCard({
   return (
     <AppCard style={styles.entryCard}>
       <StepHeader target={target} />
+      <TargetStatusStrip target={target} />
       <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-        Ordina le squadre pari merito: la prima sara davanti in classifica prevista.
+        Pari merito in {getTieScopeLabel(target.scope)}. L'ordine scelto decide le posizioni{" "}
+        {formatPositions(target.affectedPositions ?? []) || "coinvolte"} della classifica prevista.
       </Text>
+      <View style={styles.teamChipGrid}>
+        {(target.tiedTeamIds ?? orderedTeamIds).map((teamId) => (
+          <DemoPill key={teamId} label={getTeamLabel(teamsById, teamId)} />
+        ))}
+      </View>
       <View style={styles.fieldStack}>
         {orderedTeamIds.map((teamId, index) => (
           <View
@@ -585,19 +689,23 @@ function TiebreakEntryCard({
             <Text style={[styles.factValue, styles.flex, { color: theme.colors.textPrimary }]}>
               {getTeamLabel(teamsById, teamId)}
             </Text>
-            <SecondaryButton
-              accessibilityLabel={`Sposta su ${getTeamLabel(teamsById, teamId)}`}
-              disabled={index === 0}
-              label="Su"
-              onPress={() => moveTeam(teamId, -1)}
-              style={styles.compactButton}
+            <IconButton
+              icon={ChevronUp}
+              label={`Sposta su ${getTeamLabel(teamsById, teamId)}`}
+              onPress={() => {
+                if (index > 0) {
+                  moveTeam(teamId, -1);
+                }
+              }}
             />
-            <SecondaryButton
-              accessibilityLabel={`Sposta giu ${getTeamLabel(teamsById, teamId)}`}
-              disabled={index === orderedTeamIds.length - 1}
-              label="Giu"
-              onPress={() => moveTeam(teamId, 1)}
-              style={styles.compactButton}
+            <IconButton
+              icon={ChevronDown}
+              label={`Sposta giu ${getTeamLabel(teamsById, teamId)}`}
+              onPress={() => {
+                if (index < orderedTeamIds.length - 1) {
+                  moveTeam(teamId, 1);
+                }
+              }}
             />
           </View>
         ))}
@@ -725,6 +833,7 @@ function QuickMatchCard({
   return (
     <AppCard style={styles.entryCard}>
       <StepHeader target={target} />
+      <TargetStatusStrip target={target} />
       {context === "KNOCKOUT_TWO_LEG" ? <TwoLegNotice /> : null}
       <View {...panResponder.panHandlers} style={styles.matchHero}>
         <TeamBadge team={homeTeam} align="left" />
@@ -733,7 +842,7 @@ function QuickMatchCard({
             {selectedHomeGoals ?? "-"} - {selectedAwayGoals ?? "-"}
           </Text>
           <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-            {isInitial ? "Swipe o tap per l'esito" : "Scegli chi passa"}
+            {isInitial ? "Esito 90 minuti" : "Qualificata prevista"}
           </Text>
         </View>
         <TeamBadge team={awayTeam} align="right" />
@@ -813,7 +922,11 @@ function QuickMatchCard({
       ) : null}
 
       <IssueList issues={issues} />
-      <PrimaryButton accessibilityLabel="Conferma pronostico" label="Conferma" onPress={submit} />
+      <PrimaryButton
+        accessibilityLabel="Conferma pronostico"
+        label="Conferma e continua"
+        onPress={submit}
+      />
     </AppCard>
   );
 }
@@ -836,6 +949,7 @@ function ExpertMatchCard({
     advancementMethod?: AdvancementMethod | undefined;
   }): PredictionValidationIssue[];
 }): React.ReactNode {
+  const { theme } = useAppTheme();
   const [homeGoals, setHomeGoals] = useState(String(target.prediction?.homeGoals ?? 1));
   const [awayGoals, setAwayGoals] = useState(String(target.prediction?.awayGoals ?? 0));
   const [qualifiedTeamId, setQualifiedTeamId] = useState<string | undefined>(
@@ -878,10 +992,19 @@ function ExpertMatchCard({
   return (
     <AppCard style={styles.entryCard}>
       <StepHeader target={target} />
+      <TargetStatusStrip target={target} />
       {context === "KNOCKOUT_TWO_LEG" ? <TwoLegNotice /> : null}
       <View style={styles.expertTeams}>
         <TeamBadge team={homeTeam} align="left" />
         <TeamBadge team={awayTeam} align="right" />
+      </View>
+      <View style={[styles.expertScoreBoard, { backgroundColor: theme.colors.surfaceVariant }]}>
+        <Text style={[styles.scorePreview, { color: theme.colors.textPrimary }]}>
+          {safeScoreLabel(homeGoals)} - {safeScoreLabel(awayGoals)}
+        </Text>
+        <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
+          {isInitial ? "Risultato fase iniziale" : "Risultato al 90"}
+        </Text>
       </View>
       <ManualScoreInputs
         homeLabel={homeTeam?.shortName ?? "Casa"}
@@ -921,7 +1044,11 @@ function ExpertMatchCard({
         />
       ) : null}
       <IssueList issues={issues} />
-      <PrimaryButton accessibilityLabel="Conferma pronostico" label="Conferma" onPress={submit} />
+      <PrimaryButton
+        accessibilityLabel="Conferma pronostico"
+        label="Conferma e continua"
+        onPress={submit}
+      />
     </AppCard>
   );
 }
@@ -946,6 +1073,23 @@ function StepHeader({ target }: { target: PredictionEntryTarget }): React.ReactN
       <Text style={[styles.progressPill, { color: theme.colors.primary }]}>
         {target.currentIndex} di {target.totalCount}
       </Text>
+    </View>
+  );
+}
+
+function TargetStatusStrip({ target }: { target: PredictionEntryTarget }): React.ReactNode {
+  const isComplete = Boolean(target.prediction);
+
+  return (
+    <View style={styles.statusStrip}>
+      <StatusBadge
+        label={target.kind === "TIEBREAK" ? "Da ordinare" : isComplete ? "Completo" : "Mancante"}
+        tone={isComplete ? "success" : "warning"}
+      />
+      {target.prediction ? <SyncStatus status={target.prediction.syncStatus} /> : null}
+      {target.kind === "TIEBREAK" && target.affectedPositions?.length ? (
+        <DemoPill label={`Posizioni ${formatPositions(target.affectedPositions)}`} />
+      ) : null}
     </View>
   );
 }
@@ -1019,24 +1163,34 @@ function ScoreInput({
   onChange(value: string): void;
 }): React.ReactNode {
   const { theme } = useAppTheme();
+  const adjust = (delta: number): void => {
+    const parsedValue = Number.parseInt(value, 10);
+    const nextValue = Math.max(0, (Number.isInteger(parsedValue) ? parsedValue : 0) + delta);
+
+    onChange(String(nextValue));
+  };
 
   return (
     <View style={styles.scoreInputBlock}>
       <Text style={[styles.eyebrow, { color: theme.colors.textSecondary }]}>{label}</Text>
-      <TextInput
-        accessibilityLabel={`Gol ${label}`}
-        keyboardType="number-pad"
-        maxLength={2}
-        onChangeText={(nextValue) => onChange(nextValue.replace(/\D/g, ""))}
-        value={value}
-        style={[
-          styles.scoreInput,
-          {
-            borderColor: theme.colors.border,
-            color: theme.colors.textPrimary
-          }
-        ]}
-      />
+      <View style={styles.scoreStepper}>
+        <IconButton icon={Minus} label={`Diminuisci gol ${label}`} onPress={() => adjust(-1)} />
+        <TextInput
+          accessibilityLabel={`Gol ${label}`}
+          keyboardType="number-pad"
+          maxLength={2}
+          onChangeText={(nextValue) => onChange(nextValue.replace(/\D/g, ""))}
+          value={value}
+          style={[
+            styles.scoreInput,
+            {
+              borderColor: theme.colors.border,
+              color: theme.colors.textPrimary
+            }
+          ]}
+        />
+        <IconButton icon={Plus} label={`Aumenta gol ${label}`} onPress={() => adjust(1)} />
+      </View>
     </View>
   );
 }
@@ -1126,6 +1280,12 @@ function AntepostEntryCard({
   const [goalsText, setGoalsText] = useState(
     goalsPrediction?.numericValue !== undefined ? String(goalsPrediction.numericValue) : ""
   );
+  const parsedGoals = Number.parseInt(goalsText, 10);
+  const topScorerIsValid =
+    !topScorerDefinition || Boolean(topScorerText.trim() || topScorerPrediction?.selectedPlayerId);
+  const goalsAreValid =
+    !topScorerGoalsDefinition || (Number.isInteger(parsedGoals) && parsedGoals > 0);
+  const canContinue = topScorerIsValid && goalsAreValid;
 
   useEffect(() => {
     setTopScorerText(
@@ -1141,20 +1301,33 @@ function AntepostEntryCard({
   }, [goalsPrediction, playersById, topScorerPrediction]);
 
   return (
-    <AppCard>
-      <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Antepost</Text>
-      <ReadOnlyFact
-        label="Vincitrice prevista"
-        value={getTeamLabel(teamsById, derived.winnerTeamId)}
-      />
-      <ReadOnlyFact
-        label="Finaliste previste"
-        value={
-          (derived.finalistTeamIds ?? [])
-            .map((teamId) => getTeamLabel(teamsById, teamId))
-            .join(" - ") || "Da derivare"
-        }
-      />
+    <AppCard style={styles.entryCard}>
+      <View style={styles.headerRow}>
+        <View style={styles.flex}>
+          <Text style={[styles.eyebrow, { color: theme.colors.textSecondary }]}>
+            Finale e antepost
+          </Text>
+          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>Antepost</Text>
+        </View>
+        <StatusBadge
+          label={canContinue ? "Completo" : "Mancante"}
+          tone={canContinue ? "success" : "warning"}
+        />
+      </View>
+      <View style={[styles.derivedPanel, { backgroundColor: theme.colors.surfaceVariant }]}>
+        <ReadOnlyFact
+          label="Vincitrice derivata"
+          value={getTeamLabel(teamsById, derived.winnerTeamId)}
+        />
+        <ReadOnlyFact
+          label="Finaliste derivate"
+          value={
+            (derived.finalistTeamIds ?? [])
+              .map((teamId) => getTeamLabel(teamsById, teamId))
+              .join(" - ") || "Da derivare"
+          }
+        />
+      </View>
 
       {topScorerDefinition ? (
         <View style={styles.fieldStack}>
@@ -1209,15 +1382,10 @@ function AntepostEntryCard({
           <Text style={[styles.fieldLabel, { color: theme.colors.textPrimary }]}>
             Gol capocannoniere
           </Text>
-          <TextInput
-            accessibilityLabel="Numero gol capocannoniere"
-            keyboardType="number-pad"
-            onBlur={() =>
-              onSave(topScorerGoalsDefinition, {
-                numericValue: goalsText.trim() ? Number.parseInt(goalsText, 10) : undefined
-              })
-            }
-            onChangeText={(nextValue) => {
+          <ScoreInput
+            label="Gol"
+            value={goalsText}
+            onChange={(nextValue) => {
               const sanitizedValue = nextValue.replace(/\D/g, "");
 
               setGoalsText(sanitizedValue);
@@ -1225,19 +1393,18 @@ function AntepostEntryCard({
                 numericValue: sanitizedValue ? Number.parseInt(sanitizedValue, 10) : undefined
               });
             }}
-            placeholder="0"
-            placeholderTextColor={theme.colors.textSecondary}
-            value={goalsText}
-            style={[
-              styles.textInput,
-              { borderColor: theme.colors.border, color: theme.colors.textPrimary }
-            ]}
           />
+          {!goalsAreValid ? (
+            <Text style={[styles.body, { color: theme.colors.error }]}>
+              Inserisci un numero di gol maggiore di 0.
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
       <PrimaryButton
         accessibilityLabel="Vai al riepilogo"
+        disabled={!canContinue}
         label="Vai al riepilogo"
         onPress={onNext}
       />
@@ -1251,6 +1418,8 @@ function ReviewCard({
   mode,
   matchCount,
   missingCount,
+  completedCount,
+  requiredCount,
   derived,
   predictions,
   definitions,
@@ -1268,6 +1437,8 @@ function ReviewCard({
   mode: PredictionEntryMode;
   matchCount: number;
   missingCount: number;
+  completedCount: number;
+  requiredCount: number;
   derived: DerivedAntepostSummary;
   predictions: AntepostPrediction[];
   definitions: AntepostDefinition[];
@@ -1291,7 +1462,7 @@ function ReviewCard({
     : undefined;
 
   return (
-    <AppCard>
+    <AppCard style={styles.entryCard}>
       <View style={styles.headerRow}>
         <View style={styles.flex}>
           <Text style={[styles.eyebrow, { color: theme.colors.textSecondary }]}>
@@ -1300,6 +1471,19 @@ function ReviewCard({
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{editionName}</Text>
         </View>
         <Trophy color={theme.colors.trophy} size={28} />
+      </View>
+      <View style={styles.metricGrid}>
+        <DemoMetric label="Modalita" value={mode === "QUICK" ? "Semplificata" : "Esperto"} />
+        <DemoMetric label="Completati" value={`${completedCount}/${requiredCount}`} />
+        <DemoMetric label="Mancanti" value={String(missingCount)} />
+        <DemoMetric label="Warning" value={String(warnings.length)} />
+      </View>
+      <View style={[styles.derivedPanel, { backgroundColor: theme.colors.surfaceVariant }]}>
+        <ReadOnlyFact label="Partite previste" value={String(matchCount)} />
+        <ReadOnlyFact
+          label="Stato conferma"
+          value={canConfirm ? "Pronto per conferma" : "Completa i mancanti"}
+        />
       </View>
       <ReadOnlyFact label="Modalità" value={modeLabels[mode]} />
       <ReadOnlyFact
@@ -1420,6 +1604,26 @@ function IssueList({ issues }: { issues: string[] }): React.ReactNode {
   ) : null;
 }
 
+function getTieScopeLabel(scope?: "GROUP" | "BEST_THIRDS" | "LEAGUE_PHASE" | undefined): string {
+  if (scope === "BEST_THIRDS") {
+    return "migliori terze";
+  }
+
+  if (scope === "LEAGUE_PHASE") {
+    return "league phase";
+  }
+
+  return "girone";
+}
+
+function formatPositions(positions: number[]): string {
+  return positions.length > 0 ? positions.map((position) => `${position}`).join(", ") : "";
+}
+
+function safeScoreLabel(value: string): string {
+  return value.trim() ? value : "-";
+}
+
 function getTargetsForPhase(
   workflow: ReturnType<typeof buildPredictionEntryWorkflow>,
   phase: EditablePhase
@@ -1474,8 +1678,46 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12
   },
+  demoMetric: {
+    borderRadius: 8,
+    flexBasis: "47%",
+    flexGrow: 1,
+    gap: 2,
+    minHeight: 64,
+    padding: 12
+  },
+  demoMetricLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase"
+  },
+  demoMetricValue: {
+    fontSize: 20,
+    fontWeight: "900"
+  },
+  demoPill: {
+    borderRadius: 999,
+    minHeight: 32,
+    paddingHorizontal: 10,
+    paddingVertical: 7
+  },
+  demoPillText: {
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  derivedPanel: {
+    borderRadius: 8,
+    gap: 10,
+    padding: 12
+  },
   entryCard: {
     gap: 16
+  },
+  expertScoreBoard: {
+    alignItems: "center",
+    borderRadius: 8,
+    gap: 4,
+    padding: 14
   },
   expertTeams: {
     flexDirection: "row",
@@ -1511,6 +1753,7 @@ const styles = StyleSheet.create({
   headerRow: {
     alignItems: "center",
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 12,
     justifyContent: "space-between"
   },
@@ -1542,6 +1785,24 @@ const styles = StyleSheet.create({
   modeBody: {
     fontSize: 14,
     lineHeight: 20
+  },
+  modeBullet: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8
+  },
+  modeBulletList: {
+    gap: 6
+  },
+  modeBulletText: {
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18
+  },
+  modeFactGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
   },
   modeGrid: {
     gap: 12
@@ -1579,6 +1840,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900"
   },
+  metricGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
   scoreChip: {
     minWidth: 76
   },
@@ -1595,14 +1861,21 @@ const styles = StyleSheet.create({
   scoreInput: {
     borderRadius: 8,
     borderWidth: 1,
+    flex: 1,
     fontSize: 34,
     fontWeight: "900",
     minHeight: 72,
+    minWidth: 72,
     textAlign: "center"
   },
   scoreInputBlock: {
     flex: 1,
     gap: 6
+  },
+  scoreStepper: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8
   },
   scorePreview: {
     fontSize: 36,
@@ -1618,6 +1891,11 @@ const styles = StyleSheet.create({
   },
   teamBadgeRight: {
     alignItems: "flex-end"
+  },
+  teamChipGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
   },
   teamLogo: {
     alignItems: "center",
@@ -1658,6 +1936,12 @@ const styles = StyleSheet.create({
     minHeight: 56,
     padding: 8
   },
+  statusStrip: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
   title: {
     fontSize: 21,
     fontWeight: "900",
@@ -1667,5 +1951,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     gap: 4
+  },
+  workflowHeaderCard: {
+    gap: 14
   }
 });

@@ -11,6 +11,7 @@ import {
   createWorldCup2026MockSeed,
   createWorldCup2030MockSeed
 } from "@/domain/competitions/versionedTemplates";
+import { getCompetitionDemoSummary } from "@/domain/competitions/demoSummary";
 import { generatePredictedBracket } from "@/domain/predictions/bracket";
 import {
   championsLeagueDefaultScoringConfig,
@@ -353,6 +354,31 @@ describe("Milestone 7.1 versioned competition templates", () => {
       "prediction-requirements-euro_2028-v1",
       "prediction-requirements-champions_league_2026_27-v1"
     ]);
+  });
+
+  it("builds data-driven demo summaries for World Cup, EURO, and Champions League", () => {
+    const worldCupSummary = getCompetitionDemoSummary(createWorldCup2026MockSeed());
+    const euroSummary = getCompetitionDemoSummary(createEuro2028MockSeed());
+    const championsSummary = getCompetitionDemoSummary(createChampionsLeague2026_27MockSeed());
+
+    expect(worldCupSummary.facts).toEqual(
+      expect.arrayContaining(["48 squadre", "12 gironi", "8 migliori terze"])
+    );
+    expect(worldCupSummary.phaseLabels).toEqual(
+      expect.arrayContaining(["Gironi", "Sedicesimi", "Finale 3 posto"])
+    );
+    expect(euroSummary.facts).toEqual(
+      expect.arrayContaining(["24 squadre", "6 gironi", "4 migliori terze"])
+    );
+    expect(euroSummary.phaseLabels).toContain("Ottavi");
+    expect(euroSummary.phaseLabels).not.toContain("Sedicesimi");
+    expect(championsSummary.formatHeadline).toBe("League phase con tabellone");
+    expect(championsSummary.facts).toEqual(
+      expect.arrayContaining(["36 squadre", "8 match per squadra"])
+    );
+    expect(championsSummary.placeholderNotes).toContain(
+      "Andata/ritorno gestita come pronostico aggregato"
+    );
   });
 });
 

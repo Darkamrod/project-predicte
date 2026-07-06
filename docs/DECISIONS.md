@@ -232,3 +232,18 @@
 - Best-thirds ranking now blocks impacted generated bracket slots when the qualifying/ranking tie is unresolved. A manual `BEST_THIRDS` override resolves that tie group instead of relying on deterministic fallback order.
 - World Cup 2026, EURO 2028, and Champions League 2026/27 bracket mapping strategies are still marked as placeholders. The templates carry strategy codes, but official best-third matrices, UEFA ranking edge cases, seeded playoff draw logic, and full two-leg leg-by-leg prediction remain future work.
 - The prediction entry screen now recomputes the workflow after successful match/tie-break/knockout saves before jumping to the next missing item, avoiding stale navigation from the previous render.
+
+## 2026-07-06 - Milestone 9 Demo Flow Hardening and Visual Polish
+
+- Kept Milestone 9 focused on demo readiness. The work improves Home/create-league clarity, Quick/Expert prediction cards, tie-break explanation, antepost validation, final review, leaderboard, and point breakdown without changing scoring semantics or connecting real providers.
+- Added `getCompetitionDemoSummary` in the competition domain so Home and prediction mode copy can describe sport, family, edition, format facts, phases, scoring preset, and placeholder notes without hardcoding a World Cup-specific UI.
+- Chose to make top-scorer goals strictly positive for completion. `0` is now treated as incomplete because the MVP prompt asks for positive numeric validation in the demo flow.
+- Hardened `upsert_prediction_tiebreak_override` with a follow-up migration that requires `ordered_team_ids` and `tied_team_ids` to represent the same set, rejects extra teams, and rejects duplicates. This preserves the Milestone 8.1 `tieGroupId` semantics while closing the review's non-blocking data-integrity gap.
+- Kept Champions League two-leg and seeded playoff/draw behavior as documented placeholders. The demo UI may show aggregate two-leg prediction notices, but it does not implement leg-by-leg entry or official draw logic in this milestone.
+- No real sports provider, Sportmonks integration, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 9 Assumptions
+
+- World Cup 2026 is the primary demo path. EURO 2028 remains usable when placeholder best-third mapping is acceptable for the demo audience.
+- Champions League is present in the selector for multi-competition proof, but its two-leg and playoff/draw UX remains a clearly documented placeholder.
+- Demo polish is intentionally UI-level and mock-data-level. Official scoring persistence remains trusted server-side, and the mobile app still does not persist official scoring artifacts directly.
