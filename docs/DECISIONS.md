@@ -247,3 +247,19 @@
 - World Cup 2026 is the primary demo path. EURO 2028 remains usable when placeholder best-third mapping is acceptable for the demo audience.
 - Champions League is present in the selector for multi-competition proof, but its two-leg and playoff/draw UX remains a clearly documented placeholder.
 - Demo polish is intentionally UI-level and mock-data-level. Official scoring persistence remains trusted server-side, and the mobile app still does not persist official scoring artifacts directly.
+
+## 2026-07-07 - Milestone 11B Private League Scale Readiness
+
+- Kept the milestone technical and additive. The database change is a small index-only migration for private leagues where the current real reference scale is about 200 participants, with up to 500 participants as technical headroom rather than an immediate product requirement.
+- Added scoped indexes for active league members, league invites, prediction-set summaries, per-user prediction reads, latest leaderboard snapshots, source-result scoring events, per-user scoring breakdowns, recalculation-run history, and result-ingestion history.
+- Chose not to add new tables, RLS policies, RPCs, trusted-worker changes, or client-side official scoring. Existing service-role-only scoring and result ingestion boundaries remain unchanged.
+- Existing mock screens still render in-memory members and leaderboard rows. That is acceptable for the demo path at this milestone, but real Supabase list screens should use paginated reads before larger production leagues are enabled.
+- No real sports provider, Sportmonks integration, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 11B Assumptions
+
+- The readiness baseline is the current real reference of about 200 participants per private league. Up to 500 participants is technical headroom used to avoid painting the schema into a corner, not the case base for current UX.
+- Milestone 11B is DB/index-level readiness only. It does not add dedicated paginated Supabase read repositories, UX pagination, real query plans, or load tests.
+- Supabase read repositories for members and leaderboard are still future work. When added, they should expose pagination or cursor/limit parameters with safe defaults instead of returning unbounded lists.
+- The index migration intentionally does not change scoring, prediction, ruleset, provider-import, or leaderboard persistence semantics.
+- The scope is intentionally narrow to avoid overengineering before production traffic proves which read paths need deeper optimization.

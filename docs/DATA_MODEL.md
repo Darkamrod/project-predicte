@@ -211,3 +211,21 @@ The unique key is now `(prediction_set_id, scope_ref, tie_group_id)`. This allow
 The same model is used by the mock adapter, Supabase prediction repository, and trusted scoring context loader. Existing legacy rows are upgraded by the migration with `tie_group_id = scope_ref` and `tied_team_ids = ordered_team_ids`.
 
 Best-third and bracket mapping metadata remains a foundation. `BracketMappingMetadata.status = placeholder` is used for World Cup best-third mappings, EURO best-third mappings, and Champions League seeded playoff/two-leg mapping until official matrix and draw rules are implemented in a later authorized milestone.
+
+## Milestone 11B Scale Readiness Indexes
+
+Milestone 11B adds index-only database hardening for private leagues. The current real reference scale is about 200 participants; up to 500 participants is technical headroom, not an immediate product requirement or the base case for current UX.
+
+- `league_members_m11b_active_league_role_idx`: active member and organizer-role checks scoped by `league_id`.
+- `league_invites_m11b_league_created_idx`: organizer invite history scoped by `league_id`.
+- `prediction_sets_m11b_league_status_user_idx`: per-league completion/status summaries.
+- `match_predictions_m11b_set_updated_idx`: per-user prediction-set reads and sync inspection.
+- `leaderboard_snapshots_m11b_league_latest_idx`: latest leaderboard snapshot lookup for one league.
+- `scoring_events_m11b_source_user_idx`: source-result scoring-event reads scoped to a league.
+- `scoring_breakdown_items_m11b_source_user_scope_idx`: per-user point breakdown reads for one source-result snapshot.
+- `scoring_recalculation_runs_m11b_league_started_idx`: organizer audit/history for trusted scoring runs.
+- `result_ingestion_runs_m11b_league_created_idx`: organizer audit/history for trusted ingestion runs.
+
+These indexes do not alter functional schema, RLS, RPC signatures, prediction shape, scoring semantics, or provider-import behavior. They provide DB/index-level readiness for future paginated Supabase reads; the client still has no direct write path for official scoring artifacts and there is no new client-side official scoring.
+
+Residual limit: dedicated paginated Supabase read repositories, UX pagination, real query plans, and load tests remain future work. Real member, leaderboard, and breakdown read repositories should add pagination or cursor-based queries before enabling production leagues beyond the current reference scale. The mock in-memory screens remain acceptable for local demonstration but are not the production read strategy for larger leagues.

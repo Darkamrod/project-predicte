@@ -134,3 +134,16 @@ Milestone 9 keeps the Milestone 8.1 tie-break write boundary but tightens the RP
 - Deadline, lock, current-user prediction set lookup, and authenticated-only execution remain unchanged.
 
 This is a data-integrity hardening change, not a broader client write grant.
+
+## Milestone 11B Scale Security Posture
+
+Milestone 11B adds index-only scale readiness for larger private leagues. The current real reference scale is about 200 participants, and up to 500 participants is technical headroom rather than a new immediate requirement. It does not add new RLS policies, grants, RPCs, client-side scoring writes, trusted result ingestion paths, provider integrations, or service-role exposure.
+
+The existing security boundary remains in force:
+
+- members read only league-scoped data allowed by RLS;
+- owner/admin-only lifecycle and rule operations still go through existing security-definer RPCs;
+- official scoring events, leaderboard snapshots, leaderboard entries, scoring breakdowns, recalculation runs, result ingestion runs, and provider import runs remain non-writable by normal clients;
+- trusted result ingestion and official scoring persistence remain server/service-role concerns.
+
+The remaining scale risk is operational rather than authorization-related: dedicated paginated Supabase read repositories, UX pagination, query plans, and load tests remain future work. Future real Supabase member, leaderboard, and breakdown list screens should use paginated reads with league-scoped filters.

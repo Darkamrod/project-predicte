@@ -146,8 +146,28 @@
 - Supabase tie-break RPC hardening now requires `ordered_team_ids` and `tied_team_ids` to be the same set and rejects duplicates.
 - Tests cover demo summary generation, UI source contracts for demo surfaces, positive top-scorer goal completion, and the new tie-break exact-set migration contract.
 
+## Completed in Milestone 10
+
+- Prediction-entry UX hardened for mobile Quick and Expert modes while keeping scoring, ranking, bracket, and leaderboard authority out of UI components.
+- Knockout single-leg entry uses the existing 90-minute score plus `qualifiedTeamId` and `advancementMethod`; no post-extra-time result or penalty-score fields were added.
+- Demo/source tests guard the UI contract without introducing a fragile React Native e2e setup.
+
+## Completed in Milestone 11A
+
+- Knockout advancement derivation and prediction-entry completion status were extracted from `PredictionWorkflowScreen.tsx` into pure domain helpers in `src/domain/predictions/entryWorkflow.ts`.
+- UI components now consume domain helpers for derived qualified teams, advancement method resolution, and target completion state.
+- Domain tests cover home/away 90-minute wins, draw resolution requirements, initial-phase behavior, and absence of post-extra-time or penalty-score fields.
+
+## Completed in Milestone 11B
+
+- Added an index-only Supabase migration for private league scale readiness. The current real reference is about 200 participants per league; up to 500 participants is technical headroom, not an immediate requirement.
+- Indexed active member, invite, prediction-set, latest leaderboard snapshot, scoring-event, scoring-breakdown, recalculation-run, and result-ingestion read paths.
+- Kept RLS, RPCs, trusted result ingestion, official scoring persistence, prediction model, and product UX unchanged.
+- Documented that the milestone is DB/index-level readiness only: paginated Supabase read repositories, UX pagination, query plans, and load tests remain future work.
+- Kept the scope intentionally narrow to avoid overengineering before production traffic validates deeper optimization needs.
+
 ## Next Authorized Milestone
 
-Milestone 10 should be defined by the next authorized prompt. Likely candidates are official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.
+The next milestone should be defined by a future authorized prompt. Likely candidates remain official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.
 
-Do not start Milestone 10 without explicit authorization.
+Do not start a later milestone without explicit authorization.
