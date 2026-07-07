@@ -29,7 +29,7 @@ import { DeadlineBanner } from "@/components/DeadlineBanner";
 import { ErrorState } from "@/components/ErrorState";
 import { IconButton } from "@/components/IconButton";
 import { ProgressBar } from "@/components/ProgressBar";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge, type StatusTone } from "@/components/StatusBadge";
 import { SyncStatus } from "@/components/SyncStatus";
 import { getCompetitionDemoSummary } from "@/domain/competitions/demoSummary";
 import type { AntepostDefinition, Player, Team } from "@/domain/competitions/types";
@@ -60,6 +60,14 @@ import { strings } from "@/i18n/strings";
 import { usePredicteMock } from "@/state/PredicteMockProvider";
 
 type EditablePhase = "INITIAL" | "TIEBREAK" | "KNOCKOUT" | "ANTEPOST" | "REVIEW";
+
+interface BlockingIssueSummary {
+  missingPredictions: number;
+  knockoutResolution: number;
+  tiebreaks: number;
+  antepost: number;
+  bracketBlocked: number;
+}
 
 const phaseLabels: Record<EditablePhase, string> = {
   INITIAL: "Fase iniziale",
@@ -170,6 +178,7 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
   });
   const manualAntepostPredictions = predictionSet.antepostPredictions ?? [];
   const blockingIssues = workflow.issues.filter((issue) => issue.severity === "error");
+  const blockingIssueSummary = summarizeBlockingIssues(blockingIssues);
   const completionPercent =
     predictionSet.totalRequired > 0
       ? Math.round((predictionSet.completedItems / predictionSet.totalRequired) * 100)
@@ -404,6 +413,8 @@ export function PredictionWorkflowScreen({ leagueId }: { leagueId: string }): Re
           teamsById={teamsById}
           playersById={playersById}
           warnings={workflow.issues.filter((issue) => issue.severity === "warning")}
+          issueSummary={blockingIssueSummary}
+          leagueStatusLabel={strings.status[league.status]}
           confirmed={confirmed}
           canConfirm={blockingIssues.length === 0}
           onEdit={() => setPhaseCursor("INITIAL", 0)}
@@ -757,7 +768,19 @@ function QuickMatchCard({
     : [];
   const selectedHomeGoals = showManualScore ? Number.parseInt(manualHome, 10) : score?.homeGoals;
   const selectedAwayGoals = showManualScore ? Number.parseInt(manualAway, 10) : score?.awayGoals;
-  const selectedScoreIsDraw = selectedHomeGoals === selectedAwayGoals;
+  const selectedScoreIsValid =
+    isValidScoreNumber(selectedHomeGoals) && isValidScoreNumber(selectedAwayGoals);
+  const selectedScoreIsDraw = selectedScoreIsValid && selectedHomeGoals === selectedAwayGoals;
+  const derivedQualifiedTeamId =
+    selectedScoreIsValid && !selectedScoreIsDraw
+      ? deriveRegulationQualifiedTeamId(
+          selectedHomeGoals,
+          selectedAwayGoals,
+          homeTeam?.id,
+          awayTeam?.id
+        )
+      : undefined;
+  const resolutionQualifiedTeamId = selectedScoreIsDraw ? qualifiedTeamId : derivedQualifiedTeamId;
   const panStartX = useRef(0);
   const panResponder = useMemo(
     () =>
@@ -809,8 +832,8 @@ function QuickMatchCard({
   }
 
   function submit(): void {
-    if (selectedHomeGoals === undefined || selectedAwayGoals === undefined) {
-      setIssues(["Scegli un risultato o usa Altro."]);
+    if (!isValidScoreNumber(selectedHomeGoals) || !isValidScoreNumber(selectedAwayGoals)) {
+      setIssues(["Scegli un risultato valido o usa Altro."]);
       return;
     }
 
@@ -823,7 +846,7 @@ function QuickMatchCard({
     const result = onConfirm({
       homeGoals: selectedHomeGoals,
       awayGoals: selectedAwayGoals,
-      qualifiedTeamId: isInitial ? undefined : qualifiedTeamId,
+      qualifiedTeamId: isInitial ? undefined : resolutionQualifiedTeamId,
       advancementMethod: method
     });
 
@@ -834,6 +857,9 @@ function QuickMatchCard({
     <AppCard style={styles.entryCard}>
       <StepHeader target={target} />
       <TargetStatusStrip target={target} />
+      <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
+        {getMatchInputGuidance(context)}
+      </Text>
       {context === "KNOCKOUT_TWO_LEG" ? <TwoLegNotice /> : null}
       <View {...panResponder.panHandlers} style={styles.matchHero}>
         <TeamBadge team={homeTeam} align="left" />
@@ -842,7 +868,7 @@ function QuickMatchCard({
             {selectedHomeGoals ?? "-"} - {selectedAwayGoals ?? "-"}
           </Text>
           <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-            {isInitial ? "Esito 90 minuti" : "Qualificata prevista"}
+            {isInitial ? "Esito 90 minuti" : "Risultato 90 minuti"}
           </Text>
         </View>
         <TeamBadge team={awayTeam} align="right" />
@@ -851,7 +877,9 @@ function QuickMatchCard({
       <View style={styles.choiceGrid}>
         <SecondaryButton
           accessibilityLabel={`Seleziona ${homeTeam?.name ?? "squadra casa"}`}
-          label={homeTeam?.shortName ?? "Casa"}
+          label={
+            isInitial ? (homeTeam?.shortName ?? "Casa") : `Qual. ${homeTeam?.shortName ?? "Casa"}`
+          }
           onPress={() => chooseSide("HOME")}
           style={
             outcome === "HOME" || qualifiedTeamId === homeTeam?.id ? styles.selectedChip : undefined
@@ -868,10 +896,27 @@ function QuickMatchCard({
             }}
             style={outcome === "DRAW" ? styles.selectedChip : undefined}
           />
-        ) : null}
+        ) : (
+          <SecondaryButton
+            accessibilityLabel="Seleziona pareggio al novantesimo"
+            label="90' pari"
+            onPress={() => {
+              setOutcome("DRAW");
+              setScore(undefined);
+              setQualifiedTeamId(undefined);
+              setAdvancementMethod(undefined);
+              setIssues([]);
+            }}
+            style={outcome === "DRAW" && !qualifiedTeamId ? styles.selectedChip : undefined}
+          />
+        )}
         <SecondaryButton
           accessibilityLabel={`Seleziona ${awayTeam?.name ?? "squadra trasferta"}`}
-          label={awayTeam?.shortName ?? "Trasferta"}
+          label={
+            isInitial
+              ? (awayTeam?.shortName ?? "Trasferta")
+              : `Qual. ${awayTeam?.shortName ?? "Trasferta"}`
+          }
           onPress={() => chooseSide("AWAY")}
           style={
             outcome === "AWAY" || qualifiedTeamId === awayTeam?.id ? styles.selectedChip : undefined
@@ -880,36 +925,41 @@ function QuickMatchCard({
       </View>
 
       {scoreChips.length > 0 ? (
-        <View style={styles.scoreChipGrid}>
-          {scoreChips.map((chip) => (
+        <View style={styles.fieldStack}>
+          <Text style={[styles.fieldLabel, { color: theme.colors.textPrimary }]}>
+            Risultato al 90'
+          </Text>
+          <View style={styles.scoreChipGrid}>
+            {scoreChips.map((chip) => (
+              <SecondaryButton
+                key={`${chip.label}-${chip.outcome}`}
+                accessibilityLabel={`Risultato ${chip.label}`}
+                label={chip.label}
+                onPress={() => {
+                  setScore(chip);
+                  setShowManualScore(false);
+                  setIssues([]);
+                }}
+                style={score?.label === chip.label ? styles.selectedChip : styles.scoreChip}
+              />
+            ))}
             <SecondaryButton
-              key={`${chip.label}-${chip.outcome}`}
-              accessibilityLabel={`Risultato ${chip.label}`}
-              label={chip.label}
+              accessibilityLabel="Inserisci altro risultato"
+              label="Altro"
               onPress={() => {
-                setScore(chip);
-                setShowManualScore(false);
-                setIssues([]);
+                setShowManualScore(true);
+                setScore(undefined);
               }}
-              style={score?.label === chip.label ? styles.selectedChip : styles.scoreChip}
+              style={showManualScore ? styles.selectedChip : styles.scoreChip}
             />
-          ))}
-          <SecondaryButton
-            accessibilityLabel="Inserisci altro risultato"
-            label="Altro"
-            onPress={() => {
-              setShowManualScore(true);
-              setScore(undefined);
-            }}
-            style={showManualScore ? styles.selectedChip : styles.scoreChip}
-          />
+          </View>
         </View>
       ) : null}
 
       {showManualScore ? (
         <ManualScoreInputs
-          homeLabel={homeTeam?.shortName ?? "Casa"}
-          awayLabel={awayTeam?.shortName ?? "Trasferta"}
+          homeLabel={`Gol casa - ${homeTeam?.shortName ?? "Casa"}`}
+          awayLabel={`Gol trasferta - ${awayTeam?.shortName ?? "Trasferta"}`}
           homeValue={manualHome}
           awayValue={manualAway}
           onHomeChange={setManualHome}
@@ -918,7 +968,22 @@ function QuickMatchCard({
       ) : null}
 
       {!isInitial && selectedScoreIsDraw && selectedHomeGoals !== undefined ? (
-        <MethodSelector method={advancementMethod} onChange={setAdvancementMethod} />
+        <View style={styles.fieldStack}>
+          <Text style={[styles.fieldLabel, { color: theme.colors.textPrimary }]}>
+            Metodo dopo il pareggio
+          </Text>
+          <MethodSelector method={advancementMethod} onChange={setAdvancementMethod} />
+        </View>
+      ) : null}
+
+      {!isInitial && selectedScoreIsValid ? (
+        <KnockoutResolutionPanel
+          qualifiedLabel={getQualifiedTeamName(homeTeam, awayTeam, resolutionQualifiedTeamId)}
+          methodLabel={
+            selectedScoreIsDraw ? formatAdvancementMethod(advancementMethod) : "90 minuti"
+          }
+          needsChoice={selectedScoreIsDraw && (!resolutionQualifiedTeamId || !advancementMethod)}
+        />
       ) : null}
 
       <IssueList issues={issues} />
@@ -969,6 +1034,7 @@ function ExpertMatchCard({
       : parsedAwayGoals > parsedHomeGoals
         ? awayTeam?.id
         : undefined;
+  const resolutionQualifiedTeamId = isDraw ? qualifiedTeamId : regulationWinnerId;
 
   useEffect(() => {
     setHomeGoals(String(target.prediction?.homeGoals ?? 1));
@@ -993,6 +1059,9 @@ function ExpertMatchCard({
     <AppCard style={styles.entryCard}>
       <StepHeader target={target} />
       <TargetStatusStrip target={target} />
+      <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
+        {getMatchInputGuidance(context)}
+      </Text>
       {context === "KNOCKOUT_TWO_LEG" ? <TwoLegNotice /> : null}
       <View style={styles.expertTeams}>
         <TeamBadge team={homeTeam} align="left" />
@@ -1007,15 +1076,18 @@ function ExpertMatchCard({
         </Text>
       </View>
       <ManualScoreInputs
-        homeLabel={homeTeam?.shortName ?? "Casa"}
-        awayLabel={awayTeam?.shortName ?? "Trasferta"}
+        homeLabel={`Gol casa - ${homeTeam?.shortName ?? "Casa"}`}
+        awayLabel={`Gol trasferta - ${awayTeam?.shortName ?? "Trasferta"}`}
         homeValue={homeGoals}
         awayValue={awayGoals}
         onHomeChange={setHomeGoals}
         onAwayChange={setAwayGoals}
       />
       {!isInitial && isDraw ? (
-        <>
+        <View style={styles.fieldStack}>
+          <Text style={[styles.fieldLabel, { color: theme.colors.textPrimary }]}>
+            Pareggio nei 90': scegli qualificata e metodo
+          </Text>
           <View style={styles.choiceGrid}>
             <SecondaryButton
               accessibilityLabel={`Qualifica ${homeTeam?.name ?? "squadra casa"}`}
@@ -1031,16 +1103,13 @@ function ExpertMatchCard({
             />
           </View>
           <MethodSelector method={advancementMethod} onChange={setAdvancementMethod} />
-        </>
+        </View>
       ) : null}
-      {!isInitial && !isDraw && regulationWinnerId ? (
-        <ReadOnlyFact
-          label="Qualificata derivata"
-          value={
-            regulationWinnerId === homeTeam?.id
-              ? (homeTeam?.name ?? "Da definire")
-              : (awayTeam?.name ?? "Da definire")
-          }
+      {!isInitial && !Number.isNaN(parsedHomeGoals) && !Number.isNaN(parsedAwayGoals) ? (
+        <KnockoutResolutionPanel
+          qualifiedLabel={getQualifiedTeamName(homeTeam, awayTeam, resolutionQualifiedTeamId)}
+          methodLabel={isDraw ? formatAdvancementMethod(advancementMethod) : "90 minuti"}
+          needsChoice={isDraw && (!resolutionQualifiedTeamId || !advancementMethod)}
         />
       ) : null}
       <IssueList issues={issues} />
@@ -1078,14 +1147,11 @@ function StepHeader({ target }: { target: PredictionEntryTarget }): React.ReactN
 }
 
 function TargetStatusStrip({ target }: { target: PredictionEntryTarget }): React.ReactNode {
-  const isComplete = Boolean(target.prediction);
+  const status = getTargetStatus(target);
 
   return (
     <View style={styles.statusStrip}>
-      <StatusBadge
-        label={target.kind === "TIEBREAK" ? "Da ordinare" : isComplete ? "Completo" : "Mancante"}
-        tone={isComplete ? "success" : "warning"}
-      />
+      <StatusBadge label={status.label} tone={status.tone} />
       {target.prediction ? <SyncStatus status={target.prediction.syncStatus} /> : null}
       {target.kind === "TIEBREAK" && target.affectedPositions?.length ? (
         <DemoPill label={`Posizioni ${formatPositions(target.affectedPositions)}`} />
@@ -1216,6 +1282,32 @@ function MethodSelector({
         onPress={() => onChange("PENALTIES")}
         style={method === "PENALTIES" ? styles.selectedChip : undefined}
       />
+    </View>
+  );
+}
+
+function KnockoutResolutionPanel({
+  qualifiedLabel,
+  methodLabel,
+  needsChoice
+}: {
+  qualifiedLabel: string;
+  methodLabel: string;
+  needsChoice: boolean;
+}): React.ReactNode {
+  const { theme } = useAppTheme();
+
+  return (
+    <View style={[styles.derivedPanel, { backgroundColor: theme.colors.surfaceVariant }]}>
+      <View style={styles.statusStrip}>
+        <StatusBadge
+          label={needsChoice ? "Scelta richiesta" : "Risolto"}
+          tone={needsChoice ? "warning" : "success"}
+        />
+        <DemoPill label="Nessun risultato supplementari" />
+      </View>
+      <ReadOnlyFact label="Qualificata" value={qualifiedLabel} />
+      <ReadOnlyFact label="Metodo" value={methodLabel} />
     </View>
   );
 }
@@ -1426,6 +1518,8 @@ function ReviewCard({
   teamsById,
   playersById,
   warnings,
+  issueSummary,
+  leagueStatusLabel,
   confirmed,
   canConfirm,
   onEdit,
@@ -1445,6 +1539,8 @@ function ReviewCard({
   teamsById: Map<string, Team>;
   playersById: Map<string, Player>;
   warnings: { message: string }[];
+  issueSummary: BlockingIssueSummary;
+  leagueStatusLabel: string;
   confirmed: boolean;
   canConfirm: boolean;
   onEdit(): void;
@@ -1480,6 +1576,8 @@ function ReviewCard({
       </View>
       <View style={[styles.derivedPanel, { backgroundColor: theme.colors.surfaceVariant }]}>
         <ReadOnlyFact label="Partite previste" value={String(matchCount)} />
+        <ReadOnlyFact label="Stato lega" value={leagueStatusLabel} />
+        <ReadOnlyFact label="Blocchi" value={formatBlockingIssueSummary(issueSummary)} />
         <ReadOnlyFact
           label="Stato conferma"
           value={canConfirm ? "Pronto per conferma" : "Completa i mancanti"}
@@ -1599,6 +1697,139 @@ function IssueList({ issues }: { issues: string[] }): React.ReactNode {
   ) : null;
 }
 
+function getTargetStatus(target: PredictionEntryTarget): { label: string; tone: StatusTone } {
+  if (target.kind === "TIEBREAK") {
+    return { label: "Da ordinare", tone: "warning" };
+  }
+
+  if (!target.prediction) {
+    return { label: "Mancante", tone: "warning" };
+  }
+
+  if (target.kind === "KNOCKOUT_MATCH" && targetNeedsKnockoutResolution(target)) {
+    return { label: "Richiede scelta", tone: "warning" };
+  }
+
+  return { label: "Completo", tone: "success" };
+}
+
+function targetNeedsKnockoutResolution(target: PredictionEntryTarget): boolean {
+  if (target.kind !== "KNOCKOUT_MATCH" || !target.prediction || !target.bracketMatch) {
+    return false;
+  }
+
+  return (
+    normalizeKnockoutPredictionInput({
+      match: target.bracketMatch,
+      homeGoals: target.prediction.homeGoals,
+      awayGoals: target.prediction.awayGoals,
+      qualifiedTeamId: target.prediction.qualifiedTeamId,
+      advancementMethod: target.prediction.advancementMethod,
+      tieMode: target.tieMode ?? "single_leg"
+    }).issues.length > 0
+  );
+}
+
+function getMatchInputGuidance(context: MatchEntryContext): string {
+  if (context === "INITIAL_GROUP_OR_LEAGUE") {
+    return "Solo risultato 90 minuti: niente qualificata, supplementari o rigori.";
+  }
+
+  if (context === "KNOCKOUT_TWO_LEG") {
+    return "Risultato al 90 nel modello aggregato; qualificata e metodo restano espliciti.";
+  }
+
+  return "Risultato al 90. Se pareggia nei 90, servono qualificata e metodo.";
+}
+
+function deriveRegulationQualifiedTeamId(
+  homeGoals: number,
+  awayGoals: number,
+  homeTeamId: string | undefined,
+  awayTeamId: string | undefined
+): string | undefined {
+  if (homeGoals === awayGoals) {
+    return undefined;
+  }
+
+  return homeGoals > awayGoals ? homeTeamId : awayTeamId;
+}
+
+function getQualifiedTeamName(
+  homeTeam: Team | undefined,
+  awayTeam: Team | undefined,
+  qualifiedTeamId: string | undefined
+): string {
+  if (!qualifiedTeamId) {
+    return "Da scegliere";
+  }
+
+  if (qualifiedTeamId === homeTeam?.id) {
+    return homeTeam.name;
+  }
+
+  if (qualifiedTeamId === awayTeam?.id) {
+    return awayTeam.name;
+  }
+
+  return "Da verificare";
+}
+
+function formatAdvancementMethod(method: AdvancementMethod | undefined): string {
+  if (method === "REGULATION") {
+    return "90 minuti";
+  }
+
+  if (method === "EXTRA_TIME") {
+    return "Supplementari";
+  }
+
+  if (method === "PENALTIES") {
+    return "Rigori";
+  }
+
+  return "Da scegliere";
+}
+
+function summarizeBlockingIssues(issues: PredictionValidationIssue[]): BlockingIssueSummary {
+  return issues.reduce<BlockingIssueSummary>(
+    (summary, issue) => {
+      if (issue.kind === "MISSING_MATCH") {
+        summary.missingPredictions += 1;
+      } else if (issue.kind === "INVALID_KNOCKOUT") {
+        summary.knockoutResolution += 1;
+      } else if (issue.kind === "UNRESOLVED_TIEBREAK") {
+        summary.tiebreaks += 1;
+      } else if (issue.kind === "MISSING_ANTEPOST") {
+        summary.antepost += 1;
+      } else if (issue.kind === "BRACKET_INCOMPLETE") {
+        summary.bracketBlocked += 1;
+      }
+
+      return summary;
+    },
+    {
+      missingPredictions: 0,
+      knockoutResolution: 0,
+      tiebreaks: 0,
+      antepost: 0,
+      bracketBlocked: 0
+    }
+  );
+}
+
+function formatBlockingIssueSummary(summary: BlockingIssueSummary): string {
+  const parts = [
+    summary.missingPredictions > 0 ? `${summary.missingPredictions} pronostici` : undefined,
+    summary.knockoutResolution > 0 ? `${summary.knockoutResolution} qualificata/metodo` : undefined,
+    summary.tiebreaks > 0 ? `${summary.tiebreaks} tie-break` : undefined,
+    summary.antepost > 0 ? `${summary.antepost} antepost` : undefined,
+    summary.bracketBlocked > 0 ? `${summary.bracketBlocked} tabellone` : undefined
+  ].filter((item): item is string => Boolean(item));
+
+  return parts.length > 0 ? parts.join(" - ") : "Nessun blocco";
+}
+
 function getTieScopeLabel(scope?: "GROUP" | "BEST_THIRDS" | "LEAGUE_PHASE" | undefined): string {
   if (scope === "BEST_THIRDS") {
     return "migliori terze";
@@ -1617,6 +1848,10 @@ function formatPositions(positions: number[]): string {
 
 function safeScoreLabel(value: string): string {
   return value.trim() ? value : "-";
+}
+
+function isValidScoreNumber(value: number | undefined): value is number {
+  return value !== undefined && Number.isInteger(value) && value >= 0;
 }
 
 function getTargetsForPhase(

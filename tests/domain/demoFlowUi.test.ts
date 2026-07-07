@@ -9,8 +9,8 @@ import {
 import { describe, expect, it } from "vitest";
 
 // Lightweight source/domain contracts: they avoid a fragile React Native render setup while
-// still guarding the demo copy and data-driven UI boundaries introduced in Milestone 9/9.1.
-describe("Milestone 9 demo flow UI contract", () => {
+// still guarding the demo copy and data-driven UI boundaries introduced in Milestone 9-10.
+describe("Milestone 9-10 demo flow UI contract", () => {
   it("keeps create-league UI edition-driven and demo-summary based", () => {
     const source = readFileSync("src/features/home/HomeScreen.tsx", "utf8");
 
@@ -54,6 +54,24 @@ describe("Milestone 9 demo flow UI contract", () => {
     expect(source).toContain("Mancanti");
     expect(source).not.toContain("Partite compilate");
     expect(source).not.toMatch(/World Cup|ROUND_OF_32|THIRD_PLACE|world_cup/);
+  });
+
+  it("keeps Milestone 10 knockout entry explicit without adding post-extra-time score fields", () => {
+    const source = readFileSync("src/features/predictions/PredictionWorkflowScreen.tsx", "utf8");
+
+    expect(source).toContain("getMatchInputGuidance");
+    expect(source).toContain("KnockoutResolutionPanel");
+    expect(source).toContain("deriveRegulationQualifiedTeamId");
+    expect(source).toContain("Gol casa");
+    expect(source).toContain("Gol trasferta");
+    expect(source).toContain("90' pari");
+    expect(source).toContain("Risultato al 90");
+    expect(source).toContain("Scelta richiesta");
+    expect(source).toContain("Nessun risultato supplementari");
+    expect(source).toContain("Richiede scelta");
+    expect(source).toContain("Blocchi");
+    expect(source).not.toMatch(/after_extra_time|homeGoalsAfterExtraTime|awayGoalsAfterExtraTime/);
+    expect(source).not.toMatch(/penaltyScore|homePenalty|awayPenalty/);
   });
 
   it("keeps leaderboard and breakdown grouped for the demo snapshot", () => {
