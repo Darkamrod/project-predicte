@@ -54,6 +54,18 @@ export interface NormalizedPredictionResult {
   aggregatePlaceholder: boolean;
 }
 
+export type PredictionEntryCompletionStatus =
+  "MISSING" | "COMPLETE" | "REQUIRES_ADVANCEMENT" | "INCOMPLETE";
+
+export interface KnockoutAdvancementResolution {
+  input: NormalizedMatchPredictionInput;
+  issues: PredictionValidationIssue[];
+  status: PredictionEntryCompletionStatus;
+  requiresQualifiedTeam: boolean;
+  requiresAdvancementMethod: boolean;
+  aggregatePlaceholder: boolean;
+}
+
 export interface PredictionEntryTarget {
   kind: "INITIAL_MATCH" | "TIEBREAK" | "KNOCKOUT_MATCH" | "ANTEPOST" | "REVIEW";
   id: string;
@@ -436,10 +448,64 @@ export function normalizeKnockoutPredictionInput(params: {
   advancementMethod?: AdvancementMethod | undefined;
   tieMode: KnockoutTieMode;
 }): NormalizedPredictionResult {
+  const resolution = resolveKnockoutAdvancement(params);
+
+  return {
+    input: resolution.input,
+    issues: resolution.issues,
+    aggregatePlaceholder: resolution.aggregatePlaceholder
+  };
+}
+
+export function resolveKnockoutAdvancement(params: {
+  match: Pick<
+    PredictedBracketMatch,
+    "id" | "homeTeamId" | "awayTeamId" | "roundCode" | "roundName"
+  >;
+  homeGoals: number;
+  awayGoals: number;
+  qualifiedTeamId?: string | undefined;
+  advancementMethod?: AdvancementMethod | undefined;
+  tieMode: KnockoutTieMode;
+}): KnockoutAdvancementResolution {
   const issues = validateScoreLine(params.homeGoals, params.awayGoals);
   const isDraw = params.homeGoals === params.awayGoals;
   const homeTeamId = params.match.homeTeamId;
   const awayTeamId = params.match.awayTeamId;
+  const aggregatePlaceholder = params.tieMode === "two_leg";
+
+  if (!isDraw) {
+    const derivedQualifiedTeamId = deriveRegulationQualifiedTeamId({
+      homeGoals: params.homeGoals,
+      awayGoals: params.awayGoals,
+      homeTeamId,
+      awayTeamId
+    });
+
+    if (!homeTeamId || !awayTeamId || !derivedQualifiedTeamId) {
+      issues.push({
+        id: `bracket:${params.match.id}`,
+        kind: "BRACKET_INCOMPLETE",
+        severity: "error",
+        message: `${params.match.roundName}: squadre non ancora definite`,
+        referenceId: params.match.id
+      });
+    }
+
+    return {
+      input: {
+        homeGoals: params.homeGoals,
+        awayGoals: params.awayGoals,
+        qualifiedTeamId: derivedQualifiedTeamId,
+        advancementMethod: derivedQualifiedTeamId ? "REGULATION" : params.advancementMethod
+      },
+      issues,
+      status: issues.length > 0 ? "INCOMPLETE" : "COMPLETE",
+      requiresQualifiedTeam: false,
+      requiresAdvancementMethod: false,
+      aggregatePlaceholder
+    };
+  }
 
   if (!homeTeamId || !awayTeamId) {
     issues.push({
@@ -471,17 +537,7 @@ export function normalizeKnockoutPredictionInput(params: {
     });
   }
 
-  if (!isDraw && params.advancementMethod && params.advancementMethod !== "REGULATION") {
-    issues.push({
-      id: `method-nondraw:${params.match.id}`,
-      kind: "INVALID_KNOCKOUT",
-      severity: "error",
-      message: "Rigori o supplementari richiedono un pareggio nei 90 minuti",
-      referenceId: params.match.id
-    });
-  }
-
-  if (isDraw && params.advancementMethod === "REGULATION") {
+  if (params.advancementMethod === "REGULATION") {
     issues.push({
       id: `method-draw:${params.match.id}`,
       kind: "INVALID_KNOCKOUT",
@@ -491,22 +547,7 @@ export function normalizeKnockoutPredictionInput(params: {
     });
   }
 
-  if (!isDraw && homeTeamId && awayTeamId && params.qualifiedTeamId) {
-    const winnerTeamId = params.homeGoals > params.awayGoals ? homeTeamId : awayTeamId;
-
-    if (params.qualifiedTeamId !== winnerTeamId) {
-      issues.push({
-        id: `qualified-winner:${params.match.id}`,
-        kind: "INVALID_KNOCKOUT",
-        severity: "error",
-        message: "La qualificata deve corrispondere alla vincente nei 90 minuti",
-        referenceId: params.match.id
-      });
-    }
-  }
-
   if (
-    isDraw &&
     params.qualifiedTeamId &&
     params.qualifiedTeamId !== homeTeamId &&
     params.qualifiedTeamId !== awayTeamId
@@ -528,8 +569,54 @@ export function normalizeKnockoutPredictionInput(params: {
       advancementMethod: params.advancementMethod
     },
     issues,
-    aggregatePlaceholder: params.tieMode === "two_leg"
+    status: issues.length > 0 ? "REQUIRES_ADVANCEMENT" : "COMPLETE",
+    requiresQualifiedTeam: !params.qualifiedTeamId,
+    requiresAdvancementMethod:
+      params.advancementMethod !== "EXTRA_TIME" && params.advancementMethod !== "PENALTIES",
+    aggregatePlaceholder
   };
+}
+
+export function deriveRegulationQualifiedTeamId(params: {
+  homeGoals: number;
+  awayGoals: number;
+  homeTeamId?: string | undefined;
+  awayTeamId?: string | undefined;
+}): string | undefined {
+  if (params.homeGoals === params.awayGoals) {
+    return undefined;
+  }
+
+  return params.homeGoals > params.awayGoals ? params.homeTeamId : params.awayTeamId;
+}
+
+export function getPredictionEntryTargetCompletionStatus(
+  target: PredictionEntryTarget
+): PredictionEntryCompletionStatus {
+  if (target.kind === "TIEBREAK") {
+    return "INCOMPLETE";
+  }
+
+  if (!target.prediction) {
+    return "MISSING";
+  }
+
+  if (target.kind === "KNOCKOUT_MATCH") {
+    if (!target.bracketMatch) {
+      return "INCOMPLETE";
+    }
+
+    return resolveKnockoutAdvancement({
+      match: target.bracketMatch,
+      homeGoals: target.prediction.homeGoals,
+      awayGoals: target.prediction.awayGoals,
+      qualifiedTeamId: target.prediction.qualifiedTeamId,
+      advancementMethod: target.prediction.advancementMethod,
+      tieMode: target.tieMode ?? "single_leg"
+    }).status;
+  }
+
+  return "COMPLETE";
 }
 
 export function deriveBracketAntepostPredictions(params: {

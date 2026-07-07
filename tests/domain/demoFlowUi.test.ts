@@ -9,8 +9,8 @@ import {
 import { describe, expect, it } from "vitest";
 
 // Lightweight source/domain contracts: they avoid a fragile React Native render setup while
-// still guarding the demo copy and data-driven UI boundaries introduced in Milestone 9-10.
-describe("Milestone 9-10 demo flow UI contract", () => {
+// still guarding the demo copy and data-driven UI boundaries introduced in Milestone 9-11A.
+describe("Milestone 9-11A demo flow UI contract", () => {
   it("keeps create-league UI edition-driven and demo-summary based", () => {
     const source = readFileSync("src/features/home/HomeScreen.tsx", "utf8");
 
@@ -61,7 +61,8 @@ describe("Milestone 9-10 demo flow UI contract", () => {
 
     expect(source).toContain("getMatchInputGuidance");
     expect(source).toContain("KnockoutResolutionPanel");
-    expect(source).toContain("deriveRegulationQualifiedTeamId");
+    expect(source).toContain("resolveKnockoutAdvancement");
+    expect(source).toContain("getPredictionEntryTargetCompletionStatus");
     expect(source).toContain("Gol casa");
     expect(source).toContain("Gol trasferta");
     expect(source).toContain("90' pari");
@@ -70,6 +71,7 @@ describe("Milestone 9-10 demo flow UI contract", () => {
     expect(source).toContain("Nessun risultato supplementari");
     expect(source).toContain("Richiede scelta");
     expect(source).toContain("Blocchi");
+    expect(source).not.toContain("function deriveRegulationQualifiedTeamId");
     expect(source).not.toMatch(/after_extra_time|homeGoalsAfterExtraTime|awayGoalsAfterExtraTime/);
     expect(source).not.toMatch(/penaltyScore|homePenalty|awayPenalty/);
   });

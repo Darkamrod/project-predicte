@@ -13,14 +13,17 @@ import {
   applyDerivedAntepostPredictions,
   areNormalizedPredictionsEquivalent,
   buildPredictionEntryWorkflow,
+  deriveRegulationQualifiedTeamId,
   deriveBracketAntepostPredictions,
   getInitialPhaseLabel,
   getKnockoutTieMode,
   getManualAntepostDefinitions,
+  getPredictionEntryTargetCompletionStatus,
   getScoreChips,
   isManualAntepostComplete,
   normalizeInitialPhasePrediction,
-  normalizeKnockoutPredictionInput
+  normalizeKnockoutPredictionInput,
+  resolveKnockoutAdvancement
 } from "@/domain/predictions/entryWorkflow";
 import type {
   AntepostPrediction,
@@ -112,11 +115,11 @@ describe("Milestone 8 prediction entry workflow", () => {
       advancementMethod: "PENALTIES",
       tieMode: "single_leg"
     });
-    const wrongMethod = normalizeKnockoutPredictionInput({
+    const nonDrawOverride = normalizeKnockoutPredictionInput({
       match,
       homeGoals: 3,
       awayGoals: 1,
-      qualifiedTeamId: "team-a",
+      qualifiedTeamId: "team-b",
       advancementMethod: "PENALTIES",
       tieMode: "single_leg"
     });
@@ -124,7 +127,125 @@ describe("Milestone 8 prediction entry workflow", () => {
     expect(extraTime.issues).toEqual([]);
     expect(penalties.issues).toEqual([]);
     expect(missingQualified.issues.map((issue) => issue.id)).toContain("qualified:predicted-match");
-    expect(wrongMethod.issues.map((issue) => issue.id)).toContain("method-nondraw:predicted-match");
+    expect(nonDrawOverride.issues).toEqual([]);
+    expect(nonDrawOverride.input.qualifiedTeamId).toBe("team-a");
+    expect(nonDrawOverride.input.advancementMethod).toBe("REGULATION");
+  });
+
+  it("resolves single-leg knockout advancement in the domain without post-extra-time fields", () => {
+    const match = createBracketMatch("FINAL", "team-a", "team-b");
+    const homeWin = resolveKnockoutAdvancement({
+      match,
+      homeGoals: 2,
+      awayGoals: 0,
+      tieMode: "single_leg"
+    });
+    const awayWin = resolveKnockoutAdvancement({
+      match,
+      homeGoals: 0,
+      awayGoals: 1,
+      tieMode: "single_leg"
+    });
+    const drawMissingQualified = resolveKnockoutAdvancement({
+      match,
+      homeGoals: 1,
+      awayGoals: 1,
+      advancementMethod: "EXTRA_TIME",
+      tieMode: "single_leg"
+    });
+    const drawMissingMethod = resolveKnockoutAdvancement({
+      match,
+      homeGoals: 1,
+      awayGoals: 1,
+      qualifiedTeamId: "team-a",
+      tieMode: "single_leg"
+    });
+    const initialPhase = normalizeInitialPhasePrediction({
+      homeGoals: 3,
+      awayGoals: 2
+    });
+
+    expect(
+      deriveRegulationQualifiedTeamId({
+        homeGoals: 2,
+        awayGoals: 0,
+        homeTeamId: "team-a",
+        awayTeamId: "team-b"
+      })
+    ).toBe("team-a");
+    expect(homeWin.input).toEqual({
+      homeGoals: 2,
+      awayGoals: 0,
+      qualifiedTeamId: "team-a",
+      advancementMethod: "REGULATION"
+    });
+    expect(homeWin.status).toBe("COMPLETE");
+    expect(homeWin.requiresQualifiedTeam).toBe(false);
+    expect(homeWin.requiresAdvancementMethod).toBe(false);
+    expect(awayWin.input.qualifiedTeamId).toBe("team-b");
+    expect(awayWin.input.advancementMethod).toBe("REGULATION");
+    expect(drawMissingQualified.status).toBe("REQUIRES_ADVANCEMENT");
+    expect(drawMissingQualified.requiresQualifiedTeam).toBe(true);
+    expect(drawMissingQualified.issues.map((issue) => issue.id)).toContain(
+      "qualified:predicted-match"
+    );
+    expect(drawMissingMethod.status).toBe("REQUIRES_ADVANCEMENT");
+    expect(drawMissingMethod.requiresAdvancementMethod).toBe(true);
+    expect(drawMissingMethod.issues.map((issue) => issue.id)).toContain("method:predicted-match");
+    expect(initialPhase.input).toEqual({
+      homeGoals: 3,
+      awayGoals: 2
+    });
+    expect(Object.keys(homeWin.input)).not.toEqual(
+      expect.arrayContaining([
+        "homeGoalsAfterExtraTime",
+        "awayGoalsAfterExtraTime",
+        "penaltyScore",
+        "homePenalty",
+        "awayPenalty"
+      ])
+    );
+  });
+
+  it("derives prediction entry target completion status from domain resolution", () => {
+    const match = createBracketMatch("FINAL", "team-a", "team-b");
+
+    expect(
+      getPredictionEntryTargetCompletionStatus({
+        kind: "KNOCKOUT_MATCH",
+        id: match.id,
+        label: "Finale",
+        currentIndex: 1,
+        totalCount: 1,
+        context: "KNOCKOUT_SINGLE_LEG",
+        bracketMatch: match,
+        tieMode: "single_leg",
+        prediction: createKnockoutPrediction(match, {
+          homeGoals: 1,
+          awayGoals: 1,
+          qualifiedTeamId: "team-a",
+          advancementMethod: "REGULATION"
+        })
+      })
+    ).toBe("REQUIRES_ADVANCEMENT");
+    expect(
+      getPredictionEntryTargetCompletionStatus({
+        kind: "KNOCKOUT_MATCH",
+        id: `${match.id}:complete`,
+        label: "Finale",
+        currentIndex: 1,
+        totalCount: 1,
+        context: "KNOCKOUT_SINGLE_LEG",
+        bracketMatch: match,
+        tieMode: "single_leg",
+        prediction: createKnockoutPrediction(match, {
+          homeGoals: 2,
+          awayGoals: 1,
+          qualifiedTeamId: "team-b",
+          advancementMethod: "PENALTIES"
+        })
+      })
+    ).toBe("COMPLETE");
   });
 
   it("marks two-legged knockout as a documented aggregate placeholder", () => {

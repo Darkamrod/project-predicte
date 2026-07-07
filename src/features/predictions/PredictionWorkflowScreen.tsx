@@ -38,10 +38,12 @@ import {
   buildPredictionEntryWorkflow,
   deriveBracketAntepostPredictions,
   getInitialPhaseLabel,
+  getPredictionEntryTargetCompletionStatus,
   getScoreChips,
   getTeamInitials,
   normalizeInitialPhasePrediction,
   normalizeKnockoutPredictionInput,
+  resolveKnockoutAdvancement,
   type EntryOutcome,
   type DerivedAntepostSummary,
   type MatchEntryContext,
@@ -771,16 +773,17 @@ function QuickMatchCard({
   const selectedScoreIsValid =
     isValidScoreNumber(selectedHomeGoals) && isValidScoreNumber(selectedAwayGoals);
   const selectedScoreIsDraw = selectedScoreIsValid && selectedHomeGoals === selectedAwayGoals;
-  const derivedQualifiedTeamId =
-    selectedScoreIsValid && !selectedScoreIsDraw
-      ? deriveRegulationQualifiedTeamId(
-          selectedHomeGoals,
-          selectedAwayGoals,
-          homeTeam?.id,
-          awayTeam?.id
-        )
+  const knockoutResolution =
+    !isInitial && selectedScoreIsValid && target.bracketMatch
+      ? resolveKnockoutAdvancement({
+          match: target.bracketMatch,
+          homeGoals: selectedHomeGoals,
+          awayGoals: selectedAwayGoals,
+          qualifiedTeamId,
+          advancementMethod,
+          tieMode: target.tieMode ?? "single_leg"
+        })
       : undefined;
-  const resolutionQualifiedTeamId = selectedScoreIsDraw ? qualifiedTeamId : derivedQualifiedTeamId;
   const panStartX = useRef(0);
   const panResponder = useMemo(
     () =>
@@ -821,14 +824,22 @@ function QuickMatchCard({
   }, [target.id, target.prediction]);
 
   function chooseSide(nextOutcome: EntryOutcome): void {
-    setOutcome(nextOutcome);
-    setScore(undefined);
     setIssues([]);
 
     if (!isInitial) {
       setQualifiedTeamId(nextOutcome === "HOME" ? homeTeam?.id : awayTeam?.id);
       setAdvancementMethod(undefined);
+
+      if (outcome !== "DRAW") {
+        setOutcome(nextOutcome);
+        setScore(undefined);
+      }
+
+      return;
     }
+
+    setOutcome(nextOutcome);
+    setScore(undefined);
   }
 
   function submit(): void {
@@ -843,11 +854,12 @@ function QuickMatchCard({
           ? undefined
           : "REGULATION"
         : advancementMethod;
+    const resolvedInput = knockoutResolution?.input;
     const result = onConfirm({
       homeGoals: selectedHomeGoals,
       awayGoals: selectedAwayGoals,
-      qualifiedTeamId: isInitial ? undefined : resolutionQualifiedTeamId,
-      advancementMethod: method
+      qualifiedTeamId: isInitial ? undefined : resolvedInput?.qualifiedTeamId,
+      advancementMethod: isInitial ? undefined : (resolvedInput?.advancementMethod ?? method)
     });
 
     setIssues(result.map((issue) => issue.message));
@@ -978,11 +990,17 @@ function QuickMatchCard({
 
       {!isInitial && selectedScoreIsValid ? (
         <KnockoutResolutionPanel
-          qualifiedLabel={getQualifiedTeamName(homeTeam, awayTeam, resolutionQualifiedTeamId)}
+          qualifiedLabel={getQualifiedTeamName(
+            homeTeam,
+            awayTeam,
+            knockoutResolution?.input.qualifiedTeamId
+          )}
           methodLabel={
-            selectedScoreIsDraw ? formatAdvancementMethod(advancementMethod) : "90 minuti"
+            selectedScoreIsDraw
+              ? formatAdvancementMethod(knockoutResolution?.input.advancementMethod)
+              : "90 minuti"
           }
-          needsChoice={selectedScoreIsDraw && (!resolutionQualifiedTeamId || !advancementMethod)}
+          needsChoice={knockoutResolution?.status === "REQUIRES_ADVANCEMENT"}
         />
       ) : null}
 
@@ -1027,14 +1045,19 @@ function ExpertMatchCard({
   const isInitial = context === "INITIAL_GROUP_OR_LEAGUE";
   const parsedHomeGoals = Number.parseInt(homeGoals, 10);
   const parsedAwayGoals = Number.parseInt(awayGoals, 10);
-  const isDraw = parsedHomeGoals === parsedAwayGoals;
-  const regulationWinnerId =
-    parsedHomeGoals > parsedAwayGoals
-      ? homeTeam?.id
-      : parsedAwayGoals > parsedHomeGoals
-        ? awayTeam?.id
-        : undefined;
-  const resolutionQualifiedTeamId = isDraw ? qualifiedTeamId : regulationWinnerId;
+  const scoreIsValid = isValidScoreNumber(parsedHomeGoals) && isValidScoreNumber(parsedAwayGoals);
+  const isDraw = scoreIsValid && parsedHomeGoals === parsedAwayGoals;
+  const knockoutResolution =
+    !isInitial && scoreIsValid && target.bracketMatch
+      ? resolveKnockoutAdvancement({
+          match: target.bracketMatch,
+          homeGoals: parsedHomeGoals,
+          awayGoals: parsedAwayGoals,
+          qualifiedTeamId,
+          advancementMethod,
+          tieMode: target.tieMode ?? "single_leg"
+        })
+      : undefined;
 
   useEffect(() => {
     setHomeGoals(String(target.prediction?.homeGoals ?? 1));
@@ -1045,11 +1068,12 @@ function ExpertMatchCard({
   }, [target.id, target.prediction]);
 
   function submit(): void {
+    const resolvedInput = knockoutResolution?.input;
     const result = onConfirm({
       homeGoals: parsedHomeGoals,
       awayGoals: parsedAwayGoals,
-      qualifiedTeamId: isInitial ? undefined : isDraw ? qualifiedTeamId : regulationWinnerId,
-      advancementMethod: isInitial ? undefined : isDraw ? advancementMethod : "REGULATION"
+      qualifiedTeamId: isInitial ? undefined : resolvedInput?.qualifiedTeamId,
+      advancementMethod: isInitial ? undefined : resolvedInput?.advancementMethod
     });
 
     setIssues(result.map((issue) => issue.message));
@@ -1105,11 +1129,19 @@ function ExpertMatchCard({
           <MethodSelector method={advancementMethod} onChange={setAdvancementMethod} />
         </View>
       ) : null}
-      {!isInitial && !Number.isNaN(parsedHomeGoals) && !Number.isNaN(parsedAwayGoals) ? (
+      {!isInitial && scoreIsValid ? (
         <KnockoutResolutionPanel
-          qualifiedLabel={getQualifiedTeamName(homeTeam, awayTeam, resolutionQualifiedTeamId)}
-          methodLabel={isDraw ? formatAdvancementMethod(advancementMethod) : "90 minuti"}
-          needsChoice={isDraw && (!resolutionQualifiedTeamId || !advancementMethod)}
+          qualifiedLabel={getQualifiedTeamName(
+            homeTeam,
+            awayTeam,
+            knockoutResolution?.input.qualifiedTeamId
+          )}
+          methodLabel={
+            isDraw
+              ? formatAdvancementMethod(knockoutResolution?.input.advancementMethod)
+              : "90 minuti"
+          }
+          needsChoice={knockoutResolution?.status === "REQUIRES_ADVANCEMENT"}
         />
       ) : null}
       <IssueList issues={issues} />
@@ -1698,36 +1730,25 @@ function IssueList({ issues }: { issues: string[] }): React.ReactNode {
 }
 
 function getTargetStatus(target: PredictionEntryTarget): { label: string; tone: StatusTone } {
+  const status = getPredictionEntryTargetCompletionStatus(target);
+
   if (target.kind === "TIEBREAK") {
     return { label: "Da ordinare", tone: "warning" };
   }
 
-  if (!target.prediction) {
+  if (status === "MISSING") {
     return { label: "Mancante", tone: "warning" };
   }
 
-  if (target.kind === "KNOCKOUT_MATCH" && targetNeedsKnockoutResolution(target)) {
+  if (status === "REQUIRES_ADVANCEMENT") {
     return { label: "Richiede scelta", tone: "warning" };
   }
 
-  return { label: "Completo", tone: "success" };
-}
-
-function targetNeedsKnockoutResolution(target: PredictionEntryTarget): boolean {
-  if (target.kind !== "KNOCKOUT_MATCH" || !target.prediction || !target.bracketMatch) {
-    return false;
+  if (status === "INCOMPLETE") {
+    return { label: "Incompleto", tone: "warning" };
   }
 
-  return (
-    normalizeKnockoutPredictionInput({
-      match: target.bracketMatch,
-      homeGoals: target.prediction.homeGoals,
-      awayGoals: target.prediction.awayGoals,
-      qualifiedTeamId: target.prediction.qualifiedTeamId,
-      advancementMethod: target.prediction.advancementMethod,
-      tieMode: target.tieMode ?? "single_leg"
-    }).issues.length > 0
-  );
+  return { label: "Completo", tone: "success" };
 }
 
 function getMatchInputGuidance(context: MatchEntryContext): string {
@@ -1740,19 +1761,6 @@ function getMatchInputGuidance(context: MatchEntryContext): string {
   }
 
   return "Risultato al 90. Se pareggia nei 90, servono qualificata e metodo.";
-}
-
-function deriveRegulationQualifiedTeamId(
-  homeGoals: number,
-  awayGoals: number,
-  homeTeamId: string | undefined,
-  awayTeamId: string | undefined
-): string | undefined {
-  if (homeGoals === awayGoals) {
-    return undefined;
-  }
-
-  return homeGoals > awayGoals ? homeTeamId : awayTeamId;
 }
 
 function getQualifiedTeamName(
