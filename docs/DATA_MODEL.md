@@ -253,3 +253,13 @@ Milestone 11D connects the first UI surface to the 11C read model without changi
 - Demo/non-UUID league ids continue to use the existing in-memory mock state.
 
 The current real scale remains about 200 participants with up-to-500 participant headroom. Milestone 11D is a first preview integration, not complete production UX pagination, query-plan validation, or load testing.
+
+## Milestone 11E League Read Screen Model
+
+Milestone 11E reuses the same read-only model for the dedicated participants and leaderboard routes:
+
+- Participants route reads `league_members` by `league_id` with 20-row UI pages.
+- Leaderboard route reads the latest `leaderboard_snapshots` row by `league_id`, then pages `leaderboard_entries` for that resolved snapshot.
+- No snapshot remains an empty state. The client does not calculate official standings or create leaderboard snapshots.
+
+This milestone does not change database schema, RLS, RPCs, grants, trusted result ingestion, official scoring persistence, or leaderboard persistence. Profile/display-name enrichment, query-plan review, load tests, and advanced UX pagination remain future work.

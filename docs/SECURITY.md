@@ -159,3 +159,9 @@ The repository can read member rows, prediction summaries, leaderboard metadata/
 Milestone 11D wires the first league overview preview to those read-only repository methods. It does not add new policies, grants, RPCs, service-role usage, trusted worker paths, result ingestion behavior, client-side official scoring, or leaderboard persistence.
 
 Leaderboard preview reads are league-scoped: the UI asks for a league id, the repository resolves the latest snapshot for that league, and entries are paged from that snapshot. If no snapshot is visible through RLS, the UI shows an empty state instead of calculating standings locally.
+
+## Milestone 11E League Read Screen Security Posture
+
+Milestone 11E extends the same read-only posture to the dedicated participants and leaderboard routes. These screens use the public Supabase client and existing RLS only; they do not add service-role usage, policies, grants, RPCs, schema changes, trusted worker paths, result ingestion behavior, client-side official scoring, or leaderboard persistence.
+
+The full leaderboard route still resolves the latest visible snapshot by `league_id` before paging entries. A missing snapshot is rendered as an empty state rather than a client-side recalculation.

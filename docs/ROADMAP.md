@@ -182,6 +182,14 @@
 - Preserved the 200-participant real reference scale and 500-participant headroom framing; full production UX pagination, query-plan review, and load tests remain future work.
 - Left schema, RLS, RPCs, trusted worker, result ingestion, official scoring persistence, and leaderboard persistence unchanged.
 
+## Completed in Milestone 11E
+
+- Connected the full participants screen to paginated read-only Supabase member reads when a real UUID league and Supabase config are available.
+- Connected the full leaderboard screen to latest-snapshot read-only Supabase entries without accepting arbitrary snapshot ids or calculating official standings client-side.
+- Reused stale/unmount/load-more protections from the league overview preview path.
+- Kept mock/non-UUID leagues on the existing demo flow and kept schema, RLS, RPCs, trusted worker, result ingestion, official scoring persistence, and leaderboard persistence unchanged.
+- Left richer profile/display-name policy, query-plan review, load tests, and advanced production UX pagination as future work.
+
 ## Next Authorized Milestone
 
 The next milestone should be defined by a future authorized prompt. Likely candidates remain official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.

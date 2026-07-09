@@ -93,6 +93,46 @@ describe("SupabaseLeagueReadRepository", () => {
     });
   });
 
+  it("paginates league member reads without mutating Supabase data", async () => {
+    const { client, calls } = createReadClient({
+      league_members: {
+        data: [
+          {
+            league_id: leagueId,
+            user_id: userId,
+            role: "participant",
+            status: "active",
+            joined_at: "2030-06-01T10:00:00.000Z",
+            removed_at: null
+          }
+        ],
+        count: 60
+      }
+    });
+    const repository = new SupabaseLeagueReadRepository(client);
+
+    const page = await repository.listLeagueMembers(leagueId, {
+      page: 2,
+      pageSize: 20
+    });
+
+    expect(page.items).toHaveLength(1);
+    expect(page.pagination).toMatchObject({
+      page: 2,
+      pageSize: 20,
+      totalItems: 60,
+      totalPages: 3,
+      hasNextPage: true
+    });
+    expect(calls[0]).toMatchObject({
+      table: "league_members",
+      range: { from: 20, to: 39 }
+    });
+    expect(calls[0]?.filters).toContainEqual({ column: "league_id", value: leagueId });
+    expect(calls[0]?.filters).toContainEqual({ column: "status", value: "active" });
+    expect(calls[0]?.mutations).toEqual([]);
+  });
+
   it("caps leaderboard entry reads and computes the second page range", async () => {
     const { client, calls } = createReadClient({
       leaderboard_entries: {

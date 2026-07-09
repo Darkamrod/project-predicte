@@ -288,3 +288,12 @@
 - Kept the scale framing unchanged: about 200 participants is the current real reference, and 500 participants remains technical headroom. The UI uses smaller 20-row preview pages while the repository still defaults to 50 and caps at 100.
 - Left schema, RLS, RPCs, grants, trusted worker, trusted result ingestion, official scoring persistence, and leaderboard persistence unchanged.
 - No real sports provider, Sportmonks integration, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## 2026-07-09 - Milestone 11E Paginated League Read Screens
+
+- Wired the full participants and leaderboard routes to read-only Supabase hooks when the league id is a UUID and the public Supabase client is configured.
+- Kept mock/non-UUID league ids on the existing demo path. UUID routes without Supabase config now show clear configuration messages instead of claiming the mock league is missing.
+- Leaderboard reads still use `listLatestLeaderboardEntriesForLeague(league_id, pagination)`, so the UI never accepts an arbitrary snapshot id as its primary source and never calculates official standings.
+- Reused the Milestone 11D request guard for the full screens to ignore stale responses, avoid post-unmount state updates, and block overlapping load-more requests.
+- Kept the scale framing unchanged: about 200 participants is the current real reference, while 500 participants remains technical headroom. Full production query-plan review, load tests, and richer profile/display-name policy remain future work.
+- Left schema, RLS, RPCs, grants, trusted worker, trusted result ingestion, official scoring persistence, and leaderboard persistence unchanged.

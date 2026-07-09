@@ -123,3 +123,7 @@ The Home summary now displays scoring preset and ruleset labels from the domain 
 The league overview now shows compact participant and leaderboard previews. Demo leagues still use in-memory mock state; real Supabase league ids use paginated read-only repository calls with loading, empty, error, and load-more states. The leaderboard preview only shows existing snapshots and never calculates official standings in the UI.
 
 The full participants and leaderboard routes remain mock-first for Milestone 11D. The real Supabase integration is intentionally limited to the overview previews, which ignore stale responses if the user leaves the screen, changes league quickly, or taps load more more than once.
+
+## Milestone 11E Full League Read Screens
+
+The dedicated participants and leaderboard routes now use the same paginated Supabase read path for real UUID leagues. Mock leagues keep the demo flow. Both real screens show loading, empty, error, load-more, and end-of-list states. The leaderboard route only displays an existing latest snapshot; if none exists, it shows an empty state instead of calculating standings in the client.

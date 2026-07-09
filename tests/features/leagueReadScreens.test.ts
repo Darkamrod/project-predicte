@@ -1,0 +1,45 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const root = process.cwd();
+
+function readProjectFile(path: string): string {
+  return readFileSync(join(root, path), "utf8");
+}
+
+describe("league read screens source contracts", () => {
+  it("wires the full participants screen to the paginated Supabase member hook", () => {
+    const source = readProjectFile("src/features/participants/ParticipantsScreen.tsx");
+
+    expect(source).toContain("useSupabaseLeagueMembersList");
+    expect(source).toContain("Carica altri partecipanti");
+    expect(source).toContain("Supabase non configurato per questa lista partecipanti.");
+    expect(source).toContain("Lega mock non trovata.");
+  });
+
+  it("wires the full leaderboard screen to latest snapshot reads by league id", () => {
+    const source = readProjectFile("src/features/leaderboard/LeaderboardScreen.tsx");
+    const hookSource = readProjectFile("src/features/league/useSupabaseLeagueReadScreenLists.ts");
+
+    expect(source).toContain("useSupabaseLatestLeaderboardList");
+    expect(source).toContain("Nessuno snapshot leaderboard disponibile");
+    expect(source).toContain("Carica altre posizioni");
+    expect(hookSource).toContain("listLatestLeaderboardEntriesForLeague(leagueId");
+    expect(hookSource).not.toContain("listLeaderboardEntries(");
+  });
+
+  it("keeps screen reads paginated, stale-safe, and mutation-free", () => {
+    const hookSource = readProjectFile("src/features/league/useSupabaseLeagueReadScreenLists.ts");
+    const repositorySource = readProjectFile(
+      "src/services/leagues/supabaseLeagueReadRepository.ts"
+    );
+
+    expect(hookSource).toContain("LEAGUE_READ_SCREEN_PAGE_SIZE = 20");
+    expect(hookSource).toContain("createPreviewRequestGuard");
+    expect(hookSource).toContain("tryBeginLoadMore");
+    expect(hookSource).toContain("canApply(token)");
+    expect(repositorySource).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
+  });
+});
