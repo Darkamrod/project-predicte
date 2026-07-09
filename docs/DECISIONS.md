@@ -277,3 +277,14 @@
 - `page` is one-based and Supabase `range(from, to)` is inclusive. With the default 50-row page, the current 200-participant reference fits in about four pages; the 500-participant headroom fits in about ten pages.
 - The repository is read-only and relies on existing RLS. It does not create new member/profile visibility rules, so richer member display data may still require a future policy/RPC decision.
 - Query plans, load tests, and full UX pagination remain future work. Milestone 11C only prevents obvious unbounded client read patterns in service boundaries.
+
+## 2026-07-09 - Milestone 11D Paginated League Preview UI
+
+- Wired the league overview to the read-only paginated Supabase repository for the first concrete real-data preview: active league members and the latest leaderboard snapshot entries.
+- Added a repository method that lists leaderboard entries by `league_id` by first resolving the latest snapshot for that league. The UI does not accept an arbitrary `snapshot_id` as its primary source and does not calculate official standings client-side.
+- Kept the mock fallback active for non-Supabase/demo league ids so the demo path still works without real Supabase data.
+- Kept the full participants and leaderboard routes mock-first in this milestone. The new real-data integration is limited to league-overview previews.
+- Guarded preview requests so stale responses from an older league id, unmounted component, or overlapping load-more action are ignored before state updates.
+- Kept the scale framing unchanged: about 200 participants is the current real reference, and 500 participants remains technical headroom. The UI uses smaller 20-row preview pages while the repository still defaults to 50 and caps at 100.
+- Left schema, RLS, RPCs, grants, trusted worker, trusted result ingestion, official scoring persistence, and leaderboard persistence unchanged.
+- No real sports provider, Sportmonks integration, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.

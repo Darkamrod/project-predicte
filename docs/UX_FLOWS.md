@@ -117,3 +117,9 @@ World Cup 2026 is the strongest demo path. EURO 2028 is usable with the document
 ## Milestone 9.1 Demo Cleanup
 
 The Home summary now displays scoring preset and ruleset labels from the domain demo summary instead of leaving that context only in documentation. The final prediction review no longer repeats the mode or shows the old `Partite compilate` count; completion is represented by the normalized completed/required and missing counters.
+
+## Milestone 11D League Overview Previews
+
+The league overview now shows compact participant and leaderboard previews. Demo leagues still use in-memory mock state; real Supabase league ids use paginated read-only repository calls with loading, empty, error, and load-more states. The leaderboard preview only shows existing snapshots and never calculates official standings in the UI.
+
+The full participants and leaderboard routes remain mock-first for Milestone 11D. The real Supabase integration is intentionally limited to the overview previews, which ignore stale responses if the user leaves the screen, changes league quickly, or taps load more more than once.

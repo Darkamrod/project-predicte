@@ -242,3 +242,14 @@ The current real league scale remains about 200 participants, with up to 500 par
 The repository does not add new tables, RLS policies, RPCs, grants, leaderboard persistence, trusted result ingestion behavior, or client-side official scoring. It reads through existing RLS and exposes service-level pagination so future Supabase screens do not need to fetch unbounded arrays.
 
 Remaining future work: production query-plan review, load tests, richer profile/member display policy decisions, and full UX pagination for real Supabase-backed screens.
+
+## Milestone 11D League Preview Read Model
+
+Milestone 11D connects the first UI surface to the 11C read model without changing schema:
+
+- League overview member preview reads `league_members` through `listLeagueMembers(leagueId, { pageSize: 20 })`.
+- League overview leaderboard preview reads the latest snapshot by `league_id` and then pages `leaderboard_entries` for that resolved snapshot.
+- If no leaderboard snapshot exists, the UI shows an empty state and does not calculate official standings in the client.
+- Demo/non-UUID league ids continue to use the existing in-memory mock state.
+
+The current real scale remains about 200 participants with up-to-500 participant headroom. Milestone 11D is a first preview integration, not complete production UX pagination, query-plan validation, or load testing.

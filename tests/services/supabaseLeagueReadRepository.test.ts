@@ -166,6 +166,105 @@ describe("SupabaseLeagueReadRepository", () => {
     });
   });
 
+  it("lists latest leaderboard entries by league id and returns an empty page when no snapshot exists", async () => {
+    const { client, calls } = createReadClient({
+      leaderboard_snapshots: {
+        data: [],
+        count: 0
+      }
+    });
+    const repository = new SupabaseLeagueReadRepository(client);
+
+    const page = await repository.listLatestLeaderboardEntriesForLeague(leagueId, {
+      pageSize: 20
+    });
+
+    expect(page.snapshot).toBeUndefined();
+    expect(page.entries.items).toEqual([]);
+    expect(page.entries.pagination).toMatchObject({
+      page: 1,
+      pageSize: 20,
+      totalItems: 0,
+      hasNextPage: false
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      table: "leaderboard_snapshots",
+      range: { from: 0, to: 0 }
+    });
+    expect(calls[0]?.filters).toEqual([{ column: "league_id", value: leagueId }]);
+    expect(calls[0]?.mutations).toEqual([]);
+  });
+
+  it("discovers the latest league snapshot before paginating leaderboard entries", async () => {
+    const { client, calls } = createReadClient({
+      leaderboard_snapshots: {
+        data: [
+          {
+            id: snapshotId,
+            league_id: leagueId,
+            source_result_key: "official-result-v1",
+            created_at: "2030-06-08T21:00:00.000Z"
+          }
+        ],
+        count: 1
+      },
+      leaderboard_entries: {
+        data: [
+          {
+            snapshot_id: snapshotId,
+            user_id: userId,
+            rank: 101,
+            total_points: 42,
+            latest_points: 7,
+            position_delta: -1,
+            tied: false
+          }
+        ],
+        count: 250
+      }
+    });
+    const repository = new SupabaseLeagueReadRepository(client);
+
+    const page = await repository.listLatestLeaderboardEntriesForLeague(leagueId, {
+      page: 2,
+      pageSize: 500
+    });
+
+    expect(page.snapshot).toMatchObject({
+      id: snapshotId,
+      leagueId
+    });
+    expect(page.entries.items[0]).toMatchObject({
+      snapshotId,
+      userId,
+      rank: 101,
+      totalPoints: 42
+    });
+    expect(page.entries.pagination).toMatchObject({
+      page: 2,
+      pageSize: 100,
+      totalItems: 250,
+      totalPages: 3,
+      hasNextPage: true
+    });
+    expect(calls.map((call) => call.table)).toEqual([
+      "leaderboard_snapshots",
+      "leaderboard_entries"
+    ]);
+    expect(calls[0]).toMatchObject({
+      table: "leaderboard_snapshots",
+      range: { from: 0, to: 0 }
+    });
+    expect(calls[0]?.filters).toEqual([{ column: "league_id", value: leagueId }]);
+    expect(calls[1]).toMatchObject({
+      table: "leaderboard_entries",
+      range: { from: 100, to: 199 }
+    });
+    expect(calls[1]?.filters).toEqual([{ column: "snapshot_id", value: snapshotId }]);
+    expect(calls.flatMap((call) => call.mutations)).toEqual([]);
+  });
+
   it("keeps scoring breakdown reads scoped and paginated without writing official scoring", async () => {
     const { client, calls } = createReadClient({
       scoring_breakdown_items: {

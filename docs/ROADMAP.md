@@ -174,6 +174,14 @@
 - Kept current mock-first screens unchanged; future real Supabase screens can consume the repository and add UX pagination without changing the data contract.
 - Left schema, RLS, RPCs, trusted worker, result ingestion, official scoring persistence, and leaderboard persistence unchanged.
 
+## Completed in Milestone 11D
+
+- Connected the league overview to paginated read-only Supabase previews for league members and latest leaderboard entries.
+- Added a safe latest-leaderboard-by-league repository read so UI code does not need to accept or trust arbitrary snapshot ids.
+- Kept mock fallback for demo leagues and showed clear loading, empty, error, and load-more states for real Supabase reads.
+- Preserved the 200-participant real reference scale and 500-participant headroom framing; full production UX pagination, query-plan review, and load tests remain future work.
+- Left schema, RLS, RPCs, trusted worker, result ingestion, official scoring persistence, and leaderboard persistence unchanged.
+
 ## Next Authorized Milestone
 
 The next milestone should be defined by a future authorized prompt. Likely candidates remain official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.

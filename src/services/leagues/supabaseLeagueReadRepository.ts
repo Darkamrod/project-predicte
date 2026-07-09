@@ -72,6 +72,11 @@ export interface LeaderboardEntryListItem {
   tied: boolean;
 }
 
+export interface LatestLeaderboardEntriesForLeaguePage {
+  snapshot: LeaderboardSnapshotSummaryItem | undefined;
+  entries: PaginatedResult<LeaderboardEntryListItem>;
+}
+
 export interface ScoringBreakdownListItem {
   id: string;
   leagueId: string;
@@ -202,6 +207,25 @@ export class SupabaseLeagueReadRepository {
     const snapshots = await this.listLeaderboardSnapshots(leagueId, { pageSize: 1 });
 
     return snapshots.items[0];
+  }
+
+  async listLatestLeaderboardEntriesForLeague(
+    leagueId: string,
+    options: PaginationInput = {}
+  ): Promise<LatestLeaderboardEntriesForLeaguePage> {
+    const snapshot = await this.getLatestLeaderboardSnapshot(leagueId);
+
+    if (!snapshot) {
+      return {
+        snapshot: undefined,
+        entries: createPaginatedResult([], resolveLeagueReadPagination(options), 0)
+      };
+    }
+
+    return {
+      snapshot,
+      entries: await this.listLeaderboardEntries(snapshot.id, options)
+    };
   }
 
   async listLeaderboardEntries(

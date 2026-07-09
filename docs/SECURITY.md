@@ -153,3 +153,9 @@ The remaining scale risk is operational rather than authorization-related: dedic
 Milestone 11C adds read-only Supabase repository methods for league-scoped lists. They use existing authenticated RLS and Supabase `range()` pagination; they do not add write grants, policy changes, service-role usage, trusted result ingestion paths, or client-side official scoring.
 
 The repository can read member rows, prediction summaries, leaderboard metadata/entries, and scoring breakdown rows that the database already exposes through RLS. It does not broaden profile visibility or create a new leaderboard persistence path.
+
+## Milestone 11D League Preview Security Posture
+
+Milestone 11D wires the first league overview preview to those read-only repository methods. It does not add new policies, grants, RPCs, service-role usage, trusted worker paths, result ingestion behavior, client-side official scoring, or leaderboard persistence.
+
+Leaderboard preview reads are league-scoped: the UI asks for a league id, the repository resolves the latest snapshot for that league, and entries are paged from that snapshot. If no snapshot is visible through RLS, the UI shows an empty state instead of calculating standings locally.
