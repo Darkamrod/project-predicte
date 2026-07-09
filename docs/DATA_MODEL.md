@@ -229,3 +229,16 @@ Milestone 11B adds index-only database hardening for private leagues. The curren
 These indexes do not alter functional schema, RLS, RPC signatures, prediction shape, scoring semantics, or provider-import behavior. They provide DB/index-level readiness for future paginated Supabase reads; the client still has no direct write path for official scoring artifacts and there is no new client-side official scoring.
 
 Residual limit: dedicated paginated Supabase read repositories, UX pagination, real query plans, and load tests remain future work. Real member, leaderboard, and breakdown read repositories should add pagination or cursor-based queries before enabling production leagues beyond the current reference scale. The mock in-memory screens remain acceptable for local demonstration but are not the production read strategy for larger leagues.
+
+## Milestone 11C Paginated Read Service Model
+
+Milestone 11C adds client-side read-service readiness on top of the Milestone 11B indexes without changing database schema:
+
+- `src/services/pagination.ts`: shared one-based page/pageSize normalization and inclusive Supabase range calculation.
+- `src/services/leagues/supabaseLeagueReadRepository.ts`: read-only repository for league members, league invites, prediction-set summaries, leaderboard snapshots, leaderboard entries, and scoring breakdown items.
+
+The current real league scale remains about 200 participants, with up to 500 participants as technical headroom. Default page size is 50 and max page size is 100. This keeps ordinary reads compact while still making a 200-participant league reachable in about four requests and a 500-participant league in about ten default requests.
+
+The repository does not add new tables, RLS policies, RPCs, grants, leaderboard persistence, trusted result ingestion behavior, or client-side official scoring. It reads through existing RLS and exposes service-level pagination so future Supabase screens do not need to fetch unbounded arrays.
+
+Remaining future work: production query-plan review, load tests, richer profile/member display policy decisions, and full UX pagination for real Supabase-backed screens.

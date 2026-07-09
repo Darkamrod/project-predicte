@@ -166,6 +166,14 @@
 - Documented that the milestone is DB/index-level readiness only: paginated Supabase read repositories, UX pagination, query plans, and load tests remain future work.
 - Kept the scope intentionally narrow to avoid overengineering before production traffic validates deeper optimization needs.
 
+## Completed in Milestone 11C
+
+- Added shared pagination helpers with safe defaults for client-side Supabase reads.
+- Added a read-only Supabase league repository for members, invites, prediction summaries, leaderboard snapshots, leaderboard entries, and scoring breakdown items.
+- Used a default page size of 50 and max page size of 100, matching the current about-200 participant reference scale while leaving up-to-500 participant technical headroom.
+- Kept current mock-first screens unchanged; future real Supabase screens can consume the repository and add UX pagination without changing the data contract.
+- Left schema, RLS, RPCs, trusted worker, result ingestion, official scoring persistence, and leaderboard persistence unchanged.
+
 ## Next Authorized Milestone
 
 The next milestone should be defined by a future authorized prompt. Likely candidates remain official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.

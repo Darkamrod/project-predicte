@@ -263,3 +263,17 @@
 - Supabase read repositories for members and leaderboard are still future work. When added, they should expose pagination or cursor/limit parameters with safe defaults instead of returning unbounded lists.
 - The index migration intentionally does not change scoring, prediction, ruleset, provider-import, or leaderboard persistence semantics.
 - The scope is intentionally narrow to avoid overengineering before production traffic proves which read paths need deeper optimization.
+
+## 2026-07-09 - Milestone 11C Paginated Supabase Read Repositories
+
+- Added a small shared pagination helper and a read-only Supabase league repository for potentially larger league-scoped lists: members, invites, prediction-set summaries, leaderboard snapshots, leaderboard entries, and scoring breakdown items.
+- Kept the real scale context from Milestone 11B: about 200 participants is the current reference, while up to 500 participants is technical headroom. The repository uses a default page size of 50 and caps requests at 100 rows to avoid accidental unbounded client reads without overengineering the architecture.
+- Chose not to wire the new repository into the current mock-first screens. Those screens still read in-memory demo state; real Supabase UI pagination can be introduced later without changing the read-service contract.
+- Kept official scoring persistence, trusted result ingestion, trusted worker code, service-role paths, RLS, RPCs, policy/grant/revoke behavior, and functional schema untouched.
+- No real sports provider, Sportmonks integration, payment, advertising, betting, odds, wagering, gambling, entry fee, prize pool, or paid/unpaid member capability was added.
+
+## Milestone 11C Assumptions
+
+- `page` is one-based and Supabase `range(from, to)` is inclusive. With the default 50-row page, the current 200-participant reference fits in about four pages; the 500-participant headroom fits in about ten pages.
+- The repository is read-only and relies on existing RLS. It does not create new member/profile visibility rules, so richer member display data may still require a future policy/RPC decision.
+- Query plans, load tests, and full UX pagination remain future work. Milestone 11C only prevents obvious unbounded client read patterns in service boundaries.

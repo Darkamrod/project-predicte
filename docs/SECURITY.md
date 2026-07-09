@@ -147,3 +147,9 @@ The existing security boundary remains in force:
 - trusted result ingestion and official scoring persistence remain server/service-role concerns.
 
 The remaining scale risk is operational rather than authorization-related: dedicated paginated Supabase read repositories, UX pagination, query plans, and load tests remain future work. Future real Supabase member, leaderboard, and breakdown list screens should use paginated reads with league-scoped filters.
+
+## Milestone 11C Paginated Read Security Posture
+
+Milestone 11C adds read-only Supabase repository methods for league-scoped lists. They use existing authenticated RLS and Supabase `range()` pagination; they do not add write grants, policy changes, service-role usage, trusted result ingestion paths, or client-side official scoring.
+
+The repository can read member rows, prediction summaries, leaderboard metadata/entries, and scoring breakdown rows that the database already exposes through RLS. It does not broaden profile visibility or create a new leaderboard persistence path.
