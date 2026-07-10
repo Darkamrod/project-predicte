@@ -58,6 +58,13 @@ describe("safe user identity formatting", () => {
       secondaryLabel: "ID non disponibile",
       source: "unknown"
     });
+
+    expect(formatSafeUserIdentity({ userId: undefined })).toMatchObject({
+      displayName: "Utente sconosciuto",
+      initials: "UT",
+      secondaryLabel: "ID non disponibile",
+      source: "unknown"
+    });
   });
 
   it("rejects email-like display names and usernames", () => {
