@@ -297,3 +297,11 @@
 - Reused the Milestone 11D request guard for the full screens to ignore stale responses, avoid post-unmount state updates, and block overlapping load-more requests.
 - Kept the scale framing unchanged: about 200 participants is the current real reference, while 500 participants remains technical headroom. Full production query-plan review, load tests, and richer profile/display-name policy remain future work.
 - Left schema, RLS, RPCs, grants, trusted worker, trusted result ingestion, official scoring persistence, and leaderboard persistence unchanged.
+
+## 2026-07-10 - Milestone 11F Safe Identity Presentation
+
+- Added a shared safe identity presenter for Supabase-backed participants and leaderboard rows. It prefers a provided display name, then a username, then a short user-id fallback such as `Utente abcd1234`, with deterministic avatar initials.
+- Chose not to join `profiles` from the mobile read screens. Current profile RLS is owner-only, so complete display names for other members need a future explicit profile visibility policy or read model before they can be shown safely.
+- Rejected email-like values in the identity presenter. The full read screens do not read `auth.users`, email fields, user metadata, raw metadata, or private profile fields.
+- Kept the 11E read path unchanged: public Supabase client, existing RLS, 20-row UI pages, latest leaderboard snapshot by `league_id`, and no client-side official scoring or leaderboard calculation.
+- Kept schema, migrations, RLS, policies, grants, RPCs, trusted worker, result ingestion, service-role paths, official scoring persistence, and leaderboard persistence unchanged.

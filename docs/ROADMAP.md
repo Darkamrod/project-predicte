@@ -190,6 +190,14 @@
 - Kept mock/non-UUID leagues on the existing demo flow and kept schema, RLS, RPCs, trusted worker, result ingestion, official scoring persistence, and leaderboard persistence unchanged.
 - Left richer profile/display-name policy, query-plan review, load tests, and advanced production UX pagination as future work.
 
+## Completed in Milestone 11F
+
+- Added shared safe identity formatting for Supabase-backed participant and leaderboard rows.
+- Improved real read screens with short user-id fallback labels, deterministic avatar initials, readable member role/status labels, position, points, and existing delta metadata.
+- Kept profile enrichment conservative: no client profile join or metadata read was added because current profile RLS is owner-only.
+- Rejected email-like identity values and kept email/private metadata out of the screen contracts.
+- Preserved the 200-participant real reference scale and 500-participant technical headroom framing while leaving full profile visibility policy, query-plan review, and load tests as future work.
+
 ## Next Authorized Milestone
 
 The next milestone should be defined by a future authorized prompt. Likely candidates remain official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.

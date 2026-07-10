@@ -263,3 +263,17 @@ Milestone 11E reuses the same read-only model for the dedicated participants and
 - No snapshot remains an empty state. The client does not calculate official standings or create leaderboard snapshots.
 
 This milestone does not change database schema, RLS, RPCs, grants, trusted result ingestion, official scoring persistence, or leaderboard persistence. Profile/display-name enrichment, query-plan review, load tests, and advanced UX pagination remain future work.
+
+## Milestone 11F Safe Identity Presentation Model
+
+Milestone 11F does not add profile tables, joins, policies, or profile read RPCs. The existing `profiles` table remains owner-readable in the client-facing RLS model, so Supabase-backed member and leaderboard rows keep using the ids already exposed by `league_members` and `leaderboard_entries`.
+
+The UI now formats those ids through a shared presenter:
+
+- safe display name if a future read model provides one;
+- safe username if a future read model provides one;
+- short user-id fallback such as `Utente abcd1234`;
+- deterministic avatar initials;
+- readable member role and status labels.
+
+Email-like values are rejected by the presenter and the read screens do not consume email, `auth.users`, user metadata, raw metadata, or private profile fields. The current real scale remains about 200 participants with up-to-500 participant headroom; complete profile/display-name visibility, query-plan review, and load tests remain future work.

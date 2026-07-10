@@ -16,6 +16,11 @@ import {
   useSupabaseLeagueMembersList,
   type SupabaseLeagueListState
 } from "@/features/league/useSupabaseLeagueReadScreenLists";
+import {
+  formatMemberRole,
+  formatMemberStatus,
+  formatSafeUserIdentity
+} from "@/features/league/userIdentity";
 import type { LeagueMemberListItem } from "@/services/leagues/supabaseLeagueReadRepository";
 import { usePredicteMock } from "@/state/PredicteMockProvider";
 
@@ -132,8 +137,8 @@ function SupabaseParticipantsScreen({
           />
         </View>
         <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-          Lettura read-only per lega. I profili completi restano futuri; qui mostriamo ruolo e stato
-          disponibili.
+          Lettura read-only per lega. I profili completi restano futuri; qui mostriamo identita
+          fallback, ruolo e stato disponibili.
         </Text>
       </AppCard>
 
@@ -175,21 +180,25 @@ function SupabaseParticipantsScreen({
 
 function SupabaseParticipantCard({ member }: { member: LeagueMemberListItem }): React.ReactNode {
   const { theme } = useAppTheme();
+  const identity = formatSafeUserIdentity({ userId: member.userId });
 
   return (
     <AppCard>
       <View style={styles.row}>
-        <ParticipantAvatar initials={initialsFromUserId(member.userId)} />
+        <ParticipantAvatar initials={identity.initials} />
         <View style={styles.textBlock}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-            {formatUserId(member.userId)}
+            {identity.displayName}
+          </Text>
+          <Text style={[styles.body, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+            {identity.secondaryLabel}
           </Text>
           <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-            Ruolo: {roleLabel(member.role)}
+            Ruolo: {formatMemberRole(member.role)}
           </Text>
         </View>
         <StatusBadge
-          label={memberStatusLabel(member.status)}
+          label={formatMemberStatus(member.status)}
           tone={member.status === "active" ? "success" : "neutral"}
         />
       </View>
@@ -205,38 +214,6 @@ function ParticipantMessage({ message }: { message: string }): React.ReactNode {
       <Text style={[styles.body, { color: theme.colors.textSecondary }]}>{message}</Text>
     </AppCard>
   );
-}
-
-function formatUserId(userId: string): string {
-  return `Utente ${userId.slice(0, 8)}`;
-}
-
-function initialsFromUserId(userId: string): string {
-  const compact = userId
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(0, 2)
-    .toUpperCase();
-
-  return compact || "UT";
-}
-
-function roleLabel(role: string): string {
-  const labels: Record<string, string> = {
-    admin: "Admin",
-    owner: "Owner",
-    participant: "Partecipante"
-  };
-
-  return labels[role] ?? role;
-}
-
-function memberStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    active: "Attivo",
-    removed: "Rimosso"
-  };
-
-  return labels[status] ?? status;
 }
 
 const styles = StyleSheet.create({

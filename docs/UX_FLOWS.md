@@ -127,3 +127,9 @@ The full participants and leaderboard routes remain mock-first for Milestone 11D
 ## Milestone 11E Full League Read Screens
 
 The dedicated participants and leaderboard routes now use the same paginated Supabase read path for real UUID leagues. Mock leagues keep the demo flow. Both real screens show loading, empty, error, load-more, and end-of-list states. The leaderboard route only displays an existing latest snapshot; if none exists, it shows an empty state instead of calculating standings in the client.
+
+## Milestone 11F Readable Identity Fallbacks
+
+Supabase-backed participants and leaderboard rows now show a shared safe identity presentation: display name if a future safe read model provides it, username if available, otherwise a short fallback such as `Utente abcd1234`. Rows also show avatar initials derived from the safe label or user-id fallback, plus role/status for participants and position/points/delta where leaderboard data already exists.
+
+The MVP still avoids profile joins for other members because current profile visibility is not public to league members. Mock leagues keep their richer demo names and avatars. The real read screens remain read-only, paginated, and suitable for the current about-200 participant reference scale with 500 as technical headroom.

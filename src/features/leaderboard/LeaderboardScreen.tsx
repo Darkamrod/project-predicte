@@ -6,6 +6,7 @@ import { AppScreen } from "@/components/AppScreen";
 import { PrimaryButton, SecondaryButton } from "@/components/Buttons";
 import { ErrorState } from "@/components/ErrorState";
 import { LeaderboardRow } from "@/components/LeaderboardRow";
+import { ParticipantAvatar } from "@/components/ParticipantAvatar";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { ScoringBreakdownItem, ScoringBreakdownScope } from "@/domain/scoring/types";
 import { useAppTheme } from "@/design-system/theme";
@@ -14,6 +15,7 @@ import {
   useSupabaseLatestLeaderboardList,
   type SupabaseLatestLeaderboardListState
 } from "@/features/league/useSupabaseLeagueReadScreenLists";
+import { formatSafeUserIdentity } from "@/features/league/userIdentity";
 import { strings } from "@/i18n/strings";
 import type { LeaderboardEntryListItem } from "@/services/leagues/supabaseLeagueReadRepository";
 import { usePredicteMock } from "@/state/PredicteMockProvider";
@@ -170,6 +172,7 @@ function SupabaseLeaderboardScreen({
 }): React.ReactNode {
   const { theme } = useAppTheme();
   const leader = leaderboard.items[0];
+  const leaderIdentity = leader ? formatSafeUserIdentity({ userId: leader.userId }) : undefined;
 
   return (
     <AppScreen>
@@ -199,7 +202,7 @@ function SupabaseLeaderboardScreen({
             label="Righe caricate"
             value={`${leaderboard.items.length}/${leaderboard.pagination.totalItems}`}
           />
-          <LeaderboardMetric label="Leader" value={leader ? formatUserId(leader.userId) : "-"} />
+          <LeaderboardMetric label="Leader" value={leaderIdentity?.displayName ?? "-"} />
           <LeaderboardMetric label="Punti leader" value={String(leader?.totalPoints ?? 0)} />
         </View>
       </AppCard>
@@ -249,14 +252,19 @@ function SupabaseLeaderboardScreen({
 
 function SupabaseLeaderboardRow({ entry }: { entry: LeaderboardEntryListItem }): React.ReactNode {
   const { theme } = useAppTheme();
+  const identity = formatSafeUserIdentity({ userId: entry.userId });
 
   return (
     <AppCard>
       <View style={styles.leaderboardReadRow}>
         <Text style={[styles.readRank, { color: theme.colors.textPrimary }]}>#{entry.rank}</Text>
+        <ParticipantAvatar initials={identity.initials} />
         <View style={styles.flex}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-            {formatUserId(entry.userId)}
+            {identity.displayName}
+          </Text>
+          <Text style={[styles.body, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+            {identity.secondaryLabel}
           </Text>
           <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
             Ultimo update: +{entry.latestPoints} - Delta: {formatDelta(entry.positionDelta)}
@@ -340,10 +348,6 @@ function scopeLabel(scope: ScoringBreakdownScope): string {
   }
 
   return "Match";
-}
-
-function formatUserId(userId: string): string {
-  return `Utente ${userId.slice(0, 8)}`;
 }
 
 function formatDelta(delta: number): string {

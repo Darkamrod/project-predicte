@@ -14,6 +14,7 @@ describe("league read screens source contracts", () => {
     const source = readProjectFile("src/features/participants/ParticipantsScreen.tsx");
 
     expect(source).toContain("useSupabaseLeagueMembersList");
+    expect(source).toContain("formatSafeUserIdentity");
     expect(source).toContain("Carica altri partecipanti");
     expect(source).toContain("Supabase non configurato per questa lista partecipanti.");
     expect(source).toContain("Lega mock non trovata.");
@@ -24,6 +25,7 @@ describe("league read screens source contracts", () => {
     const hookSource = readProjectFile("src/features/league/useSupabaseLeagueReadScreenLists.ts");
 
     expect(source).toContain("useSupabaseLatestLeaderboardList");
+    expect(source).toContain("formatSafeUserIdentity");
     expect(source).toContain("Nessuno snapshot leaderboard disponibile");
     expect(source).toContain("Carica altre posizioni");
     expect(hookSource).toContain("listLatestLeaderboardEntriesForLeague(leagueId");
@@ -41,5 +43,17 @@ describe("league read screens source contracts", () => {
     expect(hookSource).toContain("tryBeginLoadMore");
     expect(hookSource).toContain("canApply(token)");
     expect(repositorySource).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
+  });
+
+  it("keeps identity presentation shared and avoids private profile metadata", () => {
+    const participantSource = readProjectFile("src/features/participants/ParticipantsScreen.tsx");
+    const leaderboardSource = readProjectFile("src/features/leaderboard/LeaderboardScreen.tsx");
+    const identitySource = readProjectFile("src/features/league/userIdentity.ts");
+
+    expect(participantSource).not.toContain("function formatUserId");
+    expect(leaderboardSource).not.toContain("function formatUserId");
+    expect(identitySource).toContain("formatSafeUserIdentity");
+    expect(identitySource).not.toMatch(/user_metadata|raw_user_meta_data|auth\.users|avatar_url/i);
+    expect(identitySource).not.toContain(".email");
   });
 });

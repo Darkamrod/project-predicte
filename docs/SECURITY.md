@@ -165,3 +165,11 @@ Leaderboard preview reads are league-scoped: the UI asks for a league id, the re
 Milestone 11E extends the same read-only posture to the dedicated participants and leaderboard routes. These screens use the public Supabase client and existing RLS only; they do not add service-role usage, policies, grants, RPCs, schema changes, trusted worker paths, result ingestion behavior, client-side official scoring, or leaderboard persistence.
 
 The full leaderboard route still resolves the latest visible snapshot by `league_id` before paging entries. A missing snapshot is rendered as an empty state rather than a client-side recalculation.
+
+## Milestone 11F Identity Presentation Security Posture
+
+Milestone 11F improves identity readability without broadening data access. The mobile read screens still read only the league member and leaderboard rows exposed through existing RLS. They do not join `profiles`, read `auth.users`, read email fields, read user metadata/raw metadata, add profile visibility policies, or call service-role paths.
+
+Current profile RLS remains owner-oriented, so complete display names and real avatars for other members require a future explicit policy or read model. Until then, the UI uses safe fallback labels and deterministic initials from already-visible user ids. Email-like values are rejected by the formatter.
+
+No schema, migration, policy, grant, RPC, trusted worker, result ingestion, official scoring persistence, or leaderboard persistence behavior changes in this milestone.
