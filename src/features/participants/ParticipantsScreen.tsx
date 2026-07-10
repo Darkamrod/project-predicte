@@ -180,7 +180,11 @@ function SupabaseParticipantsScreen({
 
 function SupabaseParticipantCard({ member }: { member: LeagueMemberListItem }): React.ReactNode {
   const { theme } = useAppTheme();
-  const identity = formatSafeUserIdentity({ userId: member.userId });
+  const identity = formatSafeUserIdentity({
+    userId: member.userId,
+    displayName: member.publicIdentity?.displayName,
+    username: member.publicIdentity?.username
+  });
 
   return (
     <AppCard>

@@ -173,3 +173,13 @@ Milestone 11F improves identity readability without broadening data access. The 
 Current profile RLS remains owner-oriented, so complete display names and real avatars for other members require a future explicit policy or read model. Until then, the UI uses safe fallback labels and deterministic initials from already-visible user ids. Email-like values are rejected by the formatter.
 
 No schema, migration, policy, grant, RPC, trusted worker, result ingestion, official scoring persistence, or leaderboard persistence behavior changes in this milestone.
+
+## Milestone 11G Public Identity Security Posture
+
+Milestone 11G adds a separate `public_user_profiles` read model instead of weakening `profiles` owner-only RLS. The read model contains minimal display fields only and excludes email, phone, auth metadata, raw metadata, external account identifiers, locale, timezone, and private profile fields.
+
+The RLS policy is league-scoped rather than globally public: authenticated users can read their own public identity and identities for active users who share an active league. Normal clients receive `select` only and no insert, update, or delete grant on `public_user_profiles`.
+
+A trigger synchronizes sanitized `profiles.display_name` into the public read model. The trigger is security-definer so clients do not need direct write access to the read model; it does not read `auth.users` or raw metadata. Avatar URLs remain null in Milestone 11G until a dedicated public-avatar decision exists.
+
+The mobile app still uses the public Supabase client only. It does not expose service-role keys, does not call new RPCs, does not calculate official scoring or leaderboard state, and does not touch trusted result ingestion.

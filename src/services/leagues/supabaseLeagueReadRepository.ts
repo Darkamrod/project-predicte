@@ -19,9 +19,18 @@ type LeagueInviteRow = Database["public"]["Tables"]["league_invites"]["Row"];
 type PredictionSetRow = Database["public"]["Tables"]["prediction_sets"]["Row"];
 type LeaderboardSnapshotRow = Database["public"]["Tables"]["leaderboard_snapshots"]["Row"];
 type LeaderboardEntryRow = Database["public"]["Tables"]["leaderboard_entries"]["Row"];
+type PublicUserProfileRow = Database["public"]["Tables"]["public_user_profiles"]["Row"];
 type ScoringBreakdownRow = Database["public"]["Tables"]["scoring_breakdown_items"]["Row"];
 type MemberStatus = Database["public"]["Enums"]["member_status"];
 type PredictionSetStatus = Database["public"]["Enums"]["prediction_set_status"];
+
+export interface PublicUserIdentity {
+  userId: string;
+  displayName: string;
+  username?: string | undefined;
+  avatarUrl?: string | undefined;
+  updatedAtUtc: string;
+}
 
 export interface LeagueMemberListItem {
   leagueId: string;
@@ -30,6 +39,7 @@ export interface LeagueMemberListItem {
   status: LeagueMemberRow["status"];
   joinedAtUtc: string;
   removedAtUtc?: string | undefined;
+  publicIdentity?: PublicUserIdentity | undefined;
 }
 
 export interface LeagueInviteListItem {
@@ -70,6 +80,7 @@ export interface LeaderboardEntryListItem {
   latestPoints: number;
   positionDelta: number;
   tied: boolean;
+  publicIdentity?: PublicUserIdentity | undefined;
 }
 
 export interface LatestLeaderboardEntriesForLeaguePage {
@@ -129,7 +140,8 @@ export class SupabaseLeagueReadRepository {
       throw error;
     }
 
-    return createPaginatedResult((data ?? []).map(mapLeagueMember), pagination, count);
+    const items = (data ?? []).map(mapLeagueMember);
+    return createPaginatedResult(await this.attachPublicIdentities(items), pagination, count);
   }
 
   async listLeagueInvites(
@@ -247,7 +259,39 @@ export class SupabaseLeagueReadRepository {
       throw error;
     }
 
-    return createPaginatedResult((data ?? []).map(mapLeaderboardEntry), pagination, count);
+    const items = (data ?? []).map(mapLeaderboardEntry);
+    return createPaginatedResult(await this.attachPublicIdentities(items), pagination, count);
+  }
+
+  async listPublicUserProfilesByUserIds(
+    userIds: string[]
+  ): Promise<Map<string, PublicUserIdentity>> {
+    const uniqueUserIds = [...new Set(userIds)].filter(Boolean);
+
+    if (uniqueUserIds.length === 0) {
+      return new Map();
+    }
+
+    const { data, error } = await resolveSupabaseReadClient(this.client)
+      .from("public_user_profiles")
+      .select("user_id,display_name,username,avatar_url,updated_at")
+      .in("user_id", uniqueUserIds);
+
+    if (error) {
+      throw error;
+    }
+
+    return new Map((data ?? []).map((row) => [row.user_id, mapPublicUserIdentity(row)]));
+  }
+
+  private async attachPublicIdentities<T extends { userId: string }>(items: T[]): Promise<T[]> {
+    const identities = await this.listPublicUserProfilesByUserIds(items.map((item) => item.userId));
+
+    return items.map((item) => {
+      const publicIdentity = identities.get(item.userId);
+
+      return publicIdentity ? { ...item, publicIdentity } : item;
+    });
   }
 
   async listScoringBreakdownItems(
@@ -365,6 +409,16 @@ function mapLeaderboardEntry(row: LeaderboardEntryRow): LeaderboardEntryListItem
     latestPoints: row.latest_points,
     positionDelta: row.position_delta,
     tied: row.tied
+  };
+}
+
+function mapPublicUserIdentity(row: PublicUserProfileRow): PublicUserIdentity {
+  return {
+    userId: row.user_id,
+    displayName: row.display_name,
+    updatedAtUtc: row.updated_at,
+    ...(row.username ? { username: row.username } : {}),
+    ...(row.avatar_url ? { avatarUrl: row.avatar_url } : {})
   };
 }
 

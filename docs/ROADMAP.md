@@ -198,6 +198,14 @@
 - Rejected email-like identity values and kept email/private metadata out of the screen contracts.
 - Preserved the 200-participant real reference scale and 500-participant technical headroom framing while leaving full profile visibility policy, query-plan review, and load tests as future work.
 
+## Completed in Milestone 11G
+
+- Added `public_user_profiles`, a minimal public identity read model scoped by league-member RLS.
+- Kept `profiles` owner-only while exposing only sanitized public display fields needed by participants and leaderboard rows.
+- Batch-loaded public identities in the read-only league repository so current pages avoid N+1 profile reads.
+- Updated participants and leaderboard screens to prefer public display identity while preserving the 11F fallback labels.
+- Kept email, auth metadata, service-role paths, official scoring, trusted ingestion, leaderboard persistence, payments, betting, advertising, Sportmonks, and real sports APIs out of scope.
+
 ## Next Authorized Milestone
 
 The next milestone should be defined by a future authorized prompt. Likely candidates remain official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.

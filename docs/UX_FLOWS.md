@@ -133,3 +133,9 @@ The dedicated participants and leaderboard routes now use the same paginated Sup
 Supabase-backed participants and leaderboard rows now show a shared safe identity presentation: display name if a future safe read model provides it, username if available, otherwise a short fallback such as `Utente abcd1234`. Rows also show avatar initials derived from the safe label or user-id fallback, plus role/status for participants and position/points/delta where leaderboard data already exists.
 
 The MVP still avoids profile joins for other members because current profile visibility is not public to league members. Mock leagues keep their richer demo names and avatars. The real read screens remain read-only, paginated, and suitable for the current about-200 participant reference scale with 500 as technical headroom.
+
+## Milestone 11G Minimal Public Identities
+
+Real Supabase participants and leaderboard rows now prefer the minimal public identity read model when a league member is allowed to read it. If the public row is missing or filtered by RLS, the same `Utente abcd1234` fallback remains in place.
+
+This improves readability without turning profiles into a public directory. The UI still avoids email, metadata, global profile search, client-side scoring, and leaderboard calculation.

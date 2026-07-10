@@ -277,3 +277,19 @@ The UI now formats those ids through a shared presenter:
 - readable member role and status labels.
 
 Email-like values are rejected by the presenter and the read screens do not consume email, `auth.users`, user metadata, raw metadata, or private profile fields. The current real scale remains about 200 participants with up-to-500 participant headroom; complete profile/display-name visibility, query-plan review, and load tests remain future work.
+
+## Milestone 11G Public Identity Read Model
+
+Milestone 11G adds `public_user_profiles` as a separate, minimal identity read model:
+
+- `user_id`: references `profiles(id)` and is the public row key;
+- `display_name`: sanitized public display label copied from `profiles.display_name`;
+- `username`: optional future public username, null until a dedicated safe username UX exists;
+- `avatar_url`: optional future public avatar URL, not copied from `profiles` in Milestone 11G;
+- `updated_at`: timestamp for display freshness.
+
+The table deliberately excludes email, phone, auth metadata, raw metadata, external account identifiers, locale, timezone, and private profile fields. `profiles` remains the owner-only profile table for private account data.
+
+RLS allows authenticated users to read their own public identity and identities for active users who share an active league with them. Normal clients have `select` only; insert/update/delete are not granted. A trigger syncs sanitized `profiles.display_name` into the read model so participants and leaderboard pages can show readable names without joining private profiles.
+
+`SupabaseLeagueReadRepository` batch-loads public identities for the current page of league members or leaderboard entries and attaches them to the returned items. This preserves paginated reads and avoids N+1 queries. The current real scale remains about 200 participants with up-to-500 participant headroom.

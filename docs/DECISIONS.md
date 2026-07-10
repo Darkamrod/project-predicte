@@ -305,3 +305,12 @@
 - Rejected email-like values in the identity presenter. The full read screens do not read `auth.users`, email fields, user metadata, raw metadata, or private profile fields.
 - Kept the 11E read path unchanged: public Supabase client, existing RLS, 20-row UI pages, latest leaderboard snapshot by `league_id`, and no client-side official scoring or leaderboard calculation.
 - Kept schema, migrations, RLS, policies, grants, RPCs, trusted worker, result ingestion, service-role paths, official scoring persistence, and leaderboard persistence unchanged.
+
+## 2026-07-10 - Milestone 11G Minimal Public Identity Read Model
+
+- Added `public_user_profiles` as a separate minimal read model for league identity display. `profiles` remains owner-readable and owner-editable; the mobile screens still do not join or broaden `profiles`.
+- Public identity rows contain only `user_id`, sanitized `display_name`, optional future `username`, optional future `avatar_url`, and `updated_at`. They intentionally exclude email, phone, auth metadata, raw metadata, external account identifiers, locale, timezone, and private profile fields.
+- Chose a league-scoped RLS policy: authenticated users can read their own public identity and the public identities of active users who share an active league with them. This avoids a global public profile directory.
+- Added a trigger-backed sync from `profiles.display_name` into `public_user_profiles`. The trigger uses a security-definer function so normal clients do not need direct write grants on the public read model; insert/update/delete remain unavailable to normal clients.
+- Extended the read-only league repository to batch-load public identities for the current members/leaderboard page and attach them before the UI renders. This avoids N+1 reads and preserves the 20-row UI page size, 50-row repository default, and 100-row repository cap.
+- Kept official scoring, trusted worker, result ingestion, service-role paths, leaderboard persistence, ruleset/scoring/bracket logic, payments, betting, advertising, and real sports APIs untouched.

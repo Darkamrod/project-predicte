@@ -1474,6 +1474,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      public_user_profiles: {
+        Row: {
+          avatar_url: string | null;
+          display_name: string;
+          updated_at: string;
+          user_id: string;
+          username: string | null;
+        };
+        Insert: {
+          avatar_url?: string | null;
+          display_name: string;
+          updated_at?: string;
+          user_id: string;
+          username?: string | null;
+        };
+        Update: {
+          avatar_url?: string | null;
+          display_name?: string;
+          updated_at?: string;
+          user_id?: string;
+          username?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "public_user_profiles_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       provider_mappings: {
         Row: {
           entity_type: string;
@@ -2347,6 +2379,10 @@ export type Database = {
           p_source_result_key: string;
           p_status?: string;
         };
+        Returns: string;
+      };
+      safe_public_profile_display_name: {
+        Args: { p_display_name: string; p_user_id: string };
         Returns: string;
       };
       remove_league_member: {

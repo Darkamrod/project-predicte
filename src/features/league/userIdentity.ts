@@ -1,10 +1,10 @@
 export type UserIdentitySource = "displayName" | "username" | "userId" | "unknown";
 
 export interface SafeUserIdentityInput {
-  userId?: string | null;
-  displayName?: string | null;
-  username?: string | null;
-  avatarInitials?: string | null;
+  userId?: string | null | undefined;
+  displayName?: string | null | undefined;
+  username?: string | null | undefined;
+  avatarInitials?: string | null | undefined;
 }
 
 export interface SafeUserIdentity {

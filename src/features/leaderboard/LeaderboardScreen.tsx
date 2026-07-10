@@ -172,7 +172,13 @@ function SupabaseLeaderboardScreen({
 }): React.ReactNode {
   const { theme } = useAppTheme();
   const leader = leaderboard.items[0];
-  const leaderIdentity = leader ? formatSafeUserIdentity({ userId: leader.userId }) : undefined;
+  const leaderIdentity = leader
+    ? formatSafeUserIdentity({
+        userId: leader.userId,
+        displayName: leader.publicIdentity?.displayName,
+        username: leader.publicIdentity?.username
+      })
+    : undefined;
 
   return (
     <AppScreen>
@@ -252,7 +258,11 @@ function SupabaseLeaderboardScreen({
 
 function SupabaseLeaderboardRow({ entry }: { entry: LeaderboardEntryListItem }): React.ReactNode {
   const { theme } = useAppTheme();
-  const identity = formatSafeUserIdentity({ userId: entry.userId });
+  const identity = formatSafeUserIdentity({
+    userId: entry.userId,
+    displayName: entry.publicIdentity?.displayName,
+    username: entry.publicIdentity?.username
+  });
 
   return (
     <AppCard>
