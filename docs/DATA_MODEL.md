@@ -293,3 +293,16 @@ The table deliberately excludes email, phone, auth metadata, raw metadata, exter
 RLS allows authenticated users to read their own public identity and identities for active users who share an active league with them. Normal clients have `select` only; insert/update/delete are not granted. A trigger syncs sanitized `profiles.display_name` into the read model so participants and leaderboard pages can show readable names without joining private profiles.
 
 `SupabaseLeagueReadRepository` batch-loads public identities for the current page of league members or leaderboard entries and attaches them to the returned items. This preserves paginated reads and avoids N+1 queries. The current real scale remains about 200 participants with up-to-500 participant headroom.
+
+## Milestone 11H Prediction Completion Overview Model
+
+Milestone 11H adds no tables, columns, policies, grants, or RPCs. It composes existing read-only data:
+
+- `leagues.id`, `status`, and `deadline_at` for lock/deadline display;
+- active `league_members` as the paginated participant base;
+- `prediction_sets.status`, `total_required`, `completed_items`, and `unsynced_items` for completion status;
+- `public_user_profiles` for minimal display identity where RLS allows it.
+
+The overview treats stored prediction completion fields as status data only. It does not inspect match predictions, calculate scores, generate standings, update leaderboard snapshots, or infer bracket results. Global aggregation is unavailable for `draft` and `open` leagues because pre-lock RLS exposes only the current user's prediction set; an RLS-hidden set is never classified as missing.
+
+After lock, active member ids are loaded in bounded batches and become the single population for total, complete, incomplete, missing, and locked metrics. Prediction sets belonging to removed or inactive members are excluded. The detail list is still paginated over active members and only shows non-complete users found in loaded pages; it is not yet a dedicated incomplete-only server query. The current real scale remains about 200 participants with up-to-500 participant headroom; query-plan review and load tests remain future work.

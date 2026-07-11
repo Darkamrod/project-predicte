@@ -139,3 +139,9 @@ The MVP still avoids profile joins for other members because current profile vis
 Real Supabase participants and leaderboard rows now prefer the minimal public identity read model when a league member is allowed to read it. If the public row is missing or filtered by RLS, the same `Utente abcd1234` fallback remains in place.
 
 This improves readability without turning profiles into a public directory. The UI still avoids email, metadata, global profile search, client-side scoring, and leaderboard calculation.
+
+## Milestone 11H Prediction Completion Overview
+
+The league overview now includes an `Avanzamento pronostici` card. Before lock, it shows that global progress will become available after predictions are blocked; it does not infer missing users from prediction sets hidden by RLS. Mock leagues keep a clear fallback without changing the rest of the demo flow.
+
+After lock, real Supabase leagues show separate complete, incomplete, without-prediction, and locked metrics calculated from active members only. The detail list filters non-complete users from member pages already loaded, so its empty text is page-specific and load more may reveal additional users; it is not a dedicated server-side incomplete-only query. The card shows league status/deadline when visible and keeps load-more/error/empty states. It does not calculate scores, standings, brackets, or official leaderboard data in the client.

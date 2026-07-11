@@ -206,6 +206,17 @@
 - Updated participants and leaderboard screens to prefer public display identity while preserving the 11F fallback labels.
 - Kept email, auth metadata, service-role paths, official scoring, trusted ingestion, leaderboard persistence, payments, betting, advertising, Sportmonks, and real sports APIs out of scope.
 
+## Completed in Milestone 11H
+
+- Added a prediction completion overview to the league overview for real Supabase leagues and mock fallback leagues.
+- Kept the global overview unavailable before lock so RLS-hidden prediction sets are not mislabeled as missing.
+- Used read-only, league-scoped active-member and prediction-set summary data after lock to show separate complete, incomplete, missing, and locked metrics.
+- Batched active-member ids and prediction-set reads without including removed/inactive members or introducing N+1 queries.
+- Kept the action list paginated over loaded member pages with conservative page-level empty copy.
+- Reused minimal public identities and safe fallback labels for the real overview.
+- Kept client-side scoring, official leaderboard calculation, trusted ingestion, service-role paths, schema changes, RLS/policy changes, payments, betting, advertising, Sportmonks, and real sports APIs out of scope.
+- Left query-plan review, load tests, advanced filters, and production-grade admin reporting as future work.
+
 ## Next Authorized Milestone
 
 The next milestone should be defined by a future authorized prompt. Likely candidates remain official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.

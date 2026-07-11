@@ -19,15 +19,21 @@ import { ParticipantAvatar } from "@/components/ParticipantAvatar";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { LeaderboardEntry } from "@/domain/leaderboard/types";
+import {
+  resolvePredictionCompletionOverviewAvailability,
+  type PredictionCompletionOverviewState
+} from "@/domain/predictions/completionOverview";
 import { calculatePredictionCompletion } from "@/domain/predictions/progress";
 import { useAppTheme } from "@/design-system/theme";
 import { strings } from "@/i18n/strings";
 import type {
   LeaderboardEntryListItem,
-  LeagueMemberListItem
+  LeagueMemberListItem,
+  PredictionCompletionParticipantItem
 } from "@/services/leagues/supabaseLeagueReadRepository";
 import type { League, LeagueMember } from "@/services/leagues/types";
 import { usePredicteMock } from "@/state/PredicteMockProvider";
+import { formatMemberRole, formatMemberStatus, formatSafeUserIdentity } from "./userIdentity";
 import {
   isSupabasePreviewLeagueId,
   useSupabaseLeagueOverviewPreview,
@@ -35,6 +41,30 @@ import {
 } from "./useSupabaseLeagueOverviewPreview";
 
 const MOCK_PREVIEW_ROWS = 5;
+
+interface PredictionCompletionSummaryView {
+  completePredictionSets: number;
+  incompletePredictionSets: number;
+  lockedPredictionSets: number;
+  missingPredictionSets: number;
+  totalParticipants: number;
+}
+
+interface MockPredictionCompletionItem {
+  avatarInitials: string;
+  completedItems: number;
+  completionState: PredictionCompletionOverviewState;
+  displayName: string;
+  missingItems: number;
+  percentComplete: number;
+  totalRequired: number;
+  unsyncedItems: number;
+  userId: string;
+}
+
+interface MockPredictionCompletionSummary extends PredictionCompletionSummaryView {
+  items: MockPredictionCompletionItem[];
+}
 
 export function LeagueOverviewScreen({ leagueId }: { leagueId: string }): React.ReactNode {
   const { theme } = useAppTheme();
@@ -93,6 +123,8 @@ export function LeagueOverviewScreen({ leagueId }: { leagueId: string }): React.
           {completion.unsyncedItems === 0 ? strings.status.synced : strings.status.local}.
         </Text>
       </AppCard>
+
+      <PredictionCompletionPreviewCard league={league} preview={supabasePreview} />
 
       <View style={styles.grid}>
         <LeagueLink
@@ -165,9 +197,174 @@ function SupabaseLeaguePreviewOnlyScreen({
           azioni demo restano disponibili solo sulle leghe mock.
         </Text>
       </AppCard>
+      <PredictionCompletionPreviewCard preview={preview} />
       <ParticipantsPreviewCard preview={preview} />
       <LeaderboardPreviewCard preview={preview} />
     </AppScreen>
+  );
+}
+
+function PredictionCompletionPreviewCard({
+  league,
+  preview
+}: {
+  league?: League | undefined;
+  preview: SupabaseLeagueOverviewPreview;
+}): React.ReactNode {
+  const { theme } = useAppTheme();
+  const isRealPreview = preview.enabled;
+  const mockSummary = league ? createMockPredictionCompletionSummary(league) : undefined;
+  const availability = isRealPreview
+    ? preview.predictions.availability
+    : resolvePredictionCompletionOverviewAvailability(league?.status);
+  const summary =
+    availability === "available"
+      ? isRealPreview
+        ? preview.predictions.summary
+        : mockSummary
+      : undefined;
+  const badgeLabel =
+    availability === "pre_lock"
+      ? "Dopo il blocco"
+      : summary
+        ? `${summary.completePredictionSets}/${summary.totalParticipants} completi`
+        : "In attesa";
+
+  return (
+    <AppCard style={styles.previewCard}>
+      <View style={styles.previewHeader}>
+        <View style={styles.flex}>
+          <Text style={[styles.kicker, { color: theme.colors.primary }]}>
+            {isRealPreview ? "Supabase read-only" : "Fallback demo"}
+          </Text>
+          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
+            Avanzamento pronostici
+          </Text>
+          <Text style={[styles.previewSubtitle, { color: theme.colors.textSecondary }]}>
+            Stato compilazione per lega: usa solo completion fields persistiti, senza calcolare
+            punteggi o classifiche.
+          </Text>
+        </View>
+        <StatusBadge label={badgeLabel} tone={preview.predictions.error ? "error" : "primary"} />
+      </View>
+
+      {summary ? <PredictionCompletionSummaryGrid summary={summary} /> : null}
+      {isRealPreview ? (
+        <SupabasePredictionCompletionPreview preview={preview} />
+      ) : availability === "pre_lock" ? (
+        <PreviewMessage message="L'avanzamento complessivo sarà disponibile dopo il blocco dei pronostici." />
+      ) : league && mockSummary ? (
+        <MockPredictionCompletionPreview summary={mockSummary} />
+      ) : (
+        <PreviewMessage message="Nessun dato compilazione disponibile per questa lega." />
+      )}
+    </AppCard>
+  );
+}
+
+function PredictionCompletionSummaryGrid({
+  summary
+}: {
+  summary: PredictionCompletionSummaryView;
+}): React.ReactNode {
+  return (
+    <View style={styles.summaryGrid}>
+      <SummaryMetric label="Partecipanti" value={String(summary.totalParticipants)} />
+      <SummaryMetric label="Completi" value={String(summary.completePredictionSets)} />
+      <SummaryMetric label="Incompleti" value={String(summary.incompletePredictionSets)} />
+      <SummaryMetric label="Senza pronostico" value={String(summary.missingPredictionSets)} />
+      <SummaryMetric label="Bloccati" value={String(summary.lockedPredictionSets)} />
+    </View>
+  );
+}
+
+function SupabasePredictionCompletionPreview({
+  preview
+}: {
+  preview: SupabaseLeagueOverviewPreview;
+}): React.ReactNode {
+  const { theme } = useAppTheme();
+  const predictions = preview.predictions;
+  const openItems = predictions.items.filter((item) => item.completionState !== "complete");
+
+  if (predictions.loading && predictions.items.length === 0) {
+    return <PreviewMessage message="Caricamento stato pronostici..." />;
+  }
+
+  if (predictions.error) {
+    return (
+      <>
+        <PreviewMessage
+          message={`Impossibile caricare lo stato pronostici: ${predictions.error}`}
+        />
+        <SecondaryButton label="Riprova" onPress={preview.refresh} />
+      </>
+    );
+  }
+
+  if (predictions.availability === "pre_lock") {
+    return (
+      <>
+        <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
+          {formatLeaguePredictionLockText(predictions.league)}
+        </Text>
+        <PreviewMessage message="L'avanzamento complessivo sarà disponibile dopo il blocco dei pronostici." />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
+        {formatLeaguePredictionLockText(predictions.league)}
+      </Text>
+      <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
+        La lista mostra gli utenti non completi trovati nelle pagine membri caricate. Carica altre
+        pagine per continuare la verifica.
+      </Text>
+      {predictions.items.length === 0 ? (
+        <PreviewMessage message="Nessun membro attivo visibile per lo stato pronostici." />
+      ) : openItems.length === 0 ? (
+        <PreviewMessage message="Nessun utente da completare in questa pagina." />
+      ) : (
+        <View style={styles.previewList}>
+          {openItems.map((item) => (
+            <RealPredictionCompletionRow key={item.userId} item={item} />
+          ))}
+        </View>
+      )}
+      {predictions.pagination.hasNextPage ? (
+        <SecondaryButton
+          label={predictions.loadingMore ? "Caricamento..." : "Carica altri stati pronostici"}
+          disabled={predictions.loadingMore}
+          onPress={preview.loadMorePredictions}
+        />
+      ) : predictions.items.length > 0 ? (
+        <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
+          Tutte le pagine membri sono state analizzate.
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
+function MockPredictionCompletionPreview({
+  summary
+}: {
+  summary: MockPredictionCompletionSummary;
+}): React.ReactNode {
+  const openItems = summary.items.filter((item) => item.completionState !== "complete");
+
+  if (openItems.length === 0) {
+    return <PreviewMessage message="Tutti i partecipanti demo hanno completato i pronostici." />;
+  }
+
+  return (
+    <View style={styles.previewList}>
+      {openItems.slice(0, MOCK_PREVIEW_ROWS).map((item) => (
+        <MockPredictionCompletionRow key={item.userId} item={item} />
+      ))}
+    </View>
   );
 }
 
@@ -385,20 +582,25 @@ function MockLeaderboardPreview({ entries }: { entries: LeaderboardEntry[] }): R
 
 function RealMemberPreviewRow({ member }: { member: LeagueMemberListItem }): React.ReactNode {
   const { theme } = useAppTheme();
+  const identity = formatSafeUserIdentity({
+    userId: member.userId,
+    displayName: member.publicIdentity?.displayName,
+    username: member.publicIdentity?.username
+  });
 
   return (
     <View style={[styles.previewRow, { borderColor: theme.colors.border }]}>
-      <ParticipantAvatar initials={initialsFromUserId(member.userId)} />
+      <ParticipantAvatar initials={identity.initials} />
       <View style={styles.previewTextBlock}>
         <Text style={[styles.previewName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-          {formatUserId(member.userId)}
+          {identity.displayName}
         </Text>
         <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
-          {roleLabel(member.role)} · {memberStatusLabel(member.status)}
+          {formatMemberRole(member.role)} - {formatMemberStatus(member.status)}
         </Text>
       </View>
       <StatusBadge
-        label={memberStatusLabel(member.status)}
+        label={formatMemberStatus(member.status)}
         tone={member.status === "active" ? "success" : "neutral"}
       />
     </View>
@@ -416,7 +618,7 @@ function MockMemberPreviewRow({ member }: { member: LeagueMember }): React.React
           {member.displayName}
         </Text>
         <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
-          {roleLabel(member.role)} · Demo
+          {formatMemberRole(member.role)} - Demo
         </Text>
       </View>
     </View>
@@ -429,13 +631,19 @@ function RealLeaderboardPreviewRow({
   entry: LeaderboardEntryListItem;
 }): React.ReactNode {
   const { theme } = useAppTheme();
+  const identity = formatSafeUserIdentity({
+    userId: entry.userId,
+    displayName: entry.publicIdentity?.displayName,
+    username: entry.publicIdentity?.username
+  });
 
   return (
     <View style={[styles.previewRow, { borderColor: theme.colors.border }]}>
       <Text style={[styles.previewRank, { color: theme.colors.textPrimary }]}>#{entry.rank}</Text>
+      <ParticipantAvatar initials={identity.initials} />
       <View style={styles.previewTextBlock}>
         <Text style={[styles.previewName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-          {formatUserId(entry.userId)}
+          {identity.displayName}
         </Text>
         <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
           Ultimo update: +{entry.latestPoints}
@@ -480,10 +688,78 @@ function MockLeaderboardPreviewRow({ entry }: { entry: LeaderboardEntry }): Reac
   );
 }
 
+function RealPredictionCompletionRow({
+  item
+}: {
+  item: PredictionCompletionParticipantItem;
+}): React.ReactNode {
+  const { theme } = useAppTheme();
+  const identity = formatSafeUserIdentity({
+    userId: item.userId,
+    displayName: item.publicIdentity?.displayName,
+    username: item.publicIdentity?.username
+  });
+
+  return (
+    <View style={[styles.previewRow, { borderColor: theme.colors.border }]}>
+      <ParticipantAvatar initials={identity.initials} />
+      <View style={styles.previewTextBlock}>
+        <Text style={[styles.previewName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+          {identity.displayName}
+        </Text>
+        <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
+          {formatPredictionCompletionDetail(item)}
+        </Text>
+      </View>
+      <StatusBadge
+        label={predictionCompletionStateLabel(item.completionState)}
+        tone={predictionCompletionStateTone(item.completionState)}
+      />
+    </View>
+  );
+}
+
+function MockPredictionCompletionRow({
+  item
+}: {
+  item: MockPredictionCompletionItem;
+}): React.ReactNode {
+  const { theme } = useAppTheme();
+
+  return (
+    <View style={[styles.previewRow, { borderColor: theme.colors.border }]}>
+      <ParticipantAvatar initials={item.avatarInitials} />
+      <View style={styles.previewTextBlock}>
+        <Text style={[styles.previewName, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+          {item.displayName}
+        </Text>
+        <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
+          {formatPredictionCompletionDetail(item)}
+        </Text>
+      </View>
+      <StatusBadge
+        label={predictionCompletionStateLabel(item.completionState)}
+        tone={predictionCompletionStateTone(item.completionState)}
+      />
+    </View>
+  );
+}
+
 function PreviewMessage({ message }: { message: string }): React.ReactNode {
   const { theme } = useAppTheme();
 
   return <Text style={[styles.body, { color: theme.colors.textSecondary }]}>{message}</Text>;
+}
+
+function SummaryMetric({ label, value }: { label: string; value: string }): React.ReactNode {
+  const { theme } = useAppTheme();
+
+  return (
+    <View style={[styles.summaryMetric, { borderColor: theme.colors.border }]}>
+      <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.summaryMetricValue, { color: theme.colors.textPrimary }]}>{value}</Text>
+    </View>
+  );
 }
 
 function LeagueLink({
@@ -507,44 +783,117 @@ function LeagueLink({
   );
 }
 
-function formatUserId(userId: string): string {
-  return `Utente ${userId.slice(0, 8)}`;
-}
-
-function initialsFromUserId(userId: string): string {
-  const compact = userId
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(0, 2)
-    .toUpperCase();
-
-  return compact || "UT";
-}
-
-function roleLabel(role: string): string {
-  const labels: Record<string, string> = {
-    admin: "Admin",
-    owner: "Owner",
-    participant: "Partecipante"
-  };
-
-  return labels[role] ?? role;
-}
-
-function memberStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    active: "Attivo",
-    removed: "Rimosso"
-  };
-
-  return labels[status] ?? status;
-}
-
 function formatDelta(delta: number): string {
   if (delta > 0) {
     return `+${delta}`;
   }
 
   return String(delta);
+}
+
+function createMockPredictionCompletionSummary(league: League): MockPredictionCompletionSummary {
+  const items = league.members.map((member) => {
+    const predictionSet = league.predictionSets.find((set) => set.userId === member.userId);
+    const completion = predictionSet ? calculatePredictionCompletion(predictionSet) : undefined;
+    const isComplete = Boolean(completion && completion.incompleteItems === 0);
+    const completionState: PredictionCompletionOverviewState = predictionSet
+      ? isComplete
+        ? "complete"
+        : league.status === "open"
+          ? "incomplete"
+          : "locked"
+      : "missing";
+
+    return {
+      avatarInitials: member.avatarInitials,
+      completedItems: completion?.completedItems ?? 0,
+      completionState,
+      displayName: member.displayName,
+      missingItems: completion?.incompleteItems ?? 0,
+      percentComplete: completion?.percentComplete ?? 0,
+      totalRequired: completion?.totalRequired ?? 0,
+      unsyncedItems: completion?.unsyncedItems ?? 0,
+      userId: member.userId
+    };
+  });
+
+  return {
+    completePredictionSets: items.filter((item) => item.completionState === "complete").length,
+    incompletePredictionSets: items.filter((item) => item.completionState === "incomplete").length,
+    items,
+    lockedPredictionSets: items.filter((item) => item.completionState === "locked").length,
+    missingPredictionSets: items.filter((item) => item.completionState === "missing").length,
+    totalParticipants: league.members.length
+  };
+}
+
+function formatLeaguePredictionLockText(
+  league: SupabaseLeagueOverviewPreview["predictions"]["league"]
+): string {
+  if (!league) {
+    return "Stato lega non disponibile nei dati visibili.";
+  }
+
+  return `Stato lega: ${strings.status[league.status]}. Deadline: ${new Date(
+    league.deadlineAtUtc
+  ).toLocaleString("it-IT", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit"
+  })}`;
+}
+
+function formatPredictionCompletionDetail({
+  completedItems,
+  completionState,
+  missingItems,
+  percentComplete,
+  totalRequired,
+  unsyncedItems
+}: Pick<
+  PredictionCompletionParticipantItem | MockPredictionCompletionItem,
+  | "completedItems"
+  | "completionState"
+  | "missingItems"
+  | "percentComplete"
+  | "totalRequired"
+  | "unsyncedItems"
+>): string {
+  if (completionState === "missing") {
+    return "Nessun prediction set visibile.";
+  }
+
+  const syncText = unsyncedItems > 0 ? ` - ${unsyncedItems} non sincronizzati` : "";
+
+  return `${completedItems}/${totalRequired} completati (${percentComplete}%)${
+    missingItems > 0 ? ` - ${missingItems} mancanti` : ""
+  }${syncText}`;
+}
+
+function predictionCompletionStateLabel(state: PredictionCompletionOverviewState): string {
+  const labels: Record<PredictionCompletionOverviewState, string> = {
+    complete: "Completo",
+    incomplete: "Da completare",
+    locked: "Bloccato",
+    missing: "Manca set"
+  };
+
+  return labels[state];
+}
+
+function predictionCompletionStateTone(
+  state: PredictionCompletionOverviewState
+): "error" | "neutral" | "success" | "warning" {
+  if (state === "complete") {
+    return "success";
+  }
+
+  if (state === "locked") {
+    return "neutral";
+  }
+
+  return state === "missing" ? "error" : "warning";
 }
 
 const styles = StyleSheet.create({
@@ -648,6 +997,23 @@ const styles = StyleSheet.create({
   previewPoints: {
     fontSize: 18,
     fontWeight: "900"
+  },
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  summaryMetric: {
+    borderRadius: 8,
+    borderWidth: 1,
+    flexGrow: 1,
+    minWidth: 112,
+    padding: 10
+  },
+  summaryMetricValue: {
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: 2
   },
   flex: {
     flex: 1

@@ -183,3 +183,11 @@ The RLS policy is league-scoped rather than globally public: authenticated users
 A trigger synchronizes sanitized `profiles.display_name` into the public read model. The trigger is security-definer so clients do not need direct write access to the read model; it does not read `auth.users` or raw metadata. Avatar URLs remain null in Milestone 11G until a dedicated public-avatar decision exists.
 
 The mobile app still uses the public Supabase client only. It does not expose service-role keys, does not call new RPCs, does not calculate official scoring or leaderboard state, and does not touch trusted result ingestion.
+
+## Milestone 11H Prediction Completion Overview Security Posture
+
+Milestone 11H composes existing read-only, league-scoped data in the mobile client. Before lock, existing RLS exposes only the current user's prediction set, so the client does not request or display global completion metrics and never treats hidden rows as missing. The persisted league lifecycle status, rather than device time, controls availability.
+
+After lock, the overview reads active member ids, prediction-set summaries filtered to those ids, league status/deadline, and minimal public identities through the public Supabase client and existing RLS. Removed and inactive members are excluded from every aggregate. Reads are batched and remain scoped by `league_id`; no policy, grant, RPC, or profile visibility is widened.
+
+The client does not read `profiles`, `auth.users`, email fields, raw/user/private metadata, or service-role credentials. It does not write prediction state, scoring events, leaderboard snapshots, result ingestion rows, policies, grants, RPCs, or schema. Completion counts are based on persisted `prediction_sets` completion fields and are not official scoring or leaderboard calculations.

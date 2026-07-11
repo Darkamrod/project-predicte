@@ -314,3 +314,13 @@
 - Added a trigger-backed sync from `profiles.display_name` into `public_user_profiles`. The trigger uses a security-definer function so normal clients do not need direct write grants on the public read model; insert/update/delete remain unavailable to normal clients.
 - Extended the read-only league repository to batch-load public identities for the current members/leaderboard page and attach them before the UI renders. This avoids N+1 reads and preserves the 20-row UI page size, 50-row repository default, and 100-row repository cap.
 - Kept official scoring, trusted worker, result ingestion, service-role paths, leaderboard persistence, ruleset/scoring/bracket logic, payments, betting, advertising, and real sports APIs untouched.
+
+## 2026-07-10 - Milestone 11H Prediction Completion Overview
+
+- Added a league overview card for prediction completion status using read-only Supabase data: active members, prediction-set summaries, league status/deadline, and minimal public identities.
+- Suppressed global completion counts while the persisted league status is `draft` or `open`. Existing RLS exposes only the current user's prediction set before lock, so hidden sets must not be misclassified as missing. The UI shows a post-lock availability message instead and does not widen prediction visibility.
+- After lock, the repository loads active member ids in bounded 100-id batches and filters prediction-set reads to exactly that set. Removed or inactive members cannot increase complete, incomplete, or locked counts or reduce the missing count.
+- Chose active-member pages as the base for the detail list. It shows non-complete users found in the pages loaded so far, with conservative page-level copy and load more; it is not a dedicated server-side incomplete-only query.
+- Counts are derived from persisted `prediction_sets.status`, `total_required`, and `completed_items`; complete, incomplete, missing, and locked remain separate metrics. The client does not calculate scoring, standings, bracket outcomes, or official leaderboard data.
+- Kept all reads scoped by `league_id`, reused the public Supabase client and RLS, and left schema, migrations, policies, RPCs, trusted worker, result ingestion, service-role paths, official scoring persistence, and leaderboard persistence unchanged.
+- Preserved the scale framing: about 200 participants is the real reference and 500 is technical headroom. Query-plan review, load tests, and advanced admin filters remain future work.

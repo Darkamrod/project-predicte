@@ -3,12 +3,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   LeaderboardEntryListItem,
   LeaderboardSnapshotSummaryItem,
+  LeaguePredictionCompletionOverview,
   LeagueMemberListItem
 } from "@/services/leagues/supabaseLeagueReadRepository";
 import { SupabaseLeagueReadRepository } from "@/services/leagues/supabaseLeagueReadRepository";
 import type { PaginationMeta } from "@/services/pagination";
 import { getSupabaseClient } from "@/services/supabase/client";
-import { createPreviewRequestGuard } from "./leagueOverviewPreviewRequestGuard";
+import {
+  createPreviewRequestGuard,
+  mergeUniquePageItems
+} from "./leagueOverviewPreviewRequestGuard";
 
 export const LEAGUE_OVERVIEW_PREVIEW_PAGE_SIZE = 20;
 
@@ -24,12 +28,22 @@ interface LeaderboardPreviewState extends PreviewListState<LeaderboardEntryListI
   snapshot: LeaderboardSnapshotSummaryItem | undefined;
 }
 
+interface PredictionCompletionPreviewState extends PreviewListState<
+  LeaguePredictionCompletionOverview["participants"]["items"][number]
+> {
+  availability: LeaguePredictionCompletionOverview["availability"] | "pending";
+  league: LeaguePredictionCompletionOverview["league"];
+  summary: LeaguePredictionCompletionOverview["summary"] | undefined;
+}
+
 export interface SupabaseLeagueOverviewPreview {
   enabled: boolean;
   members: PreviewListState<LeagueMemberListItem>;
   leaderboard: LeaderboardPreviewState;
+  predictions: PredictionCompletionPreviewState;
   loadMoreMembers(): void;
   loadMoreLeaderboard(): void;
+  loadMorePredictions(): void;
   refresh(): void;
 }
 
@@ -48,16 +62,21 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
   const enabled = Boolean(repository && isSupabasePreviewLeagueId(leagueId));
   const membersGuardRef = useRef(createPreviewRequestGuard());
   const leaderboardGuardRef = useRef(createPreviewRequestGuard());
+  const predictionsGuardRef = useRef(createPreviewRequestGuard());
   const [members, setMembers] =
     useState<PreviewListState<LeagueMemberListItem>>(createInitialListState);
   const [leaderboard, setLeaderboard] = useState<LeaderboardPreviewState>(
     createInitialLeaderboardState
+  );
+  const [predictions, setPredictions] = useState<PredictionCompletionPreviewState>(
+    createInitialPredictionCompletionState
   );
 
   useEffect(
     () => () => {
       membersGuardRef.current.cleanup();
       leaderboardGuardRef.current.cleanup();
+      predictionsGuardRef.current.cleanup();
     },
     []
   );
@@ -278,11 +297,80 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
     [enabled, leagueId, repository]
   );
 
+  const loadPredictions = useCallback(
+    async (page: number, append: boolean) => {
+      if (!enabled || !repository) {
+        return;
+      }
+
+      const guard = predictionsGuardRef.current;
+
+      if (append && !guard.tryBeginLoadMore()) {
+        return;
+      }
+
+      const token = append ? guard.beginRequest() : guard.beginReplacingRequest();
+
+      if (guard.canApply(token)) {
+        setPredictions((current) => ({
+          ...current,
+          error: undefined,
+          loading: !append,
+          loadingMore: append
+        }));
+      }
+
+      try {
+        const result = await repository.getLeaguePredictionCompletionOverview(leagueId, {
+          page,
+          pageSize: LEAGUE_OVERVIEW_PREVIEW_PAGE_SIZE
+        });
+
+        if (!guard.canApply(token)) {
+          return;
+        }
+
+        setPredictions((current) => ({
+          availability: result.availability,
+          league: result.league,
+          summary: result.summary,
+          items: append
+            ? mergeUniquePageItems(current.items, result.participants.items, (item) => item.userId)
+            : result.participants.items,
+          pagination: result.participants.pagination,
+          loading: false,
+          loadingMore: false,
+          error: undefined
+        }));
+      } catch (error) {
+        if (!guard.canApply(token)) {
+          return;
+        }
+
+        setPredictions((current) => ({
+          ...current,
+          loading: false,
+          loadingMore: false,
+          error: errorToMessage(error)
+        }));
+      } finally {
+        if (append) {
+          guard.finishLoadMore(token);
+        } else {
+          guard.finishReplacingRequest(token);
+        }
+      }
+    },
+    [enabled, leagueId, repository]
+  );
+
   useEffect(() => {
     membersGuardRef.current.reset();
     leaderboardGuardRef.current.reset();
+    predictionsGuardRef.current.reset();
     setMembers(createInitialListState());
     setLeaderboard(createInitialLeaderboardState());
+    setPredictions(createInitialPredictionCompletionState());
 
     if (!enabled) {
       return;
@@ -290,7 +378,8 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
 
     void loadMembers(1, false);
     void loadLeaderboard(1, false);
-  }, [enabled, loadLeaderboard, loadMembers]);
+    void loadPredictions(1, false);
+  }, [enabled, loadLeaderboard, loadMembers, loadPredictions]);
 
   const loadMoreMembers = useCallback(() => {
     if (!members.loading && !members.loadingMore && members.pagination.hasNextPage) {
@@ -316,6 +405,18 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
     loadLeaderboard
   ]);
 
+  const loadMorePredictions = useCallback(() => {
+    if (!predictions.loading && !predictions.loadingMore && predictions.pagination.hasNextPage) {
+      void loadPredictions(predictions.pagination.page + 1, true);
+    }
+  }, [
+    loadPredictions,
+    predictions.loading,
+    predictions.loadingMore,
+    predictions.pagination.hasNextPage,
+    predictions.pagination.page
+  ]);
+
   const refresh = useCallback(() => {
     if (!enabled) {
       return;
@@ -323,14 +424,17 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
 
     void loadMembers(1, false);
     void loadLeaderboard(1, false);
-  }, [enabled, loadLeaderboard, loadMembers]);
+    void loadPredictions(1, false);
+  }, [enabled, loadLeaderboard, loadMembers, loadPredictions]);
 
   return {
     enabled,
     members,
     leaderboard,
+    predictions,
     loadMoreMembers,
     loadMoreLeaderboard,
+    loadMorePredictions,
     refresh
   };
 }
@@ -355,6 +459,17 @@ function createInitialLeaderboardState(): LeaderboardPreviewState {
   return {
     ...createInitialListState<LeaderboardEntryListItem>(),
     snapshot: undefined
+  };
+}
+
+function createInitialPredictionCompletionState(): PredictionCompletionPreviewState {
+  return {
+    ...createInitialListState<
+      LeaguePredictionCompletionOverview["participants"]["items"][number]
+    >(),
+    availability: "pending",
+    league: undefined,
+    summary: undefined
   };
 }
 

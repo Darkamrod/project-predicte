@@ -65,3 +65,17 @@ export function createPreviewRequestGuard(): PreviewRequestGuard {
     }
   };
 }
+
+export function mergeUniquePageItems<T>(
+  currentItems: T[],
+  nextItems: T[],
+  getKey: (item: T) => string
+): T[] {
+  const itemsByKey = new Map(currentItems.map((item) => [getKey(item), item]));
+
+  for (const item of nextItems) {
+    itemsByKey.set(getKey(item), item);
+  }
+
+  return [...itemsByKey.values()];
+}

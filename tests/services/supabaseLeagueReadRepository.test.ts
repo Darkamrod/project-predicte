@@ -133,6 +133,71 @@ describe("SupabaseLeagueReadRepository", () => {
     expect(calls[0]?.mutations).toEqual([]);
   });
 
+  it("enriches a page with public identities using one batch lookup", async () => {
+    const otherUserId = "00000000-0000-4000-8000-000000000103";
+    const { client, calls } = createReadClient({
+      league_members: {
+        data: [
+          {
+            league_id: leagueId,
+            user_id: userId,
+            role: "owner",
+            status: "active",
+            joined_at: "2030-06-01T10:00:00.000Z",
+            removed_at: null
+          },
+          {
+            league_id: leagueId,
+            user_id: otherUserId,
+            role: "participant",
+            status: "active",
+            joined_at: "2030-06-01T10:05:00.000Z",
+            removed_at: null
+          }
+        ],
+        count: 2
+      },
+      public_user_profiles: {
+        data: [
+          {
+            user_id: userId,
+            display_name: "Ada",
+            username: "ada",
+            avatar_url: null,
+            updated_at: "2030-06-01T10:00:00.000Z"
+          },
+          {
+            user_id: otherUserId,
+            display_name: "Bruno",
+            username: null,
+            avatar_url: null,
+            updated_at: "2030-06-01T10:00:00.000Z"
+          }
+        ]
+      }
+    });
+    const repository = new SupabaseLeagueReadRepository(client);
+
+    const page = await repository.listLeagueMembers(leagueId, { pageSize: 20 });
+
+    expect(page.items.map((item) => item.publicIdentity)).toEqual([
+      {
+        userId,
+        displayName: "Ada",
+        username: "ada",
+        updatedAtUtc: "2030-06-01T10:00:00.000Z"
+      },
+      {
+        userId: otherUserId,
+        displayName: "Bruno",
+        updatedAtUtc: "2030-06-01T10:00:00.000Z"
+      }
+    ]);
+    expect(calls.map((call) => call.table)).toEqual(["league_members", "public_user_profiles"]);
+    expect(calls[1]?.filters).toEqual([{ column: "user_id", value: [userId, otherUserId] }]);
+    expect(calls.flatMap((call) => call.mutations)).toEqual([]);
+  });
+
   it("caps leaderboard entry reads and computes the second page range", async () => {
     const { client, calls } = createReadClient({
       leaderboard_entries: {
@@ -290,7 +355,8 @@ describe("SupabaseLeagueReadRepository", () => {
     });
     expect(calls.map((call) => call.table)).toEqual([
       "leaderboard_snapshots",
-      "leaderboard_entries"
+      "leaderboard_entries",
+      "public_user_profiles"
     ]);
     expect(calls[0]).toMatchObject({
       table: "leaderboard_snapshots",
@@ -302,6 +368,7 @@ describe("SupabaseLeagueReadRepository", () => {
       range: { from: 100, to: 199 }
     });
     expect(calls[1]?.filters).toEqual([{ column: "snapshot_id", value: snapshotId }]);
+    expect(calls[2]?.filters).toEqual([{ column: "user_id", value: [userId] }]);
     expect(calls.flatMap((call) => call.mutations)).toEqual([]);
   });
 
@@ -384,6 +451,193 @@ describe("SupabaseLeagueReadRepository", () => {
     expect(calls[0]?.filters).toContainEqual({ column: "status", value: "complete" });
     expect(calls[0]?.range).toEqual({ from: 0, to: 9 });
   });
+
+  it("does not query or classify hidden prediction sets before league lock", async () => {
+    const { client, calls } = createReadClient({
+      leagues: {
+        data: [
+          {
+            id: leagueId,
+            status: "open",
+            deadline_at: "2030-06-08T18:30:00.000Z"
+          }
+        ]
+      }
+    });
+    const repository = new SupabaseLeagueReadRepository(client);
+
+    const overview = await repository.getLeaguePredictionCompletionOverview(leagueId, {
+      pageSize: 20
+    });
+
+    expect(overview).toMatchObject({
+      availability: "pre_lock",
+      league: {
+        id: leagueId,
+        status: "open"
+      },
+      participants: {
+        items: [],
+        pagination: {
+          totalItems: 0,
+          hasNextPage: false
+        }
+      }
+    });
+    expect(overview.summary).toBeUndefined();
+    expect(calls.map((call) => call.table)).toEqual(["leagues"]);
+    expect(calls.flatMap((call) => call.mutations)).toEqual([]);
+  });
+
+  it("builds a post-lock completion overview from active members only", async () => {
+    const otherUserId = "00000000-0000-4000-8000-000000000103";
+    const missingUserId = "00000000-0000-4000-8000-000000000104";
+    const removedUserId = "00000000-0000-4000-8000-000000000105";
+    const completePredictionSet = createPredictionSetRow(userId, "complete", 64, 64);
+    const draftPredictionSet = createPredictionSetRow(otherUserId, "draft", 64, 40);
+    const removedPredictionSet = createPredictionSetRow(removedUserId, "complete", 64, 64);
+    const { client, calls } = createReadClient({
+      leagues: {
+        data: [
+          {
+            id: leagueId,
+            status: "locked",
+            deadline_at: "2030-06-08T18:30:00.000Z"
+          }
+        ]
+      },
+      league_members: (call) => {
+        if (call.select?.columns === "user_id") {
+          return {
+            count: 3,
+            data: [{ user_id: userId }, { user_id: otherUserId }, { user_id: missingUserId }]
+          };
+        }
+
+        return {
+          count: 3,
+          data: [
+            createLeagueMemberRow(userId, "owner"),
+            createLeagueMemberRow(otherUserId, "participant")
+          ]
+        };
+      },
+      prediction_sets: (call) => {
+        const userIds = call.filters.find((filter) => filter.column === "user_id")?.value;
+
+        if (Array.isArray(userIds)) {
+          return { data: [completePredictionSet, draftPredictionSet, removedPredictionSet] };
+        }
+
+        return { data: [] };
+      },
+      public_user_profiles: {
+        data: [
+          {
+            user_id: userId,
+            display_name: "Ada",
+            username: "ada",
+            avatar_url: null,
+            updated_at: "2030-06-01T10:00:00.000Z"
+          },
+          {
+            user_id: otherUserId,
+            display_name: "Bruno",
+            username: null,
+            avatar_url: null,
+            updated_at: "2030-06-01T10:00:00.000Z"
+          }
+        ]
+      }
+    });
+    const repository = new SupabaseLeagueReadRepository(client);
+
+    const overview = await repository.getLeaguePredictionCompletionOverview(leagueId, {
+      pageSize: 20
+    });
+
+    expect(overview.league).toEqual({
+      id: leagueId,
+      status: "locked",
+      deadlineAtUtc: "2030-06-08T18:30:00.000Z"
+    });
+    expect(overview.availability).toBe("available");
+    expect(overview.summary).toEqual({
+      completePredictionSets: 1,
+      incompletePredictionSets: 1,
+      lockedPredictionSets: 0,
+      missingPredictionSets: 1,
+      predictionSetsTotal: 2,
+      totalParticipants: 3
+    });
+    expect(overview.participants.items).toMatchObject([
+      {
+        userId,
+        completionState: "complete",
+        completedItems: 64,
+        percentComplete: 100,
+        publicIdentity: {
+          displayName: "Ada"
+        }
+      },
+      {
+        userId: otherUserId,
+        completionState: "incomplete",
+        completedItems: 40,
+        missingItems: 24,
+        percentComplete: 63,
+        publicIdentity: {
+          displayName: "Bruno"
+        }
+      }
+    ]);
+    const memberCalls = calls.filter((call) => call.table === "league_members");
+    expect(memberCalls).toHaveLength(2);
+    expect(
+      memberCalls.every((call) =>
+        call.filters.some((filter) => filter.column === "league_id" && filter.value === leagueId)
+      )
+    ).toBe(true);
+    expect(
+      memberCalls.every((call) =>
+        call.filters.some((filter) => filter.column === "status" && filter.value === "active")
+      )
+    ).toBe(true);
+    const predictionSetCall = calls.find((call) => call.table === "prediction_sets");
+    expect(predictionSetCall?.filters).toContainEqual({ column: "league_id", value: leagueId });
+    expect(predictionSetCall?.filters).toContainEqual({
+      column: "user_id",
+      value: [userId, otherUserId, missingUserId]
+    });
+    expect(predictionSetCall?.filters).not.toContainEqual({
+      column: "user_id",
+      value: expect.arrayContaining([removedUserId])
+    });
+    expect(calls.flatMap((call) => call.mutations)).toEqual([]);
+  });
+
+  it("batches prediction-set reads for active-member headroom without N+1 queries", async () => {
+    const activeUserIds = Array.from(
+      { length: 205 },
+      (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`
+    );
+    const { client, calls } = createReadClient({
+      prediction_sets: { data: [] }
+    });
+    const repository = new SupabaseLeagueReadRepository(client);
+
+    await repository.listPredictionSetSummariesForUsers(leagueId, activeUserIds);
+
+    const predictionSetCalls = calls.filter((call) => call.table === "prediction_sets");
+    expect(predictionSetCalls).toHaveLength(3);
+    expect(
+      predictionSetCalls.map(
+        (call) =>
+          (call.filters.find((filter) => filter.column === "user_id")?.value as string[]).length
+      )
+    ).toEqual([100, 100, 5]);
+    expect(predictionSetCalls.flatMap((call) => call.mutations)).toEqual([]);
+  });
 });
 
 const leagueId = "00000000-0000-4000-8000-000000000100";
@@ -397,6 +651,9 @@ interface QueryResult {
 }
 
 type QueryRow = Record<string, unknown>;
+type QueryFixture =
+  { count?: number; data: QueryRow[] } | ((call: QueryCall) => QueryFixtureResult);
+type QueryFixtureResult = { count?: number; data: QueryRow[] };
 
 interface QueryCall {
   table: string;
@@ -407,7 +664,7 @@ interface QueryCall {
   mutations: string[];
 }
 
-function createReadClient(results: Record<string, { count?: number; data: QueryRow[] }>): {
+function createReadClient(results: Record<string, QueryFixture>): {
   calls: QueryCall[];
   client: SupabaseReadClient;
 } {
@@ -424,7 +681,7 @@ class FakeQueryBuilder implements PromiseLike<QueryResult> {
 
   constructor(
     table: string,
-    private readonly result: { count?: number; data: QueryRow[] },
+    private readonly result: QueryFixture,
     calls: QueryCall[]
   ) {
     this.call = {
@@ -446,6 +703,11 @@ class FakeQueryBuilder implements PromiseLike<QueryResult> {
 
   eq(column: string, value: unknown): this {
     this.call.filters.push({ column, value });
+    return this;
+  }
+
+  in(column: string, values: unknown[]): this {
+    this.call.filters.push({ column, value: values });
     return this;
   }
 
@@ -481,10 +743,45 @@ class FakeQueryBuilder implements PromiseLike<QueryResult> {
     onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): PromiseLike<TResult1 | TResult2> {
+    const result = typeof this.result === "function" ? this.result(this.call) : this.result;
+
     return Promise.resolve({
-      data: this.result.data,
-      count: this.result.count ?? this.result.data.length,
+      data: result.data,
+      count: result.count ?? result.data.length,
       error: null
     }).then(onfulfilled, onrejected);
   }
+}
+
+function createLeagueMemberRow(
+  rowUserId: string,
+  role: "admin" | "owner" | "participant"
+): QueryRow {
+  return {
+    league_id: leagueId,
+    user_id: rowUserId,
+    role,
+    status: "active",
+    joined_at: "2030-06-01T10:00:00.000Z",
+    removed_at: null
+  };
+}
+
+function createPredictionSetRow(
+  rowUserId: string,
+  status: "complete" | "draft" | "locked",
+  totalRequired: number,
+  completedItems: number
+): QueryRow {
+  return {
+    id: `prediction-set-${rowUserId.slice(0, 8)}-${status}`,
+    league_id: leagueId,
+    user_id: rowUserId,
+    status,
+    total_required: totalRequired,
+    completed_items: completedItems,
+    unsynced_items: 0,
+    completed_at: status === "complete" ? "2030-06-08T18:00:00.000Z" : null,
+    last_server_synced_at: "2030-06-08T18:01:00.000Z"
+  };
 }
