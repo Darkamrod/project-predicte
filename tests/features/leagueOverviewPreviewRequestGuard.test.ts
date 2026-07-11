@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createPreviewRequestGuard } from "@/features/league/leagueOverviewPreviewRequestGuard";
+import {
+  createPreviewRequestGuard,
+  mergeUniquePageItems
+} from "@/features/league/leagueOverviewPreviewRequestGuard";
 
 describe("league overview preview request guard", () => {
   it("ignores stale responses when a newer request starts", () => {
@@ -61,5 +64,27 @@ describe("league overview preview request guard", () => {
 
     guard.finishLoadMore(currentToken);
     expect(guard.isLoadMoreInFlight()).toBe(false);
+  });
+
+  it("appends later member pages without duplicating users", () => {
+    const firstPage = [
+      { userId: "complete-1", completionState: "complete" },
+      { userId: "complete-2", completionState: "complete" }
+    ];
+    const secondPage = [
+      { userId: "complete-2", completionState: "complete" },
+      { userId: "incomplete-3", completionState: "incomplete" }
+    ];
+
+    const merged = mergeUniquePageItems(firstPage, secondPage, (item) => item.userId);
+
+    expect(merged).toEqual([
+      { userId: "complete-1", completionState: "complete" },
+      { userId: "complete-2", completionState: "complete" },
+      { userId: "incomplete-3", completionState: "incomplete" }
+    ]);
+    expect(merged.filter((item) => item.completionState !== "complete")).toEqual([
+      { userId: "incomplete-3", completionState: "incomplete" }
+    ]);
   });
 });
