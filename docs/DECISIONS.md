@@ -331,3 +331,13 @@ The league overview may read only the authenticated user's prediction-set summar
 It never creates a set automatically and never infers other members' completion. Global completion
 remains post-lock only; this personal query is independent of the 200-member baseline and 500-member
 headroom.
+
+## 2026-07-11 - Milestone 11J-A - Safe Prediction Navigation and Capability Gating
+
+- Reused `/league/[leagueId]/predictions` as the only prediction workflow route. Navigation parameters contain `leagueId` only and never accept a user id.
+- Confirmed that the current `PredictionWorkflowScreen` is backed exclusively by `PredicteMockProvider`. A real Supabase UUID therefore cannot safely use that route yet because the screen has no authenticated client-side competition/prediction loader.
+- Kept mock leagues connected to the existing workflow for incomplete and complete editable sets. Locked states expose no editing CTA.
+- Kept `not_started` conservative: there is no separate explicit prediction-set initialization path, so the card shows a disabled `Compila pronostici` action and does not create a record implicitly.
+- For real Supabase leagues, editable CTA labels remain visible but disabled with an explicit integration-gap message. No navigation success is simulated and no new write path, RPC, schema, RLS, scoring, or trusted behavior is introduced.
+- The generic `Pronostici` link uses the same capability action as the personal card, so it cannot bypass `not_started`, locked lifecycle states, or an unavailable Supabase workflow.
+- Milestone 11J-A provides navigation and capability gating only. The workflow remains mock-only until Milestone 11J-B adds the authenticated Supabase loader and end-to-end integration.

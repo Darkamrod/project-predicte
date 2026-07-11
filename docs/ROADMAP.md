@@ -228,3 +228,13 @@ Do not start a later milestone without explicit authorization.
 - Personal read-only prediction progress is available before and after lock.
 - The compile/continue action is disabled once the persisted league lifecycle is locked or later.
 - No automatic prediction-set creation and no pre-lock global aggregation were introduced.
+
+## Completed in Milestone 11J-A - Safe Prediction Navigation and Capability Gating
+
+- Added a single navigation adapter for personal prediction CTA labels and the existing `/league/[leagueId]/predictions` route.
+- Kept route parameters limited to `leagueId`; authenticated identity still comes from the existing session/provider boundary.
+- Connected editable mock prediction sets to the existing workflow and removed editing navigation after lock.
+- Kept `not_started` and real Supabase workflows explicitly unavailable instead of creating prediction sets or simulating a working real-data workflow.
+- Left a future authorized task to connect `PredictionWorkflowScreen` to an authenticated Supabase competition/prediction loader and the already-existing secure prediction RPC repository.
+- Applied the same capability action to the generic `Pronostici` link and the personal card, preventing alternate navigation for `not_started`, locked lifecycle states, and real Supabase leagues without a loader.
+- Milestone 11J-B remains the explicit future scope for the authenticated Supabase loader; end-to-end compilation for real UUID leagues is not part of 11J-A.

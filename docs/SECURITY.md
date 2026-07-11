@@ -197,3 +197,11 @@ The client does not read `profiles`, `auth.users`, email fields, raw/user/privat
 Before lock, the overview requests only the authenticated user's prediction-set summary. The user id
 comes from the active session adapter rather than route input, and the query is scoped by both league
 and user. It performs no writes and reads no profiles, auth metadata, email, or other members' sets.
+
+## Milestone 11J-A - Safe Prediction Navigation and Capability Gating
+
+The personal CTA adapter builds the existing prediction route with `leagueId` only. It never accepts or serializes a user id, profile data, email, auth metadata, or prediction-set id. The authenticated identity remains owned by the existing session/provider boundary.
+
+The current prediction workflow is mock-backed, so real Supabase navigation remains disabled with a clear message. `not_started` also remains disabled because there is no separate explicit initialization operation. The generic `Pronostici` link uses the same capability gating as the personal card and cannot bypass `not_started`, locked lifecycle states, or an unavailable Supabase workflow. Milestone 11J-A adds no Supabase writes, RPC calls, schema or policy changes, service-role paths, scoring, leaderboard persistence, trusted worker behavior, or result ingestion.
+
+Milestone 11J-A does not provide end-to-end compilation for real UUID leagues. That remains the explicit scope of Milestone 11J-B, which will require an authenticated Supabase loader; until then, the workflow is mock-only.

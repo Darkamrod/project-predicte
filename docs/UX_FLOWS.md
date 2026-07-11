@@ -152,3 +152,13 @@ For real Supabase leagues, the overview shows the authenticated user's persisted
 missing count, progress, deadline and a compile/continue CTA before lock. After lock the same personal
 state remains readable but editing is disabled, alongside the post-lock global overview. No state of
 other members is exposed or inferred before lock.
+
+## Milestone 11J-A - Safe Prediction Navigation and Capability Gating
+
+The `I miei pronostici` card uses one CTA contract: incomplete mock sets open `Continua compilazione`, complete editable mock sets open `Modifica pronostici`, and locked states expose no editing action. The route carries only the current `leagueId`.
+
+`Not started` displays a disabled `Compila pronostici` action because no explicit prediction-set initialization path exists. Real Supabase leagues also display the appropriate disabled label and an explicit message because the existing prediction workflow is still mock-backed. The UI does not silently navigate to a broken screen, create prediction sets, or claim that real persistence is connected.
+
+The generic `Pronostici` link uses the same capability gating as the personal card. It cannot bypass `not_started`, locked lifecycle states, or an unavailable real Supabase workflow; when navigation is unavailable it renders as a non-interactive card with the resolver message.
+
+Milestone 11J-A covers safe navigation and capability gating only. End-to-end compilation for real UUID leagues remains unavailable until Milestone 11J-B introduces the authenticated Supabase loader; the current prediction workflow remains mock-only.

@@ -23,6 +23,10 @@ import {
   resolvePredictionCompletionOverviewAvailability,
   type PredictionCompletionOverviewState
 } from "@/domain/predictions/completionOverview";
+import {
+  resolvePersonalPredictionCompletion,
+  type PersonalPredictionCompletion
+} from "@/domain/predictions/personalCompletion";
 import { calculatePredictionCompletion } from "@/domain/predictions/progress";
 import { useAppTheme } from "@/design-system/theme";
 import { strings } from "@/i18n/strings";
@@ -34,6 +38,10 @@ import type {
 import type { League, LeagueMember } from "@/services/leagues/types";
 import { usePredicteMock } from "@/state/PredicteMockProvider";
 import { formatMemberRole, formatMemberStatus, formatSafeUserIdentity } from "./userIdentity";
+import {
+  resolvePersonalPredictionWorkflowAction,
+  type PersonalPredictionWorkflowAction
+} from "./personalPredictionWorkflowNavigation";
 import {
   isSupabasePreviewLeagueId,
   useSupabaseLeagueOverviewPreview,
@@ -93,6 +101,12 @@ export function LeagueOverviewScreen({ leagueId }: { leagueId: string }): React.
   }
 
   const predictionSet = league.predictionSets.find((set) => set.userId === currentUser.id);
+  const personalCompletion = resolvePersonalPredictionCompletion(predictionSet, league.status);
+  const personalWorkflowAction = resolvePersonalPredictionWorkflowAction({
+    leagueId: league.id,
+    state: personalCompletion.state,
+    workflowAvailable: Boolean(predictionSet)
+  });
   const completion = predictionSet
     ? calculatePredictionCompletion(predictionSet)
     : {
@@ -124,11 +138,16 @@ export function LeagueOverviewScreen({ leagueId }: { leagueId: string }): React.
         </Text>
       </AppCard>
 
+      <PersonalPredictionStatusCard
+        action={personalWorkflowAction}
+        completion={personalCompletion}
+        deadlineAtUtc={league.deadlineAtUtc}
+      />
       <PredictionCompletionPreviewCard league={league} preview={supabasePreview} />
 
       <View style={styles.grid}>
-        <LeagueLink
-          href={{ pathname: "/league/[leagueId]/predictions", params: { leagueId } }}
+        <PredictionWorkflowLink
+          action={personalWorkflowAction}
           icon={<ClipboardList color={theme.colors.primary} size={22} />}
           title={strings.leagueSections.predictions}
         />
@@ -234,6 +253,31 @@ function PersonalPredictionCard({
   }
 
   const completion = personal.completion;
+  const personalWorkflowAction = resolvePersonalPredictionWorkflowAction({
+    leagueId,
+    state: completion.state,
+    workflowAvailable: false
+  });
+
+  return (
+    <PersonalPredictionStatusCard
+      action={personalWorkflowAction}
+      completion={completion}
+      deadlineAtUtc={personal.deadlineAtUtc}
+    />
+  );
+}
+
+function PersonalPredictionStatusCard({
+  action,
+  completion,
+  deadlineAtUtc
+}: {
+  action: PersonalPredictionWorkflowAction;
+  completion: PersonalPredictionCompletion;
+  deadlineAtUtc: string | undefined;
+}): React.ReactNode {
+  const { theme } = useAppTheme();
   const stateLabel =
     completion.state === "not_started"
       ? "Non hai ancora iniziato"
@@ -260,26 +304,25 @@ function PersonalPredictionCard({
         {completion.completedItems}/{completion.totalRequired} elementi completati
         {completion.totalRequired > 0 ? ` · ${completion.missingItems} mancanti` : ""}.
       </Text>
-      {personal.deadlineAtUtc ? (
+      {deadlineAtUtc ? (
         <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
-          Deadline: {new Date(personal.deadlineAtUtc).toLocaleString("it-IT")}
+          Deadline: {new Date(deadlineAtUtc).toLocaleString("it-IT")}
         </Text>
       ) : null}
-      {completion.canEdit ? (
-        <Link href={{ pathname: "/league/[leagueId]/predictions", params: { leagueId } }} asChild>
-          <PrimaryButton
-            label={
-              completion.state === "not_started"
-                ? "Compila pronostici"
-                : completion.state === "complete"
-                  ? "Modifica pronostici"
-                  : "Continua compilazione"
-            }
-          />
+      {action.kind === "navigate" ? (
+        <Link href={action.href} asChild>
+          <PrimaryButton label={action.label} />
         </Link>
+      ) : action.kind === "unavailable" ? (
+        <>
+          <SecondaryButton disabled label={action.label} />
+          <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
+            {action.message}
+          </Text>
+        </>
       ) : (
         <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
-          La compilazione non è più modificabile.
+          {action.message}
         </Text>
       )}
     </AppCard>
@@ -865,6 +908,32 @@ function LeagueLink({
   );
 }
 
+function PredictionWorkflowLink({
+  action,
+  icon,
+  title
+}: {
+  action: PersonalPredictionWorkflowAction;
+  icon: React.ReactNode;
+  title: string;
+}): React.ReactNode {
+  const { theme } = useAppTheme();
+
+  if (action.kind === "navigate") {
+    return <LeagueLink href={action.href} icon={icon} title={title} />;
+  }
+
+  return (
+    <AppCard style={styles.disabledLinkCard}>
+      {icon}
+      <Text style={[styles.linkTitle, { color: theme.colors.textSecondary }]}>{title}</Text>
+      <Text style={[styles.disabledLinkMessage, { color: theme.colors.textSecondary }]}>
+        {action.message}
+      </Text>
+    </AppCard>
+  );
+}
+
 function formatDelta(delta: number): string {
   if (delta > 0) {
     return `+${delta}`;
@@ -1018,6 +1087,15 @@ const styles = StyleSheet.create({
   linkTitle: {
     fontSize: 16,
     fontWeight: "800"
+  },
+  disabledLinkCard: {
+    flexBasis: "47%",
+    minHeight: 104,
+    opacity: 0.7
+  },
+  disabledLinkMessage: {
+    fontSize: 12,
+    lineHeight: 17
   },
   actions: {
     flexDirection: "row",

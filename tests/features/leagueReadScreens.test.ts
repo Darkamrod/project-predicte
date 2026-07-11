@@ -104,14 +104,22 @@ describe("league read screens source contracts", () => {
   it("shows only authenticated personal prediction progress before lock", () => {
     const overviewSource = readProjectFile("src/features/league/LeagueOverviewScreen.tsx");
     const hookSource = readProjectFile("src/features/league/useSupabaseLeagueOverviewPreview.ts");
+    const navigationSource = readProjectFile(
+      "src/features/league/personalPredictionWorkflowNavigation.ts"
+    );
+    const mockOverviewSource = overviewSource.slice(
+      overviewSource.indexOf("export function LeagueOverviewScreen"),
+      overviewSource.indexOf("function SupabaseLeaguePreviewOnlyScreen")
+    );
     const repositorySource = readProjectFile(
       "src/services/leagues/supabaseLeagueReadRepository.ts"
     );
 
     expect(overviewSource).toContain("I miei pronostici");
     expect(overviewSource).toContain("Non hai ancora iniziato");
-    expect(overviewSource).toContain("Continua compilazione");
-    expect(overviewSource).toContain("Modifica pronostici");
+    expect(navigationSource).toContain("Compila pronostici");
+    expect(navigationSource).toContain("Continua compilazione");
+    expect(navigationSource).toContain("Modifica pronostici");
     expect(overviewSource).toContain("Pronostici bloccati");
     expect(hookSource).toContain("auth.session?.user.id");
     expect(hookSource).toContain("personalPredictionsGuardRef");
@@ -119,5 +127,18 @@ describe("league read screens source contracts", () => {
     expect(repositorySource).toContain('.eq("league_id", leagueId)');
     expect(repositorySource).toContain('.eq("user_id", authenticatedUserId)');
     expect(repositorySource).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
+    expect(overviewSource).toContain("resolvePersonalPredictionWorkflowAction");
+    expect(mockOverviewSource).toContain("const personalWorkflowAction =");
+    expect(mockOverviewSource.match(/action=\{personalWorkflowAction\}/g)).toHaveLength(2);
+    expect(mockOverviewSource).toContain("<PredictionWorkflowLink");
+    expect(overviewSource).toContain('action.kind === "navigate"');
+    expect(overviewSource).toContain("styles.disabledLinkCard");
+    expect(overviewSource).not.toContain('href={{ pathname: "/league/[leagueId]/predictions"');
+    expect(navigationSource).toContain('pathname: "/league/[leagueId]/predictions"');
+    expect(navigationSource).toContain("params: {");
+    expect(navigationSource).toContain("leagueId: input.leagueId");
+    expect(navigationSource).not.toMatch(/userId|insert|update|upsert|delete|rpc/i);
+    expect(navigationSource).toContain("non viene inizializzata automaticamente");
+    expect(navigationSource).toContain("workflow Supabase reale non è ancora collegato");
   });
 });
