@@ -145,3 +145,10 @@ This improves readability without turning profiles into a public directory. The 
 The league overview now includes an `Avanzamento pronostici` card. Before lock, it shows that global progress will become available after predictions are blocked; it does not infer missing users from prediction sets hidden by RLS. Mock leagues keep a clear fallback without changing the rest of the demo flow.
 
 After lock, real Supabase leagues show separate complete, incomplete, without-prediction, and locked metrics calculated from active members only. The detail list filters non-complete users from member pages already loaded, so its empty text is page-specific and load more may reveal additional users; it is not a dedicated server-side incomplete-only query. The card shows league status/deadline when visible and keeps load-more/error/empty states. It does not calculate scores, standings, brackets, or official leaderboard data in the client.
+
+# Milestone 11I — I miei pronostici
+
+For real Supabase leagues, the overview shows the authenticated user's persisted completion state,
+missing count, progress, deadline and a compile/continue CTA before lock. After lock the same personal
+state remains readable but editing is disabled, alongside the post-lock global overview. No state of
+other members is exposed or inferred before lock.

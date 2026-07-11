@@ -324,3 +324,10 @@
 - Counts are derived from persisted `prediction_sets.status`, `total_required`, and `completed_items`; complete, incomplete, missing, and locked remain separate metrics. The client does not calculate scoring, standings, bracket outcomes, or official leaderboard data.
 - Kept all reads scoped by `league_id`, reused the public Supabase client and RLS, and left schema, migrations, policies, RPCs, trusted worker, result ingestion, service-role paths, official scoring persistence, and leaderboard persistence unchanged.
 - Preserved the scale framing: about 200 participants is the real reference and 500 is technical headroom. Query-plan review, load tests, and advanced admin filters remain future work.
+
+# Milestone 11I — personal prediction progress before lock
+
+The league overview may read only the authenticated user's prediction-set summary before lock.
+It never creates a set automatically and never infers other members' completion. Global completion
+remains post-lock only; this personal query is independent of the 200-member baseline and 500-member
+headroom.

@@ -44,6 +44,52 @@ describe("pagination helpers", () => {
 });
 
 describe("SupabaseLeagueReadRepository", () => {
+  it("reads only the authenticated user's prediction set for a league", async () => {
+    const { client, calls } = createReadClient({
+      leagues: {
+        data: [{ id: leagueId, status: "open", deadline_at: "2026-07-12T10:00:00Z" }]
+      },
+      prediction_sets: {
+        data: [
+          {
+            id: "set-1",
+            league_id: leagueId,
+            user_id: userId,
+            status: "draft",
+            total_required: 10,
+            completed_items: 4,
+            unsynced_items: 0,
+            completed_at: null,
+            last_server_synced_at: null
+          }
+        ]
+      }
+    });
+    const repository = new SupabaseLeagueReadRepository(client);
+
+    const result = await repository.getCurrentUserPredictionSetSummary(leagueId, userId);
+
+    expect(result.predictionSet?.userId).toBe(userId);
+    expect(calls.find((call) => call.table === "prediction_sets")?.filters).toEqual([
+      { column: "league_id", value: leagueId },
+      { column: "user_id", value: userId }
+    ]);
+    expect(calls.flatMap((call) => call.mutations)).toEqual([]);
+  });
+  it("returns no personal prediction set without creating one when no row exists", async () => {
+    const { client, calls } = createReadClient({
+      leagues: {
+        data: [{ id: leagueId, status: "open", deadline_at: "2026-07-12T10:00:00Z" }]
+      },
+      prediction_sets: { data: [] }
+    });
+    const repository = new SupabaseLeagueReadRepository(client);
+
+    const result = await repository.getCurrentUserPredictionSetSummary(leagueId, userId);
+
+    expect(result.predictionSet).toBeUndefined();
+    expect(calls.flatMap((call) => call.mutations)).toEqual([]);
+  });
   it("lists active league members with default pagination when callers omit options", async () => {
     const { client, calls } = createReadClient({
       league_members: {

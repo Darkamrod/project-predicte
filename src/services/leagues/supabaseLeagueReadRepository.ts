@@ -84,6 +84,11 @@ export interface LeagueStatusSummaryItem {
   deadlineAtUtc: string;
 }
 
+export interface CurrentUserPredictionSetSummary {
+  league: LeagueStatusSummaryItem;
+  predictionSet: PredictionSetSummaryItem | undefined;
+}
+
 export interface PredictionCompletionParticipantItem {
   leagueId: string;
   userId: string;
@@ -248,6 +253,35 @@ export class SupabaseLeagueReadRepository {
     }
 
     return data?.[0] ? mapLeagueStatusSummary(data[0]) : undefined;
+  }
+
+  async getCurrentUserPredictionSetSummary(
+    leagueId: string,
+    authenticatedUserId: string
+  ): Promise<CurrentUserPredictionSetSummary> {
+    const league = await this.getLeagueStatusSummary(leagueId);
+
+    if (!league) {
+      throw new Error("League not found or not visible");
+    }
+
+    const { data, error } = await resolveSupabaseReadClient(this.client)
+      .from("prediction_sets")
+      .select(
+        "id,league_id,user_id,status,total_required,completed_items,unsynced_items,completed_at,last_server_synced_at"
+      )
+      .eq("league_id", leagueId)
+      .eq("user_id", authenticatedUserId)
+      .range(0, 0);
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      league,
+      predictionSet: data?.[0] ? mapPredictionSetSummary(data[0]) : undefined
+    };
   }
 
   async listPredictionSetSummariesForUsers(

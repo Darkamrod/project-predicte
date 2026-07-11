@@ -191,3 +191,9 @@ Milestone 11H composes existing read-only, league-scoped data in the mobile clie
 After lock, the overview reads active member ids, prediction-set summaries filtered to those ids, league status/deadline, and minimal public identities through the public Supabase client and existing RLS. Removed and inactive members are excluded from every aggregate. Reads are batched and remain scoped by `league_id`; no policy, grant, RPC, or profile visibility is widened.
 
 The client does not read `profiles`, `auth.users`, email fields, raw/user/private metadata, or service-role credentials. It does not write prediction state, scoring events, leaderboard snapshots, result ingestion rows, policies, grants, RPCs, or schema. Completion counts are based on persisted `prediction_sets` completion fields and are not official scoring or leaderboard calculations.
+
+# Milestone 11I personal prediction privacy
+
+Before lock, the overview requests only the authenticated user's prediction-set summary. The user id
+comes from the active session adapter rather than route input, and the query is scoped by both league
+and user. It performs no writes and reads no profiles, auth metadata, email, or other members' sets.

@@ -197,10 +197,92 @@ function SupabaseLeaguePreviewOnlyScreen({
           azioni demo restano disponibili solo sulle leghe mock.
         </Text>
       </AppCard>
+      <PersonalPredictionCard leagueId={leagueId} preview={preview} />
       <PredictionCompletionPreviewCard preview={preview} />
       <ParticipantsPreviewCard preview={preview} />
       <LeaderboardPreviewCard preview={preview} />
     </AppScreen>
+  );
+}
+
+function PersonalPredictionCard({
+  leagueId,
+  preview
+}: {
+  leagueId: string;
+  preview: SupabaseLeagueOverviewPreview;
+}): React.ReactNode {
+  const { theme } = useAppTheme();
+  const personal = preview.personalPredictions;
+
+  if (personal.loading) {
+    return (
+      <AppCard>
+        <PreviewMessage message="Caricamento dei tuoi pronostici..." />
+      </AppCard>
+    );
+  }
+
+  if (personal.error || !personal.completion) {
+    return (
+      <AppCard>
+        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>I miei pronostici</Text>
+        <PreviewMessage message={personal.error ?? "Stato personale non disponibile."} />
+        <SecondaryButton label="Riprova" onPress={preview.refresh} />
+      </AppCard>
+    );
+  }
+
+  const completion = personal.completion;
+  const stateLabel =
+    completion.state === "not_started"
+      ? "Non hai ancora iniziato"
+      : completion.state === "complete"
+        ? "Pronostici completi"
+        : completion.state === "locked"
+          ? "Pronostici bloccati"
+          : `Ti mancano ${completion.missingItems} elementi`;
+
+  return (
+    <AppCard>
+      <View style={styles.previewHeader}>
+        <View style={styles.flex}>
+          <Text style={[styles.kicker, { color: theme.colors.primary }]}>Solo il tuo stato</Text>
+          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>I miei pronostici</Text>
+        </View>
+        <StatusBadge
+          label={stateLabel}
+          tone={completion.state === "locked" ? "neutral" : "primary"}
+        />
+      </View>
+      <ProgressBar value={completion.percentComplete} label="Avanzamento personale" />
+      <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
+        {completion.completedItems}/{completion.totalRequired} elementi completati
+        {completion.totalRequired > 0 ? ` · ${completion.missingItems} mancanti` : ""}.
+      </Text>
+      {personal.deadlineAtUtc ? (
+        <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
+          Deadline: {new Date(personal.deadlineAtUtc).toLocaleString("it-IT")}
+        </Text>
+      ) : null}
+      {completion.canEdit ? (
+        <Link href={{ pathname: "/league/[leagueId]/predictions", params: { leagueId } }} asChild>
+          <PrimaryButton
+            label={
+              completion.state === "not_started"
+                ? "Compila pronostici"
+                : completion.state === "complete"
+                  ? "Modifica pronostici"
+                  : "Continua compilazione"
+            }
+          />
+        </Link>
+      ) : (
+        <Text style={[styles.previewMeta, { color: theme.colors.textSecondary }]}>
+          La compilazione non è più modificabile.
+        </Text>
+      )}
+    </AppCard>
   );
 }
 

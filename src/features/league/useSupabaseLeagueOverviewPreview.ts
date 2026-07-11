@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { resolvePersonalPredictionCompletion } from "@/domain/predictions/personalCompletion";
+
 import type {
   LeaderboardEntryListItem,
   LeaderboardSnapshotSummaryItem,
@@ -9,6 +11,7 @@ import type {
 import { SupabaseLeagueReadRepository } from "@/services/leagues/supabaseLeagueReadRepository";
 import type { PaginationMeta } from "@/services/pagination";
 import { getSupabaseClient } from "@/services/supabase/client";
+import { useAuth } from "@/state/AuthProvider";
 import {
   createPreviewRequestGuard,
   mergeUniquePageItems
@@ -41,10 +44,18 @@ export interface SupabaseLeagueOverviewPreview {
   members: PreviewListState<LeagueMemberListItem>;
   leaderboard: LeaderboardPreviewState;
   predictions: PredictionCompletionPreviewState;
+  personalPredictions: PersonalPredictionPreviewState;
   loadMoreMembers(): void;
   loadMoreLeaderboard(): void;
   loadMorePredictions(): void;
   refresh(): void;
+}
+
+interface PersonalPredictionPreviewState {
+  completion: ReturnType<typeof resolvePersonalPredictionCompletion> | undefined;
+  deadlineAtUtc: string | undefined;
+  loading: boolean;
+  error: string | undefined;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -54,6 +65,7 @@ export function isSupabasePreviewLeagueId(leagueId: string): boolean {
 }
 
 export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeagueOverviewPreview {
+  const auth = useAuth();
   const client = useMemo(() => getSupabaseClient(), []);
   const repository = useMemo(
     () => (client ? new SupabaseLeagueReadRepository(client) : undefined),
@@ -63,6 +75,7 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
   const membersGuardRef = useRef(createPreviewRequestGuard());
   const leaderboardGuardRef = useRef(createPreviewRequestGuard());
   const predictionsGuardRef = useRef(createPreviewRequestGuard());
+  const personalPredictionsGuardRef = useRef(createPreviewRequestGuard());
   const [members, setMembers] =
     useState<PreviewListState<LeagueMemberListItem>>(createInitialListState);
   const [leaderboard, setLeaderboard] = useState<LeaderboardPreviewState>(
@@ -71,15 +84,64 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
   const [predictions, setPredictions] = useState<PredictionCompletionPreviewState>(
     createInitialPredictionCompletionState
   );
+  const [personalPredictions, setPersonalPredictions] = useState<PersonalPredictionPreviewState>({
+    completion: undefined,
+    deadlineAtUtc: undefined,
+    loading: false,
+    error: undefined
+  });
 
   useEffect(
     () => () => {
       membersGuardRef.current.cleanup();
       leaderboardGuardRef.current.cleanup();
       predictionsGuardRef.current.cleanup();
+      personalPredictionsGuardRef.current.cleanup();
     },
     []
   );
+
+  const loadPersonalPredictions = useCallback(async () => {
+    const authenticatedUserId = auth.session?.user.id;
+
+    if (!enabled || !repository || !authenticatedUserId) {
+      setPersonalPredictions({
+        completion: undefined,
+        deadlineAtUtc: undefined,
+        loading: false,
+        error: authenticatedUserId ? undefined : "Accedi per vedere i tuoi pronostici."
+      });
+      return;
+    }
+
+    const guard = personalPredictionsGuardRef.current;
+    const token = guard.beginReplacingRequest();
+    setPersonalPredictions((current) => ({ ...current, loading: true, error: undefined }));
+
+    try {
+      const result = await repository.getCurrentUserPredictionSetSummary(
+        leagueId,
+        authenticatedUserId
+      );
+
+      if (!guard.canApply(token)) return;
+      setPersonalPredictions({
+        completion: resolvePersonalPredictionCompletion(result.predictionSet, result.league.status),
+        deadlineAtUtc: result.league.deadlineAtUtc,
+        loading: false,
+        error: undefined
+      });
+    } catch (error) {
+      if (!guard.canApply(token)) return;
+      setPersonalPredictions((current) => ({
+        ...current,
+        loading: false,
+        error: errorToMessage(error)
+      }));
+    } finally {
+      guard.finishReplacingRequest(token);
+    }
+  }, [auth.session?.user.id, enabled, leagueId, repository]);
 
   const loadMembers = useCallback(
     async (page: number, append: boolean) => {
@@ -368,6 +430,7 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
     membersGuardRef.current.reset();
     leaderboardGuardRef.current.reset();
     predictionsGuardRef.current.reset();
+    personalPredictionsGuardRef.current.reset();
     setMembers(createInitialListState());
     setLeaderboard(createInitialLeaderboardState());
     setPredictions(createInitialPredictionCompletionState());
@@ -379,7 +442,8 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
     void loadMembers(1, false);
     void loadLeaderboard(1, false);
     void loadPredictions(1, false);
-  }, [enabled, loadLeaderboard, loadMembers, loadPredictions]);
+    void loadPersonalPredictions();
+  }, [enabled, loadLeaderboard, loadMembers, loadPersonalPredictions, loadPredictions]);
 
   const loadMoreMembers = useCallback(() => {
     if (!members.loading && !members.loadingMore && members.pagination.hasNextPage) {
@@ -425,13 +489,15 @@ export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeag
     void loadMembers(1, false);
     void loadLeaderboard(1, false);
     void loadPredictions(1, false);
-  }, [enabled, loadLeaderboard, loadMembers, loadPredictions]);
+    void loadPersonalPredictions();
+  }, [enabled, loadLeaderboard, loadMembers, loadPersonalPredictions, loadPredictions]);
 
   return {
     enabled,
     members,
     leaderboard,
     predictions,
+    personalPredictions,
     loadMoreMembers,
     loadMoreLeaderboard,
     loadMorePredictions,

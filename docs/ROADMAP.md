@@ -222,3 +222,9 @@
 The next milestone should be defined by a future authorized prompt. Likely candidates remain official advancement matrix implementation, scheduled retry execution, remote Edge Function deployment automation, richer result correction UX/audit views, full leg-by-leg two-match knockout prediction support, or a separately authorized real provider adapter.
 
 Do not start a later milestone without explicit authorization.
+
+# Milestone 11I — completed scope
+
+- Personal read-only prediction progress is available before and after lock.
+- The compile/continue action is disabled once the persisted league lifecycle is locked or later.
+- No automatic prediction-set creation and no pre-lock global aggregation were introduced.

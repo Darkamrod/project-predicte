@@ -100,4 +100,24 @@ describe("league read screens source contracts", () => {
       /scorePredictionSetTournament|persist_scoring_recalculation|leaderboard_entries.*insert|world_cup|euro_2028|champions_league/i
     );
   });
+
+  it("shows only authenticated personal prediction progress before lock", () => {
+    const overviewSource = readProjectFile("src/features/league/LeagueOverviewScreen.tsx");
+    const hookSource = readProjectFile("src/features/league/useSupabaseLeagueOverviewPreview.ts");
+    const repositorySource = readProjectFile(
+      "src/services/leagues/supabaseLeagueReadRepository.ts"
+    );
+
+    expect(overviewSource).toContain("I miei pronostici");
+    expect(overviewSource).toContain("Non hai ancora iniziato");
+    expect(overviewSource).toContain("Continua compilazione");
+    expect(overviewSource).toContain("Modifica pronostici");
+    expect(overviewSource).toContain("Pronostici bloccati");
+    expect(hookSource).toContain("auth.session?.user.id");
+    expect(hookSource).toContain("personalPredictionsGuardRef");
+    expect(repositorySource).toContain("getCurrentUserPredictionSetSummary");
+    expect(repositorySource).toContain('.eq("league_id", leagueId)');
+    expect(repositorySource).toContain('.eq("user_id", authenticatedUserId)');
+    expect(repositorySource).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
+  });
 });
