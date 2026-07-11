@@ -237,4 +237,12 @@ Do not start a later milestone without explicit authorization.
 - Kept `not_started` and real Supabase workflows explicitly unavailable instead of creating prediction sets or simulating a working real-data workflow.
 - Left a future authorized task to connect `PredictionWorkflowScreen` to an authenticated Supabase competition/prediction loader and the already-existing secure prediction RPC repository.
 - Applied the same capability action to the generic `Pronostici` link and the personal card, preventing alternate navigation for `not_started`, locked lifecycle states, and real Supabase leagues without a loader.
-- Milestone 11J-B remains the explicit future scope for the authenticated Supabase loader; end-to-end compilation for real UUID leagues is not part of 11J-A.
+- Milestone 11J-B is the explicit follow-up for the authenticated Supabase loader; end-to-end compilation for real UUID leagues is not part of 11J-A.
+
+## Completed in Milestone 11J-B - Authenticated Supabase Prediction Loader
+
+- Added independent route selection: non-UUID ids retain the complete mock workflow, while UUID ids use an authenticated Supabase loader with no mock fallback.
+- Added deep-link guards for configuration, session, league visibility, active membership, persisted lifecycle, stale requests, user/league changes, and unmount.
+- Loaded versioned league context, the session user's prediction set, persisted personal predictions, and edition matches through read-only, league-scoped queries.
+- Kept locked/live/completed/archived states read-only and kept a missing prediction set explicit without automatic initialization.
+- Did not connect the existing secure prediction RPCs because a complete authenticated target catalog/adapter is still missing. Full UUID Quick/Expert editing remains future work and must not reuse mock targets.

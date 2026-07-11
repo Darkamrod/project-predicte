@@ -204,4 +204,19 @@ The personal CTA adapter builds the existing prediction route with `leagueId` on
 
 The current prediction workflow is mock-backed, so real Supabase navigation remains disabled with a clear message. `not_started` also remains disabled because there is no separate explicit initialization operation. The generic `Pronostici` link uses the same capability gating as the personal card and cannot bypass `not_started`, locked lifecycle states, or an unavailable Supabase workflow. Milestone 11J-A adds no Supabase writes, RPC calls, schema or policy changes, service-role paths, scoring, leaderboard persistence, trusted worker behavior, or result ingestion.
 
-Milestone 11J-A does not provide end-to-end compilation for real UUID leagues. That remains the explicit scope of Milestone 11J-B, which will require an authenticated Supabase loader; until then, the workflow is mock-only.
+Milestone 11J-A does not provide end-to-end compilation for real UUID leagues. Milestone 11J-B introduces the authenticated Supabase loader while keeping editing disabled until every real target is safely available.
+
+## Milestone 11J-B Authenticated Loader Security
+
+The UUID route performs its own checks and does not rely on overview navigation. It requires configured
+Supabase, an authenticated session, an RLS-visible league, and active membership. The route contains
+only `leagueId`; the personal `userId` comes from the active session and scopes the prediction-set
+query together with `league_id`. Child predictions are read only through the resulting set id.
+
+The UUID loader reads no `profiles`, `auth.users`, email, auth metadata, private metadata, or
+service-role credentials. It ignores stale responses after league/session changes or unmount. It uses
+the persisted lifecycle rather than device time and exposes locked/later states as read-only.
+
+Milestone 11J-B adds no mutation, migration, RLS policy, grant, RPC, trusted worker, result ingestion,
+official scoring, or leaderboard persistence. Existing personal prediction RPCs remain disconnected
+until the authenticated read-side can provide every target required by the full editor.

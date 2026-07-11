@@ -161,4 +161,20 @@ The `I miei pronostici` card uses one CTA contract: incomplete mock sets open `C
 
 The generic `Pronostici` link uses the same capability gating as the personal card. It cannot bypass `not_started`, locked lifecycle states, or an unavailable real Supabase workflow; when navigation is unavailable it renders as a non-interactive card with the resolver message.
 
-Milestone 11J-A covers safe navigation and capability gating only. End-to-end compilation for real UUID leagues remains unavailable until Milestone 11J-B introduces the authenticated Supabase loader; the current prediction workflow remains mock-only.
+Milestone 11J-A covers safe navigation and capability gating only. Milestone 11J-B introduces the authenticated Supabase loader, while full UUID editing remains unavailable until the real target adapter is complete.
+
+## Milestone 11J-B - Authenticated Supabase Prediction Loader
+
+The prediction route now selects its data source from the league id. Demo ids continue to open the
+existing Quick/Expert mock workflow unchanged. A valid UUID opens a separate Supabase screen and never
+falls back to mock competition or prediction data.
+
+The UUID screen covers loading, missing configuration, missing session, inaccessible league, retryable
+errors, missing prediction set, insufficient target data, and persisted locked/read-only lifecycle
+states. It shows the real league, edition/version context, persisted completion counters, and the count
+of personal match predictions already loaded.
+
+Quick/Expert controls are not shown for UUID leagues yet. The authenticated client read-side does not
+currently expose a complete target catalog for bracket and antepost editing, so presenting the mock
+workflow would be misleading. A missing prediction set is reported explicitly and never created on
+route open. Existing secure write RPCs remain unused until the real target adapter is complete.

@@ -11,6 +11,7 @@ import type {
 import { SupabaseLeagueReadRepository } from "@/services/leagues/supabaseLeagueReadRepository";
 import type { PaginationMeta } from "@/services/pagination";
 import { getSupabaseClient } from "@/services/supabase/client";
+import { isSupabaseUuid } from "@/services/supabase/identifiers";
 import { useAuth } from "@/state/AuthProvider";
 import {
   createPreviewRequestGuard,
@@ -58,11 +59,7 @@ interface PersonalPredictionPreviewState {
   error: string | undefined;
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isSupabasePreviewLeagueId(leagueId: string): boolean {
-  return UUID_PATTERN.test(leagueId);
-}
+export const isSupabasePreviewLeagueId = isSupabaseUuid;
 
 export function useSupabaseLeagueOverviewPreview(leagueId: string): SupabaseLeagueOverviewPreview {
   const auth = useAuth();

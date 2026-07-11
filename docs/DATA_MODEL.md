@@ -312,3 +312,15 @@ After lock, active member ids are loaded in bounded batches and become the singl
 The personal overview reads the authenticated member's existing `prediction_sets` row by
 `league_id` and session-derived `user_id`. A missing row remains `not_started`; the read path never
 creates one. Global member completion remains unavailable before lock.
+
+# Milestone 11J-B authenticated prediction workflow read model
+
+The UUID prediction route now loads a league-scoped read model containing persisted lifecycle and
+deadline, competition edition and version references, the visible version payloads, edition matches,
+the authenticated user's prediction set, and that set's match, tie-break, and antepost predictions.
+The user id is supplied by the active Supabase session and is never a route parameter.
+
+The read model is intentionally not converted into the existing mock `CompetitionSeed`. The current
+client RLS catalog does not expose every target required by the complete editor, including bracket
+slots and antepost definitions. Until a future authorized read-side contract closes that gap, UUID
+Quick/Expert editing remains unavailable and no mock target data is substituted.

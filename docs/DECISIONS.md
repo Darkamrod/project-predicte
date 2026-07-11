@@ -340,4 +340,14 @@ headroom.
 - Kept `not_started` conservative: there is no separate explicit prediction-set initialization path, so the card shows a disabled `Compila pronostici` action and does not create a record implicitly.
 - For real Supabase leagues, editable CTA labels remain visible but disabled with an explicit integration-gap message. No navigation success is simulated and no new write path, RPC, schema, RLS, scoring, or trusted behavior is introduced.
 - The generic `Pronostici` link uses the same capability action as the personal card, so it cannot bypass `not_started`, locked lifecycle states, or an unavailable Supabase workflow.
-- Milestone 11J-A provides navigation and capability gating only. The workflow remains mock-only until Milestone 11J-B adds the authenticated Supabase loader and end-to-end integration.
+- Milestone 11J-A provides navigation and capability gating only. Milestone 11J-B adds the authenticated Supabase loader; end-to-end UUID editing still depends on a complete real target adapter.
+
+## 2026-07-11 - Milestone 11J-B - Authenticated Supabase Prediction Loader
+
+- Routed non-UUID league ids to the unchanged `PredicteMockProvider` workflow and valid UUID league ids to a separate authenticated Supabase screen. The UUID branch never uses mock competition or prediction data.
+- Added a read-only prediction workflow repository that verifies a visible league plus active membership, scopes the personal prediction-set query by both `league_id` and the session user id, and loads persisted match predictions, tie-break overrides, and antepost predictions only through that set id.
+- Loaded persisted league lifecycle/deadline, edition reference, format/ruleset/prediction-requirement/scoring-preset version rows, locked snapshot metadata, and edition matches. The route still carries only `leagueId`; user identity comes from `AuthProvider.session`.
+- Kept direct deep links independently guarded for Supabase configuration, session presence, RLS-visible league, active membership, stale responses, session/league changes, and unmount.
+- Kept `not_started` explicit and side-effect free. Existing create/join flows normally create prediction sets, but no separate initialization RPC exists and the loader never inserts one.
+- Confirmed that secure personal prediction RPCs already exist, but did not connect them. The current authenticated read-side does not expose a complete target catalog for the full Quick/Expert workflow, notably bracket slots and antepost definitions, so UUID editing remains conservatively unavailable instead of borrowing mock targets.
+- Added no migration, policy, grant, RPC, direct table write, scoring path, leaderboard persistence, trusted worker behavior, or result ingestion behavior.
