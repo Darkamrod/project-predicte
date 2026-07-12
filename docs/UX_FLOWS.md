@@ -212,3 +212,33 @@ match and participant position without ambiguity. It will first evaluate the sch
 the required single-leg demo path without hardcoding one competition, and retain room for future
 two-leg formats. Quick/Expert and all personal writes remain unavailable until C2B is validated and a
 separate C3 milestone is authorized.
+
+## Milestone 11J-C2B - Versioned Bracket Destination Mapping
+
+The authenticated read model can identify the versioned bracket node, target match, home/away side,
+leg, slot key, and participant source. World Cup 2026 uses the official fixed FIFA bracket plus the
+separate 495-row conditional best-third matrix. EURO ingestion is deferred; Champions League remains
+blocked because two-leg aggregate behavior is not supported.
+
+The UUID screen may show destination mapping counts and conservative diagnostics. It still does not
+render editable Quick/Expert controls, initialize prediction sets, or expose save actions. Personal
+participants must ultimately come from the user's predicted standings and match advancement, never
+from official results; unresolved rankings and prior predictions remain blockers.
+
+### C2B1 scope
+
+C2B1 makes the destination catalog upgrade-safe through separate nullable-structure, official-data,
+and final-constraint migrations. The World Cup 2026 mapping is migration-owned and derived from FIFA
+Articles 12.6-12.11 plus Annexe C; the seed only requests idempotent reconciliation. EURO catalog
+ingestion is future work. Unsupported legacy rows produce diagnostics and Champions two-leg remains
+blocked. C2B2, C2B3, and C3 are not started, personal participants remain unresolved, and UUID
+Quick/Expert entry remains read-only.
+
+The read-only UUID diagnostics consume all bracket catalog sections returned in one batch: versioned
+nodes, source slots, and conditional best-third combinations with assignments. Malformed sections are
+errors rather than silently becoming empty. No participant resolver, initialization, or save control
+is enabled by C2B1.
+
+This changes no interaction capability. UUID Quick/Expert remains read-only with no initialization or
+save action. C2B2 will complete the authenticated inputs and C2B3 will resolve personal participants
+before any separately authorized C3 write integration.

@@ -66,7 +66,9 @@ describe("authenticated prediction workflow route contracts", () => {
     expect(adapter).not.toMatch(/react|supabase|usePredicteMock|PredicteMockProvider/i);
     expect(adapter).not.toMatch(/world_cup|euro_2028|champions_league/i);
     expect(screen).toContain("catalogReadPathAvailable: true");
-    expect(screen).toContain("bracketSlotDestinationsAvailable: false");
+    expect(screen).toContain(
+      "bracketSlotDestinationsAvailable: context.targetCatalog.bracketSlots.every"
+    );
     expect(screen).toContain("targetAdapter");
     expect(combined).not.toMatch(/\.(insert|update|upsert|delete)\(/);
     expect(combined).not.toMatch(

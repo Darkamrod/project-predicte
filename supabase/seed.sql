@@ -653,3 +653,23 @@ from (
     ('00000000-0000-4000-8000-000000000523'::uuid, '00000000-0000-4000-8000-000000000533'::uuid, '00000000-0000-4000-8000-000000000543'::uuid, '00000000-0000-4000-8000-000000000553'::uuid, '00000000-0000-4000-8000-000000000563'::uuid)
 ) as mapping(edition_id, format_id, ruleset_id, requirement_id, scoring_id)
 where public.competition_editions.id = mapping.edition_id;
+
+-- Milestone 11J-C2B1 catalog data is owned exclusively by the authoritative migrations.
+
+select public.populate_supported_bracket_destination_catalog(
+  '00000000-0000-4000-8000-000000000531'::uuid
+);
+select public.populate_world_cup_2026_best_third_matrix(
+  '00000000-0000-4000-8000-000000000531'::uuid
+);
+select public.populate_supported_bracket_destination_catalog(
+  '00000000-0000-4000-8000-000000000531'::uuid
+);
+
+insert into public.competition_antepost_definitions (id, edition_id, code, label, value_type, required)
+values
+  (public.predicte_catalog_uuid('wc2026:antepost:top_scorer'), '00000000-0000-4000-8000-000000000521', 'TOP_SCORER', 'Capocannoniere', 'PLAYER', true),
+  (public.predicte_catalog_uuid('wc2026:antepost:top_scorer_goals'), '00000000-0000-4000-8000-000000000521', 'TOP_SCORER_GOALS', 'Gol capocannoniere', 'NUMBER', true),
+  (public.predicte_catalog_uuid('euro2028:antepost:top_scorer'), '00000000-0000-4000-8000-000000000522', 'TOP_SCORER', 'Capocannoniere', 'PLAYER', true),
+  (public.predicte_catalog_uuid('euro2028:antepost:top_scorer_goals'), '00000000-0000-4000-8000-000000000522', 'TOP_SCORER_GOALS', 'Gol capocannoniere', 'NUMBER', true)
+on conflict (id) do update set label = excluded.label, value_type = excluded.value_type, required = excluded.required;

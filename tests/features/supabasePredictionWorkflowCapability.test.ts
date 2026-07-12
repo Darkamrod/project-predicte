@@ -97,7 +97,9 @@ function createContext(
       formatTemplateVersionId: "format-1",
       rulesetVersionId: "rules-1",
       predictionRequirementVersionId: "requirements-1",
+      bracketNodes: [],
       bracketSlots: [],
+      bestThirdCombinations: [],
       antepostDefinitions: [],
       tiebreakRules: []
     }

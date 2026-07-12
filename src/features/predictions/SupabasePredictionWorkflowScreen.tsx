@@ -67,7 +67,9 @@ export function SupabasePredictionWorkflowScreen({
     antepostDefinitions: context.targetCatalog.antepostDefinitions,
     tiebreakRules: context.targetCatalog.tiebreakRules,
     catalogReadPathAvailable: true,
-    bracketSlotDestinationsAvailable: false
+    bracketSlotDestinationsAvailable: context.targetCatalog.bracketSlots.every((slot) =>
+      Boolean(slot.targetMatchId && slot.targetSide && slot.slotKey)
+    )
   });
   const capability = resolveSupabasePredictionWorkflowCapability(context, targetAdapter);
   const predictionSet = context.predictionSet;
@@ -119,6 +121,13 @@ export function SupabasePredictionWorkflowScreen({
               Catalogo protetto: {targetAdapter.catalog.bracketSlotCount} slot bracket,{" "}
               {targetAdapter.catalog.supportedAntepostDefinitionIds.length} antepost MVP,{" "}
               {targetAdapter.catalog.tiebreakRuleCount} regole tie-break.
+            </Text>
+            <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
+              Nodi versionati: {context.targetCatalog.bracketNodes.length} · combinazioni migliori
+              terze: {context.targetCatalog.bestThirdCombinations.length}.
+            </Text>
+            <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
+              Destinazioni bracket valide: {targetAdapter.catalog.destinationMappingCount}.
             </Text>
           </>
         ) : (

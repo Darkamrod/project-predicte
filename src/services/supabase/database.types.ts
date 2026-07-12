@@ -1,4 +1,4 @@
-﻿export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   public: {
@@ -93,24 +93,42 @@ export type Database = {
       bracket_slots: {
         Row: {
           edition_id: string;
+          format_template_version_id: string;
           id: string;
           round_id: string;
+          slot_key: string;
           source_payload: Json;
           source_type: string;
+          target_leg: number;
+          target_match_id: string;
+          target_node_id: string;
+          target_side: string;
         };
         Insert: {
           edition_id: string;
+          format_template_version_id: string;
           id?: string;
           round_id: string;
+          slot_key: string;
           source_payload: Json;
           source_type: string;
+          target_leg?: number;
+          target_match_id: string;
+          target_node_id: string;
+          target_side: string;
         };
         Update: {
           edition_id?: string;
+          format_template_version_id?: string;
           id?: string;
           round_id?: string;
+          slot_key?: string;
           source_payload?: Json;
           source_type?: string;
+          target_leg?: number;
+          target_match_id?: string;
+          target_node_id?: string;
+          target_side?: string;
         };
         Relationships: [
           {
@@ -121,11 +139,32 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "bracket_slots_format_template_version_id_fkey";
+            columns: ["format_template_version_id"];
+            isOneToOne: false;
+            referencedRelation: "format_template_versions";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "bracket_slots_round_id_fkey";
             columns: ["round_id"];
             isOneToOne: false;
             referencedRelation: "rounds";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bracket_slots_target_match_id_fkey";
+            columns: ["target_match_id"];
+            isOneToOne: false;
+            referencedRelation: "matches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bracket_slots_target_node_version_fkey";
+            columns: ["format_template_version_id", "target_node_id"];
+            isOneToOne: false;
+            referencedRelation: "format_template_match_nodes";
+            referencedColumns: ["format_template_version_id", "id"];
           }
         ];
       };
@@ -439,6 +478,159 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      format_template_best_third_assignments: {
+        Row: {
+          combination_id: string;
+          format_template_version_id: string;
+          id: string;
+          target_node_id: string;
+          target_side: string;
+          third_place_group_code: string;
+          winner_group_code: string;
+        };
+        Insert: {
+          combination_id: string;
+          format_template_version_id: string;
+          id: string;
+          target_node_id: string;
+          target_side: string;
+          third_place_group_code: string;
+          winner_group_code: string;
+        };
+        Update: {
+          combination_id?: string;
+          format_template_version_id?: string;
+          id?: string;
+          target_node_id?: string;
+          target_side?: string;
+          third_place_group_code?: string;
+          winner_group_code?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "format_template_best_third_as_format_template_version_id_c_fkey";
+            columns: ["format_template_version_id", "combination_id"];
+            isOneToOne: false;
+            referencedRelation: "format_template_best_third_combinations";
+            referencedColumns: ["format_template_version_id", "id"];
+          },
+          {
+            foreignKeyName: "format_template_best_third_as_format_template_version_id_t_fkey";
+            columns: ["format_template_version_id", "target_node_id"];
+            isOneToOne: false;
+            referencedRelation: "format_template_match_nodes";
+            referencedColumns: ["format_template_version_id", "id"];
+          },
+          {
+            foreignKeyName: "format_template_best_third_assi_format_template_version_id_fkey";
+            columns: ["format_template_version_id"];
+            isOneToOne: false;
+            referencedRelation: "format_template_versions";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      format_template_best_third_combinations: {
+        Row: {
+          combination_key: string;
+          edition_id: string;
+          format_template_version_id: string;
+          id: string;
+          option_number: number;
+          qualified_group_codes: string[];
+        };
+        Insert: {
+          combination_key: string;
+          edition_id: string;
+          format_template_version_id: string;
+          id: string;
+          option_number: number;
+          qualified_group_codes: string[];
+        };
+        Update: {
+          combination_key?: string;
+          edition_id?: string;
+          format_template_version_id?: string;
+          id?: string;
+          option_number?: number;
+          qualified_group_codes?: string[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "format_template_best_third_comb_format_template_version_id_fkey";
+            columns: ["format_template_version_id"];
+            isOneToOne: false;
+            referencedRelation: "format_template_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "format_template_best_third_combinations_edition_id_fkey";
+            columns: ["edition_id"];
+            isOneToOne: false;
+            referencedRelation: "competition_editions";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      format_template_match_nodes: {
+        Row: {
+          edition_id: string;
+          format_template_version_id: string;
+          id: string;
+          node_key: string;
+          round_id: string;
+          sort_order: number;
+          target_match_id: string;
+        };
+        Insert: {
+          edition_id: string;
+          format_template_version_id: string;
+          id: string;
+          node_key: string;
+          round_id: string;
+          sort_order: number;
+          target_match_id: string;
+        };
+        Update: {
+          edition_id?: string;
+          format_template_version_id?: string;
+          id?: string;
+          node_key?: string;
+          round_id?: string;
+          sort_order?: number;
+          target_match_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "format_template_match_nodes_edition_id_fkey";
+            columns: ["edition_id"];
+            isOneToOne: false;
+            referencedRelation: "competition_editions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "format_template_match_nodes_format_template_version_id_fkey";
+            columns: ["format_template_version_id"];
+            isOneToOne: false;
+            referencedRelation: "format_template_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "format_template_match_nodes_round_id_fkey";
+            columns: ["round_id"];
+            isOneToOne: false;
+            referencedRelation: "rounds";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "format_template_match_nodes_target_match_id_fkey";
+            columns: ["target_match_id"];
+            isOneToOne: false;
+            referencedRelation: "matches";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       format_template_versions: {
         Row: {
@@ -1474,38 +1666,6 @@ export type Database = {
         };
         Relationships: [];
       };
-      public_user_profiles: {
-        Row: {
-          avatar_url: string | null;
-          display_name: string;
-          updated_at: string;
-          user_id: string;
-          username: string | null;
-        };
-        Insert: {
-          avatar_url?: string | null;
-          display_name: string;
-          updated_at?: string;
-          user_id: string;
-          username?: string | null;
-        };
-        Update: {
-          avatar_url?: string | null;
-          display_name?: string;
-          updated_at?: string;
-          user_id?: string;
-          username?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "public_user_profiles_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: true;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
       provider_mappings: {
         Row: {
           entity_type: string;
@@ -1570,6 +1730,38 @@ export type Database = {
             columns: ["sync_run_id"];
             isOneToOne: false;
             referencedRelation: "sync_runs";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      public_user_profiles: {
+        Row: {
+          avatar_url: string | null;
+          display_name: string;
+          updated_at: string;
+          user_id: string;
+          username: string | null;
+        };
+        Insert: {
+          avatar_url?: string | null;
+          display_name: string;
+          updated_at?: string;
+          user_id: string;
+          username?: string | null;
+        };
+        Update: {
+          avatar_url?: string | null;
+          display_name?: string;
+          updated_at?: string;
+          user_id?: string;
+          username?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "public_user_profiles_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           }
         ];
@@ -2331,6 +2523,20 @@ export type Database = {
         Args: { p_league_id: string };
         Returns: string;
       };
+      official_world_cup_2026_best_third_matrix: {
+        Args: never;
+        Returns: {
+          one_a: string;
+          one_b: string;
+          one_d: string;
+          one_e: string;
+          one_g: string;
+          one_i: string;
+          one_k: string;
+          one_l: string;
+          option_number: number;
+        }[];
+      };
       persist_scoring_recalculation: {
         Args: {
           p_breakdown_items?: Json;
@@ -2346,6 +2552,15 @@ export type Database = {
           snapshot_id: string;
         }[];
       };
+      populate_supported_bracket_destination_catalog: {
+        Args: { p_format_version_id: string };
+        Returns: undefined;
+      };
+      populate_world_cup_2026_best_third_matrix: {
+        Args: { p_format_version_id: string };
+        Returns: undefined;
+      };
+      predicte_catalog_uuid: { Args: { p_key: string }; Returns: string };
       prediction_set_is_visible: {
         Args: { p_prediction_set_id: string };
         Returns: boolean;
@@ -2385,13 +2600,13 @@ export type Database = {
         };
         Returns: string;
       };
-      safe_public_profile_display_name: {
-        Args: { p_display_name: string; p_user_id: string };
-        Returns: string;
-      };
       remove_league_member: {
         Args: { p_league_id: string; p_user_id: string };
         Returns: undefined;
+      };
+      safe_public_profile_display_name: {
+        Args: { p_display_name: string; p_user_id: string };
+        Returns: string;
       };
       save_match_prediction: {
         Args: {
@@ -2472,6 +2687,16 @@ export type Database = {
           p_sync_status?: Database["public"]["Enums"]["prediction_sync_status"];
         };
         Returns: string;
+      };
+      upsert_official_world_cup_bracket_slot: {
+        Args: {
+          p_format_version_id: string;
+          p_node_key: string;
+          p_source_payload: Json;
+          p_source_type: string;
+          p_target_side: string;
+        };
+        Returns: undefined;
       };
       upsert_prediction_tiebreak_override: {
         Args: {

@@ -54,7 +54,13 @@ export interface AuthenticatedPersistedMatchPredictionInput {
 export interface AuthenticatedTargetBracketSlotInput {
   id: string;
   editionId: string;
+  formatTemplateVersionId: string;
   roundId: string;
+  targetNodeId: string;
+  targetMatchId: string;
+  targetSide: "home" | "away";
+  targetLeg: number;
+  slotKey: string;
   sourceType: string;
   sourcePayload: unknown;
 }
@@ -128,6 +134,8 @@ export interface AuthenticatedPredictionTargetAdapterResult {
     supportedAntepostDefinitionIds: string[];
     unsupportedAntepostDefinitionIds: string[];
     tiebreakRuleCount: number;
+    destinationMappingCount: number;
+    invalidDestinationIds: string[];
   };
   progress: {
     totalTargets: number;
@@ -210,6 +218,7 @@ export function adaptAuthenticatedPredictionTargets(
     });
 
   const malformedBracketSlots = input.bracketSlots.filter((slot) => !isValidBracketSource(slot));
+  const invalidDestinationSlots = findInvalidDestinations(input.bracketSlots, input.matches);
   const supportedAntepostDefinitions = input.antepostDefinitions.filter(isSupportedManualAntepost);
   const unsupportedAntepostDefinitions = input.antepostDefinitions.filter(
     (definition) => !isSupportedManualAntepost(definition)
@@ -222,7 +231,7 @@ export function adaptAuthenticatedPredictionTargets(
     malformedBracketSlots.length > 0
       ? "Bracket slots con metadata sorgente incompleti."
       : undefined,
-    !input.bracketSlotDestinationsAvailable
+    !input.bracketSlotDestinationsAvailable || invalidDestinationSlots.length > 0
       ? "Bracket slots senza destinazione home/away verificabile."
       : undefined,
     unsupportedAntepostDefinitions.length > 0
@@ -252,7 +261,9 @@ export function adaptAuthenticatedPredictionTargets(
       unsupportedAntepostDefinitionIds: unsupportedAntepostDefinitions.map(
         (definition) => definition.id
       ),
-      tiebreakRuleCount: input.tiebreakRules.length
+      tiebreakRuleCount: input.tiebreakRules.length,
+      destinationMappingCount: input.bracketSlots.length - invalidDestinationSlots.length,
+      invalidDestinationIds: invalidDestinationSlots.map((slot) => slot.id)
     },
     progress: {
       totalTargets: targets.length,
@@ -260,6 +271,29 @@ export function adaptAuthenticatedPredictionTargets(
       missingTargets: Math.max(targets.length - completedTargets, 0)
     }
   };
+}
+
+function findInvalidDestinations(
+  slots: AuthenticatedTargetBracketSlotInput[],
+  matches: AuthenticatedTargetMatchInput[]
+): AuthenticatedTargetBracketSlotInput[] {
+  const matchesById = new Map(matches.map((match) => [match.id, match]));
+  const destinationKeys = new Set<string>();
+
+  return slots.filter((slot) => {
+    const targetMatch = matchesById.get(slot.targetMatchId);
+    const destinationKey = `${slot.formatTemplateVersionId}:${slot.targetNodeId}:${slot.targetLeg}:${slot.targetSide}`;
+    if (
+      !targetMatch ||
+      targetMatch.roundId !== slot.roundId ||
+      slot.targetLeg < 1 ||
+      destinationKeys.has(destinationKey)
+    ) {
+      return true;
+    }
+    destinationKeys.add(destinationKey);
+    return false;
+  });
 }
 
 function isSupportedManualAntepost(

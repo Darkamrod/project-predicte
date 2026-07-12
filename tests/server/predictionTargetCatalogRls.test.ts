@@ -28,12 +28,32 @@ describeLocalSupabase("Milestone 11J-C2 prediction target catalog RLS", () => {
         ruleset_version_id: rulesetVersionId,
         prediction_requirement_version_id: requirementVersionId
       });
-      expect(catalog.bracket_slots).toHaveLength(1);
-      expect(catalog.bracket_slots[0]).toMatchObject({ edition_id: editionId });
-      expect(catalog.antepost_definitions).toHaveLength(1);
-      expect(catalog.tiebreak_rules).toHaveLength(1);
+      expect(catalog.bracket_nodes).toHaveLength(32);
+      expect(catalog.bracket_nodes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ node_key: "M73", format_template_version_id: formatVersionId }),
+          expect.objectContaining({ node_key: "M104", format_template_version_id: formatVersionId })
+        ])
+      );
+      expect(catalog.bracket_slots).toHaveLength(64);
+      expect(catalog.best_third_combinations).toHaveLength(495);
+      expect(
+        catalog.best_third_combinations.reduce(
+          (total, combination) => total + combination.assignments.length,
+          0
+        )
+      ).toBe(3960);
+      expect(catalog.antepost_definitions).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: antepostId })])
+      );
+      expect(catalog.tiebreak_rules).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: tiebreakId })])
+      );
       expect(queryScalar(signatureSql)).toBe("true|false|true");
-      expect(queryScalar(countsSql)).toBe("1|1|1");
+      const otherCatalog = callCatalog(ownerId, otherLeagueId);
+      expect(otherCatalog.bracket_nodes).toEqual([]);
+      expect(otherCatalog.best_third_combinations).toEqual([]);
+      expect(queryScalar(countsSql)).toBe("1|1");
     } finally {
       cleanupFixture();
     }
@@ -72,21 +92,6 @@ function setupFixture(): void {
       ('${nonMemberId}', 'C2 Outsider', 'it-IT', 'Europe/Rome')
     on conflict (id) do nothing;
 
-    insert into public.stages (id, edition_id, code, kind, name, sort_order)
-    values
-      ('${stageId}', '${editionId}', 'C2_KNOCKOUT', 'KNOCKOUT', 'C2 Knockout', 900),
-      ('${otherStageId}', '${otherEditionId}', 'C2_OTHER', 'KNOCKOUT', 'C2 Other', 900);
-
-    insert into public.rounds (id, edition_id, stage_id, code, name, sort_order)
-    values
-      ('${roundId}', '${editionId}', '${stageId}', 'C2_ROUND', 'C2 Round', 900),
-      ('${otherRoundId}', '${otherEditionId}', '${otherStageId}', 'C2_OTHER_ROUND', 'C2 Other Round', 900);
-
-    insert into public.bracket_slots (id, edition_id, round_id, source_type, source_payload)
-    values
-      ('${slotId}', '${editionId}', '${roundId}', 'GROUP_POSITION', '{"groupCode":"A","position":1}'::jsonb),
-      ('${otherSlotId}', '${otherEditionId}', '${otherRoundId}', 'GROUP_POSITION', '{"groupCode":"B","position":1}'::jsonb);
-
     insert into public.competition_antepost_definitions (id, edition_id, code, label, value_type, required)
     values ('${antepostId}', '${editionId}', 'TOP_SCORER', 'Capocannoniere C2', 'PLAYER', true);
 
@@ -117,9 +122,11 @@ interface CatalogPayload {
   format_template_version_id: string;
   ruleset_version_id: string;
   prediction_requirement_version_id: string;
-  bracket_slots: Array<{ edition_id: string }>;
-  antepost_definitions: unknown[];
-  tiebreak_rules: unknown[];
+  bracket_slots: Array<{ id: string; edition_id: string }>;
+  bracket_nodes: Array<{ node_key: string; format_template_version_id: string }>;
+  best_third_combinations: Array<{ assignments: unknown[] }>;
+  antepost_definitions: Array<{ id: string }>;
+  tiebreak_rules: Array<{ id: string }>;
 }
 
 function callCatalog(userId: string, targetLeagueId: string): CatalogPayload {
@@ -190,12 +197,6 @@ const removedMemberId = "c2000000-0000-4000-8000-000000000003";
 const nonMemberId = "c2000000-0000-4000-8000-000000000004";
 const leagueId = "c2000000-0000-4000-8000-000000000010";
 const otherLeagueId = "c2000000-0000-4000-8000-000000000011";
-const stageId = "c2000000-0000-4000-8000-000000000020";
-const otherStageId = "c2000000-0000-4000-8000-000000000021";
-const roundId = "c2000000-0000-4000-8000-000000000030";
-const otherRoundId = "c2000000-0000-4000-8000-000000000031";
-const slotId = "c2000000-0000-4000-8000-000000000040";
-const otherSlotId = "c2000000-0000-4000-8000-000000000041";
 const antepostId = "c2000000-0000-4000-8000-000000000050";
 const tiebreakId = "c2000000-0000-4000-8000-000000000060";
 const editionId = "00000000-0000-4000-8000-000000000521";
@@ -208,9 +209,6 @@ const cleanupSql = `
   delete from public.leagues where id in ('${leagueId}', '${otherLeagueId}');
   delete from public.competition_tiebreak_rules where id = '${tiebreakId}';
   delete from public.competition_antepost_definitions where id = '${antepostId}';
-  delete from public.bracket_slots where id in ('${slotId}', '${otherSlotId}');
-  delete from public.rounds where id in ('${roundId}', '${otherRoundId}');
-  delete from public.stages where id in ('${stageId}', '${otherStageId}');
   delete from public.profiles where id in ('${ownerId}', '${activeMemberId}', '${removedMemberId}', '${nonMemberId}');
   delete from auth.users where id in ('${ownerId}', '${activeMemberId}', '${removedMemberId}', '${nonMemberId}');
 `;
@@ -224,7 +222,6 @@ const signatureSql = `
 
 const countsSql = `
   select
-    (select count(*) from public.bracket_slots where id = '${slotId}')::text || '|' ||
     (select count(*) from public.competition_antepost_definitions where id = '${antepostId}')::text || '|' ||
     (select count(*) from public.competition_tiebreak_rules where id = '${tiebreakId}')::text;
 `;

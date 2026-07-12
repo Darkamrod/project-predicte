@@ -92,7 +92,9 @@ describe("SupabasePredictionWorkflowReadRepository", () => {
       data: [
         {
           ...catalog,
+          bracket_nodes: [],
           bracket_slots: [],
+          best_third_combinations: [],
           antepost_definitions: [],
           tiebreak_rules: []
         }
@@ -105,6 +107,8 @@ describe("SupabasePredictionWorkflowReadRepository", () => {
     ).loadAuthenticatedWorkflow(leagueId, userId);
 
     expect(context.targetCatalog.bracketSlots).toEqual([]);
+    expect(context.targetCatalog.bracketNodes).toEqual([]);
+    expect(context.targetCatalog.bestThirdCombinations).toEqual([]);
     expect(context.targetCatalog.antepostDefinitions).toEqual([]);
     expect(context.targetCatalog.tiebreakRules).toEqual([]);
   });
@@ -120,6 +124,34 @@ describe("SupabasePredictionWorkflowReadRepository", () => {
         userId
       )
     ).rejects.toThrow("catalog query failed");
+  });
+
+  it.each([
+    ["bracket node", "bracket_nodes", [{ id: "broken" }]],
+    ["best-third combination", "best_third_combinations", [{ id: "broken" }]],
+    [
+      "best-third assignment",
+      "best_third_combinations",
+      [
+        {
+          id: "combination-1",
+          edition_id: "edition-1",
+          format_template_version_id: "format-1",
+          option_number: 1,
+          combination_key: "ABCDEFGH",
+          qualified_group_codes: ["A", "B", "C", "D", "E", "F", "G", "H"],
+          assignments: [{ target_node_id: "node-1" }]
+        }
+      ]
+    ]
+  ])("rejects a malformed %s payload", async (_label, section, malformed) => {
+    const fixtures = createCompleteFixtures();
+    fixtures.target_catalog!.data[0]![section] = malformed;
+    await expect(
+      new SupabasePredictionWorkflowReadRepository(
+        createReadClient(fixtures).client
+      ).loadAuthenticatedWorkflow(leagueId, userId)
+    ).rejects.toThrow();
   });
 });
 
@@ -277,13 +309,49 @@ function createCompleteFixtures(): Record<string, QueryFixture> {
           format_template_version_id: "format-1",
           ruleset_version_id: "rules-1",
           prediction_requirement_version_id: "requirements-1",
+          bracket_nodes: [
+            {
+              id: "node-1",
+              edition_id: "edition-1",
+              format_template_version_id: "format-1",
+              node_key: "M73",
+              round_id: "round-1",
+              target_match_id: "match-1",
+              sort_order: 73
+            }
+          ],
           bracket_slots: [
             {
               id: "slot-1",
               edition_id: "edition-1",
+              format_template_version_id: "format-1",
               round_id: "round-1",
+              target_node_id: "node-1",
+              target_match_id: "match-1",
+              target_side: "home",
+              target_leg: 1,
+              slot_key: "round-1:match-1:home",
               source_type: "WINNER_OF_MATCH",
               source_payload: { matchId: "match-1" }
+            }
+          ],
+          best_third_combinations: [
+            {
+              id: "combination-1",
+              edition_id: "edition-1",
+              format_template_version_id: "format-1",
+              option_number: 1,
+              combination_key: "ABCDEFGH",
+              qualified_group_codes: ["A", "B", "C", "D", "E", "F", "G", "H"],
+              assignments: [
+                {
+                  format_template_version_id: "format-1",
+                  target_node_id: "node-1",
+                  target_side: "away",
+                  winner_group_code: "A",
+                  third_place_group_code: "C"
+                }
+              ]
             }
           ],
           antepost_definitions: [],

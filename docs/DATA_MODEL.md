@@ -371,3 +371,44 @@ design may use additional `bracket_slots` columns, a separate assignment table, 
 model; no option is selected before schema analysis. It must represent destination match/structure and
 participant position unambiguously, validate completeness and uniqueness, support the required
 single-leg demo flow, and leave room for future two-leg formats. It will not connect personal writes.
+
+# Milestone 11J-C2B1 official versioned bracket catalog
+
+`format_template_match_nodes` stores stable authority keys (`M73`-`M104`) scoped by edition and
+format-template version. `bracket_slots` stores one source-to-destination assignment and references
+the node through `(format_template_version_id, target_node_id)` in addition to target match, side,
+leg, and stable slot key.
+
+Foreign keys bind version, round, and target match. Constraints restrict sides to `home`/`away`, legs
+to positive integers, and source types to the modeled catalog vocabulary. Unique indexes prevent two
+sources from occupying the same version/match/leg/side, duplicate slot keys, and duplicate sources in
+one format version. A trigger verifies shared edition, target round, source match edition, and valid
+group/ranking payloads.
+
+The official World Cup 2026 catalog contains 32 nodes and 64 sides. Fifty-six sides have fixed
+group-position or prior-match sources; eight Round-of-32 sides reference the conditional best-third
+matrix. The matrix stores all 495 FIFA Annexe C combinations and 3,960 explicit assignments.
+EURO ingestion is deferred; Champions League remains without destination assignments.
+
+Combination writes are permanently validated: `qualified_group_codes` must contain eight distinct
+`A`-`L` values in canonical order and `combination_key` must equal their sorted concatenation. A
+deferred constraint trigger requires exactly eight distinct assignment sources and destinations at
+transaction completion, while composite foreign keys preserve format-version scope.
+
+## Milestone 11J-C2B1 migration lifecycle
+
+Bracket destination enforcement is deliberately staged. The first migration adds nullable destination
+columns and nullable catalog tables. The second owns the FIFA World Cup 2026 catalog, preserves matching legacy
+slot ids, and backfills by edition/version/round/source semantics. The third rejects unresolved,
+orphaned, conflicting, cross-edition, or duplicate rows before applying final `NOT NULL`, checks,
+unique indexes, and the strict validation trigger.
+
+Upgrade diagnostics include violation type, slot, edition, format version, round, target match,
+source type, and source payload. The serial upgrade test compares each preserved legacy field and a
+complete signature of node, slot, combination, and assignment IDs before and after population.
+
+The data migration cites the FIFA World Cup 2026 Regulations, Articles 12.6-12.11 and Annexe C,
+plus the acquired source checksum. The seed only invokes migration-owned reconcilers; it is not the source of truth for an
+upgrade. Unknown legacy versions are never assigned generic destinations. Champions/two-leg remains
+outside the constrained supported catalog. C2B2 will complete the authenticated read model and C2B3
+will resolve personal participants; neither is part of C2B1.

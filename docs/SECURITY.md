@@ -262,3 +262,37 @@ edition/version scope, privileges, and mutation-free behavior. C2A is complete a
 Milestone 11J-C2B will separately define and validate destination mappings. It must preserve the same
 league/version scope and minimum privileges, introduce no personal writes, and keep the UUID editor
 disabled. C3 remains unauthorized until C2B proves mapping completeness and uniqueness.
+
+## Milestone 11J-C2B Bracket Catalog Integrity
+
+Bracket destinations remain immutable catalog data for normal clients. `anon` and `authenticated`
+retain no insert/update/delete privilege. Foreign keys, checks, unique indexes, and the deterministic
+`validate_bracket_slot_destination` trigger reject invalid sides, missing targets, duplicate
+destinations/sources, cross-edition references, mismatched rounds, and incompatible format versions.
+
+The existing authenticated RPC remains the only client read path and returns destination metadata only
+after session-derived identity and active membership checks. No service-role credential, personal
+prediction write, scoring operation, leaderboard persistence, official result, or trusted ingestion
+path is introduced.
+
+## Milestone 11J-C2B1 Upgrade Safety
+
+Destination catalog writes remain administrative migration work. Normal `anon` and `authenticated`
+roles have no insert/update/delete access, and the catalog population helpers have execution revoked.
+Supported versions are selected by stable UUID and reconciled before final constraints. Unknown,
+ambiguous, orphaned, cross-edition, or cross-version legacy rows stop the migration with diagnostics;
+they are never hidden with placeholders.
+
+The authenticated RPC remains read-only, accepts only `league_id`, derives identity from `auth.uid()`,
+and requires active membership. C2B1 adds no personal RPC, service-role client path, scoring,
+leaderboard, result-ingestion, or trusted mutation.
+
+Bracket nodes, fixed slots, and conditional best-third rows are format-version scoped. Composite
+foreign keys reject same-edition cross-version node or matrix references. The catalog tables have RLS
+enabled and no direct grants to client roles; only the membership-scoped read-only RPC exposes the
+league's selected version. EURO and Champions catalogs are not populated by C2B1.
+
+The combination trigger rejects duplicate, empty, out-of-range, non-canonical, or semantically
+duplicate group sets. Deferred assignment validation prevents an administrative transaction from
+leaving a combination partially assigned. Population helpers remain revoked from client roles. RPC
+tests cover authorized World Cup contents, denied users, and a league using another format version.

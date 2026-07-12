@@ -277,6 +277,20 @@ Do not start a later milestone without explicit authorization.
 - Support the single-leg bracket required by the current demo while preserving a viable path for future two-leg formats.
 - Keep personal prediction RPCs disconnected.
 
+### Milestone 11J-C2B1 implementation status: official World Cup catalog
+
+- Added dedicated versioned match nodes and kept `bracket_slots` as source assignments targeting those nodes.
+- Added separate conditional best-third combination/assignment tables with database-enforced same-version references.
+- Ingested the official FIFA World Cup 2026 fixed bracket and all 495 Annexe C combinations. EURO official catalog ingestion remains future work.
+- Left Champions League/two-leg conservatively blocked and connected no personal prediction write path.
+- Extended the authenticated RPC, DTO/parser, pure adapter diagnostics, and database/domain/RLS tests while keeping UUID Quick/Expert non-interactive.
+- Closed the C2B1 review gaps with canonical-combination constraints, complete legacy diagnostics, field-level upgrade assertions, full-catalog idempotence signatures, and typed parsing of nodes plus the conditional matrix.
+
+The database work is split into C2B1 nullable structure, official versioned data/backfill, and final constraints.
+A serial upgrade test proves preservation from C2A and diagnostic failure for unsupported legacy data.
+C2B2 must next complete tie-group and initial catalog reads; C2B3 must then implement iterative personal
+participant resolution. C3 remains blocked until all C2B work is closed.
+
 ## Planned Milestone 11J-C3 - Safe Personal Prediction Write Integration
 
 - Start only after 11J-C2B is complete and validated.

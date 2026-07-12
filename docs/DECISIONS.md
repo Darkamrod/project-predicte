@@ -375,3 +375,22 @@ headroom.
 - Connected no personal write RPC and changed no scoring, leaderboard, result ingestion, trusted worker, or service-role path.
 - Reserved Milestone 11J-C2B, Versioned Bracket Destination Mapping, for analysis and implementation of an unambiguous, versioned destination for every bracket source. It must evaluate additional slot columns, a separate destination-assignment table, or another normalized design before choosing a solution; it must not connect personal write RPCs.
 - Milestone 11J-C3 may start only after C2B validates complete and unique destination mappings, including the required single-leg demo path without preventing future two-leg formats.
+
+## 2026-07-12 - Milestone 11J-C2B - Versioned Bracket Destination Mapping
+
+- Added `format_template_match_nodes` so stable bracket identities such as `M73`-`M104` belong to both an edition and a format-template version. `bracket_slots` targets these nodes through a composite version/node foreign key.
+- Separated fixed source assignments from the conditional best-third catalog. Combination rows store the qualified group set; assignment rows store each explicit winner-group destination.
+- Kept the model leg-aware without implementing aggregate two-leg semantics. Only the FIFA World Cup 2026 official catalog is ingested in C2B1; EURO ingestion is deferred and Champions League receives no bracket assignments.
+- Derived the World Cup catalog from the FIFA World Cup 2026 Regulations (May 2026), Articles 12.6-12.11 and Annexe C. The acquired PDF SHA-256 is `BAD4EA83CF1F51055598B0C12C3DAB280A78777E08A623B9E9098508B4ECC8D9`; the PDF is not committed.
+- Updated the authenticated catalog RPC to return version, target match, side, leg, and slot key in the same batch. The adapter validates destination existence, round consistency, and duplicate destinations while remaining pure and competition-agnostic.
+- Did not connect personal prediction RPCs, initialize prediction sets, enable Quick/Expert UUID editing, or use official results to construct personal brackets.
+
+## 2026-07-12 - Milestone 11J-C2B1 - Upgrade-Safe Official World Cup Bracket Catalog
+
+- Split the uncommitted C2B migration into nullable structure, authoritative versioned catalog/backfill, and final validation migrations. `seed.sql` cannot backfill an upgrade because it runs only after all migrations.
+- Deferred `NOT NULL` and unique indexes until supported legacy rows have been reconciled by semantic edition/version/source keys. Dedicated versioned nodes and conditional matrix tables prevent edition-scoped match UUIDs from acting as version identity.
+- Made the data migration authoritative for World Cup 2026 only: 32 nodes, 64 sides (56 fixed and eight conditional), and all 495 explicit Annexe C rows. The seed only invokes idempotent population helpers.
+- Unknown or conflicting legacy mappings fail with diagnostics rather than receiving placeholders. Champions League remains excluded because two-leg semantics are not modeled.
+- Added a serial C2A-to-C2B1 upgrade test with positive preservation/backfill and negative diagnostic scenarios. C2B2 read-model completion, C2B3 participant resolution, and C3 writes remain unauthorized.
+- Enforced combination integrity after ingestion: eight distinct `A`-`L` groups in canonical order, a matching canonical key, and a deferred eight-assignment invariant. Upgrade diagnostics now identify slot, edition, version, round, target, source type, payload, and violation type.
+- Extended the authenticated TypeScript catalog contract to retain and validate bracket nodes, combinations, and every conditional assignment from the single read-only RPC. UUID diagnostics remain non-interactive.

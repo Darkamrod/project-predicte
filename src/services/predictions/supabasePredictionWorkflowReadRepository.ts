@@ -147,9 +147,43 @@ export interface SupabasePredictionCatalogTeam {
 export interface SupabasePredictionCatalogBracketSlot {
   id: string;
   editionId: string;
+  formatTemplateVersionId: string;
   roundId: string;
+  targetNodeId: string;
+  targetMatchId: string;
+  targetSide: "home" | "away";
+  targetLeg: number;
+  slotKey: string;
   sourceType: string;
   sourcePayload: Json;
+}
+
+export interface SupabasePredictionCatalogBracketNode {
+  id: string;
+  editionId: string;
+  formatTemplateVersionId: string;
+  nodeKey: string;
+  roundId: string;
+  targetMatchId: string;
+  order: number;
+}
+
+export interface SupabasePredictionCatalogBestThirdAssignment {
+  formatTemplateVersionId: string;
+  targetNodeId: string;
+  targetSide: "home" | "away";
+  winnerGroupCode: string;
+  thirdPlaceGroupCode: string;
+}
+
+export interface SupabasePredictionCatalogBestThirdCombination {
+  id: string;
+  editionId: string;
+  formatTemplateVersionId: string;
+  optionNumber: number;
+  combinationKey: string;
+  qualifiedGroupCodes: string[];
+  assignments: SupabasePredictionCatalogBestThirdAssignment[];
 }
 
 export interface SupabasePredictionCatalogAntepostDefinition {
@@ -176,7 +210,9 @@ export interface SupabasePredictionTargetCatalog {
   formatTemplateVersionId: string;
   rulesetVersionId: string;
   predictionRequirementVersionId: string;
+  bracketNodes: SupabasePredictionCatalogBracketNode[];
   bracketSlots: SupabasePredictionCatalogBracketSlot[];
+  bestThirdCombinations: SupabasePredictionCatalogBestThirdCombination[];
   antepostDefinitions: SupabasePredictionCatalogAntepostDefinition[];
   tiebreakRules: SupabasePredictionCatalogTiebreakRule[];
 }
@@ -642,14 +678,74 @@ function mapTargetCatalog(value: Json): SupabasePredictionTargetCatalog {
       catalog.prediction_requirement_version_id,
       "Catalogo target senza requirement version."
     ),
+    bracketNodes: requireArray(catalog.bracket_nodes).map((item) => {
+      const row = requireRecord(item, "Nodo bracket non valido.");
+      return {
+        id: requireString(row.id, "Nodo bracket senza id."),
+        editionId: requireString(row.edition_id, "Nodo bracket senza edition."),
+        formatTemplateVersionId: requireString(
+          row.format_template_version_id,
+          "Nodo bracket senza format version."
+        ),
+        nodeKey: requireString(row.node_key, "Nodo bracket senza chiave stabile."),
+        roundId: requireString(row.round_id, "Nodo bracket senza round."),
+        targetMatchId: requireString(row.target_match_id, "Nodo bracket senza target match."),
+        order: requireNumber(row.sort_order, "Nodo bracket senza ordinamento.")
+      };
+    }),
     bracketSlots: requireArray(catalog.bracket_slots).map((item) => {
       const row = requireRecord(item, "Bracket slot non valido.");
       return {
         id: requireString(row.id, "Bracket slot senza id."),
         editionId: requireString(row.edition_id, "Bracket slot senza edition."),
+        formatTemplateVersionId: requireString(
+          row.format_template_version_id,
+          "Bracket slot senza format version."
+        ),
         roundId: requireString(row.round_id, "Bracket slot senza round."),
+        targetNodeId: requireString(row.target_node_id, "Bracket slot senza target node."),
+        targetMatchId: requireString(row.target_match_id, "Bracket slot senza target match."),
+        targetSide: requireTargetSide(row.target_side),
+        targetLeg: requireNumber(row.target_leg, "Bracket slot senza target leg."),
+        slotKey: requireString(row.slot_key, "Bracket slot senza slot key."),
         sourceType: requireString(row.source_type, "Bracket slot senza source type."),
         sourcePayload: row.source_payload ?? {}
+      };
+    }),
+    bestThirdCombinations: requireArray(catalog.best_third_combinations).map((item) => {
+      const row = requireRecord(item, "Combinazione migliori terze non valida.");
+      return {
+        id: requireString(row.id, "Combinazione senza id."),
+        editionId: requireString(row.edition_id, "Combinazione senza edition."),
+        formatTemplateVersionId: requireString(
+          row.format_template_version_id,
+          "Combinazione senza format version."
+        ),
+        optionNumber: requireNumber(row.option_number, "Combinazione senza numero opzione."),
+        combinationKey: requireString(row.combination_key, "Combinazione senza chiave."),
+        qualifiedGroupCodes: requireStringArray(
+          row.qualified_group_codes,
+          "Combinazione con gruppi non validi."
+        ),
+        assignments: requireArray(row.assignments).map((assignment) => {
+          const value = requireRecord(assignment, "Assignment migliori terze non valido.");
+          return {
+            formatTemplateVersionId: requireString(
+              value.format_template_version_id,
+              "Assignment senza format version."
+            ),
+            targetNodeId: requireString(value.target_node_id, "Assignment senza target node."),
+            targetSide: requireTargetSide(value.target_side),
+            winnerGroupCode: requireString(
+              value.winner_group_code,
+              "Assignment senza gruppo vincitore."
+            ),
+            thirdPlaceGroupCode: requireString(
+              value.third_place_group_code,
+              "Assignment senza gruppo sorgente."
+            )
+          };
+        })
       };
     }),
     antepostDefinitions: requireArray(catalog.antepost_definitions).map((item) => {
@@ -689,6 +785,14 @@ function requireArray(value: Json | undefined): Json[] {
   return value;
 }
 
+function requireStringArray(value: Json | undefined, message: string): string[] {
+  const values = requireArray(value);
+  if (!values.every((item): item is string => typeof item === "string" && item.length > 0)) {
+    throw new Error(message);
+  }
+  return values;
+}
+
 function requireString(value: Json | undefined, message: string): string {
   if (typeof value !== "string" || value.length === 0) throw new Error(message);
   return value;
@@ -701,5 +805,12 @@ function requireBoolean(value: Json | undefined, message: string): boolean {
 
 function requireNumber(value: Json | undefined, message: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(message);
+  return value;
+}
+
+function requireTargetSide(value: Json | undefined): "home" | "away" {
+  if (value !== "home" && value !== "away") {
+    throw new Error("Bracket slot con target side non valido.");
+  }
   return value;
 }

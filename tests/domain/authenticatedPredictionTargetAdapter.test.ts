@@ -90,7 +90,13 @@ describe("authenticated prediction target adapter", () => {
       {
         id: "slot-1",
         editionId: "edition-1",
+        formatTemplateVersionId: "format-1",
         roundId: "round-1",
+        targetNodeId: "node-1",
+        targetMatchId: "match-1",
+        targetSide: "home",
+        targetLeg: 1,
+        slotKey: "round-1:match-1:home",
         sourceType: "WINNER_OF_MATCH",
         sourcePayload: { matchId: "match-1" }
       }
@@ -136,7 +142,9 @@ describe("authenticated prediction target adapter", () => {
       bracketSlotCount: 1,
       supportedAntepostDefinitionIds: ["top-scorer"],
       unsupportedAntepostDefinitionIds: ["winner"],
-      tiebreakRuleCount: 1
+      tiebreakRuleCount: 1,
+      destinationMappingCount: 1,
+      invalidDestinationIds: []
     });
     expect(result.writeReady).toBe(false);
   });
@@ -147,7 +155,13 @@ describe("authenticated prediction target adapter", () => {
       {
         id: "slot-1",
         editionId: "edition-1",
+        formatTemplateVersionId: "format-1",
         roundId: "round-1",
+        targetNodeId: "node-1",
+        targetMatchId: "match-1",
+        targetSide: "home",
+        targetLeg: 1,
+        slotKey: "round-1:match-1:home",
         sourceType: "GROUP_POSITION",
         sourcePayload: { groupCode: "A" }
       }
@@ -156,6 +170,32 @@ describe("authenticated prediction target adapter", () => {
     expect(adaptAuthenticatedPredictionTargets(input).blockers).toContain(
       "Bracket slots con metadata sorgente incompleti."
     );
+  });
+
+  it("rejects duplicate and missing bracket destinations deterministically", () => {
+    const input = createInput();
+    const slot = {
+      id: "slot-1",
+      editionId: "edition-1",
+      formatTemplateVersionId: "format-1",
+      roundId: "round-1",
+      targetNodeId: "node-1",
+      targetMatchId: "match-1",
+      targetSide: "home" as const,
+      targetLeg: 1,
+      slotKey: "round-1:match-1:home",
+      sourceType: "GROUP_POSITION",
+      sourcePayload: { groupCode: "A", position: 1 }
+    };
+    input.bracketSlots = [slot, { ...slot, id: "slot-2", slotKey: "duplicate" }];
+
+    const duplicate = adaptAuthenticatedPredictionTargets(input);
+    expect(duplicate.catalog.invalidDestinationIds).toEqual(["slot-2"]);
+
+    input.bracketSlots = [{ ...slot, id: "slot-3", targetMatchId: "missing-match" }];
+    expect(adaptAuthenticatedPredictionTargets(input).catalog.invalidDestinationIds).toEqual([
+      "slot-3"
+    ]);
   });
 });
 
@@ -193,7 +233,7 @@ function createInput(
       }
     ],
     groups: [{ id: "group-1", stageId: "stage-1", code: "A", name: "Gruppo A", order: 1 }],
-    rounds: [],
+    rounds: [{ id: "round-1", stageId: "stage-1", code: "ROUND_1", name: "Round 1", order: 1 }],
     teams: [
       { id: "team-1", name: "Team One", shortName: "ONE" },
       { id: "team-2", name: "Team Two", shortName: "TWO" }
@@ -216,6 +256,7 @@ function createMatch(
     id,
     stageId: "stage-1",
     groupId: "group-1",
+    roundId: "round-1",
     homeTeamId: "team-1",
     awayTeamId: "team-2",
     order
