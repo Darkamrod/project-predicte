@@ -84,16 +84,78 @@ describe("authenticated prediction target adapter", () => {
     expect(result.writeReady).toBe(false);
   });
 
-  it("applies the stop condition when bracket or antepost catalogs are unavailable", () => {
-    const result = adaptAuthenticatedPredictionTargets(createInput());
+  it("maps protected catalog metadata while keeping incomplete bracket destinations blocked", () => {
+    const input = createInput();
+    input.bracketSlots = [
+      {
+        id: "slot-1",
+        editionId: "edition-1",
+        roundId: "round-1",
+        sourceType: "WINNER_OF_MATCH",
+        sourcePayload: { matchId: "match-1" }
+      }
+    ];
+    input.antepostDefinitions = [
+      {
+        id: "top-scorer",
+        editionId: "edition-1",
+        code: "TOP_SCORER",
+        label: "Capocannoniere",
+        valueType: "PLAYER",
+        required: true
+      },
+      {
+        id: "winner",
+        editionId: "edition-1",
+        code: "TOURNAMENT_WINNER",
+        label: "Vincitrice",
+        valueType: "TEAM",
+        required: true
+      }
+    ];
+    input.tiebreakRules = [
+      {
+        id: "rule-1",
+        editionId: "edition-1",
+        scope: "GROUP",
+        order: 1,
+        ruleCode: "points",
+        rulePayload: {}
+      }
+    ];
+
+    const result = adaptAuthenticatedPredictionTargets(input);
 
     expect(result.blockers).toEqual(
       expect.arrayContaining([
-        "Bracket slots non leggibili dal client autenticato.",
-        "Definizioni antepost non leggibili dal client autenticato."
+        "Bracket slots senza destinazione home/away verificabile.",
+        "Definizioni antepost non supportate dal workflow autenticato."
       ])
     );
+    expect(result.catalog).toEqual({
+      bracketSlotCount: 1,
+      supportedAntepostDefinitionIds: ["top-scorer"],
+      unsupportedAntepostDefinitionIds: ["winner"],
+      tiebreakRuleCount: 1
+    });
     expect(result.writeReady).toBe(false);
+  });
+
+  it("rejects malformed bracket source metadata conservatively", () => {
+    const input = createInput();
+    input.bracketSlots = [
+      {
+        id: "slot-1",
+        editionId: "edition-1",
+        roundId: "round-1",
+        sourceType: "GROUP_POSITION",
+        sourcePayload: { groupCode: "A" }
+      }
+    ];
+
+    expect(adaptAuthenticatedPredictionTargets(input).blockers).toContain(
+      "Bracket slots con metadata sorgente incompleti."
+    );
   });
 });
 
@@ -138,8 +200,11 @@ function createInput(
     ],
     matches: options.matchOrder ?? [createMatch("match-1", 1)],
     persistedMatchPredictions: [],
-    bracketSlotsAvailable: false,
-    antepostDefinitionsAvailable: false
+    bracketSlots: [],
+    antepostDefinitions: [],
+    tiebreakRules: [],
+    catalogReadPathAvailable: true,
+    bracketSlotDestinationsAvailable: false
   };
 }
 

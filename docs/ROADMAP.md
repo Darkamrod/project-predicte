@@ -255,15 +255,30 @@ Do not start a later milestone without explicit authorization.
 - Kept two-leg knockout editing disabled until aggregate and advancement behavior can be verified from authorized real data.
 - Connected no write RPC and introduced no direct mutation. This milestone is complete only as a read-only adapter foundation; it does not provide an editable UUID workflow.
 
-## Planned Milestone 11J-C2 - Secure Prediction Target Catalog Read Path
+## Milestone 11J-C2A - Secure Prediction Target Catalog Read Path
 
 - Add safe, league-scoped and version-bound reads for bracket slots and antepost definitions.
-- Expose the metadata required for distinct tie-break targets and derived participants.
+- Expose static tie-break rules and bracket source metadata needed by the future destination mapping.
 - Keep identity session-derived, verify active membership, and add authenticated read-side RLS tests.
 - Do not connect personal prediction RPCs or enable authenticated writes.
 
+### Milestone 11J-C2A implementation status: complete
+
+- Added an authenticated, active-member-only read RPC scoped from league to edition and the league's format/ruleset/requirement versions.
+- Made bracket slots, antepost definitions, and static tie-break rules available in one read-only batch and integrated them into the repository and pure adapter.
+- Added authenticated RLS tests for anon, non-member, removed member, active member, cross-league, edition/version scope, minimum grants, and mutation-free reads.
+- Bracket destination mapping is intentionally excluded: source rows do not contain an explicit destination match/home-away position. That work belongs to C2B; C3 must not start before C2B closes.
+
+## Planned Milestone 11J-C2B - Versioned Bracket Destination Mapping
+
+- Analyze whether destination data belongs in new `bracket_slots` columns, a separate assignment table, or another normalized model; do not preselect a design.
+- Give every bracket source a stable, versioned destination match or structure plus an unambiguous participant position.
+- Validate mapping completeness and uniqueness, update seed/catalog data, and add database, domain, and RLS tests.
+- Support the single-leg bracket required by the current demo while preserving a viable path for future two-leg formats.
+- Keep personal prediction RPCs disconnected.
+
 ## Planned Milestone 11J-C3 - Safe Personal Prediction Write Integration
 
-- Start only after 11J-C2 is complete and validated.
+- Start only after 11J-C2B is complete and validated.
 - Connect explicit prediction-set initialization if an authorized operation exists, followed by the existing personal match, tie-break, antepost, and completion RPCs.
 - Validate server-authoritative lifecycle/deadline enforcement and authenticated write RLS behavior before enabling the real Quick/Expert UUID workflow.

@@ -46,7 +46,11 @@ describe("authenticated prediction workflow route contracts", () => {
     expect(combined).not.toMatch(
       /from\(["']profiles["']\)|auth\.users|user_metadata|raw_user_meta_data|\.email/i
     );
-    expect(combined).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
+    expect(combined).not.toMatch(/\.(insert|update|upsert|delete)\(/);
+    expect(repository).toContain('"get_prediction_target_catalog"');
+    expect(repository).not.toMatch(
+      /save_match_prediction|upsert_prediction_tiebreak_override|upsert_antepost_prediction|update_prediction_set_completion/
+    );
     expect(combined).not.toMatch(
       /service.?role|persist_scoring|leaderboard.*insert|result_ingestion/i
     );
@@ -61,10 +65,13 @@ describe("authenticated prediction workflow route contracts", () => {
 
     expect(adapter).not.toMatch(/react|supabase|usePredicteMock|PredicteMockProvider/i);
     expect(adapter).not.toMatch(/world_cup|euro_2028|champions_league/i);
-    expect(screen).toContain("bracketSlotsAvailable: false");
-    expect(screen).toContain("antepostDefinitionsAvailable: false");
+    expect(screen).toContain("catalogReadPathAvailable: true");
+    expect(screen).toContain("bracketSlotDestinationsAvailable: false");
     expect(screen).toContain("targetAdapter");
-    expect(combined).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
+    expect(combined).not.toMatch(/\.(insert|update|upsert|delete)\(/);
+    expect(combined).not.toMatch(
+      /save_match_prediction|upsert_prediction_tiebreak_override|upsert_antepost_prediction|update_prediction_set_completion/
+    );
     expect(combined).not.toMatch(/save_match_prediction|upsert_antepost_prediction/);
   });
 });

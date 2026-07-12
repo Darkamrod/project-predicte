@@ -90,6 +90,16 @@ function createContext(
     catalogStages: [],
     catalogGroups: [],
     catalogRounds: [],
-    catalogTeams: []
+    catalogTeams: [],
+    targetCatalog: {
+      leagueId: "00000000-0000-4000-8000-000000000100",
+      editionId: "edition-1",
+      formatTemplateVersionId: "format-1",
+      rulesetVersionId: "rules-1",
+      predictionRequirementVersionId: "requirements-1",
+      bracketSlots: [],
+      antepostDefinitions: [],
+      tiebreakRules: []
+    }
   };
 }

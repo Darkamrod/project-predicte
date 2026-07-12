@@ -190,8 +190,25 @@ antepost definitions. It explains the missing catalog capability instead of open
 using mock placeholders, or saving incomplete data. Tie-break editing, manual antepost fields, derived
 bracket progression, two-leg knockout editing, and every write RPC remain unavailable for UUID leagues.
 
-Milestone 11J-C2 will add the secure, league/version-scoped read path for bracket slots, antepost
-definitions, tie-break metadata, and derived participants, with authenticated read-side RLS tests and
-no writes. Milestone 11J-C3 may then connect explicit initialization and the existing personal write
-RPCs. The real UUID Quick/Expert workflow remains non-interactive until both later milestones are
-completed and validated.
+Milestone 11J-C2A adds the secure, league/version-scoped read path for bracket slots, antepost
+definitions, static tie-break rules, and bracket source metadata, with authenticated read-side RLS
+tests and no writes. Milestone 11J-C3 may then connect explicit initialization and the existing
+personal write RPCs only after C2B. The real UUID Quick/Expert workflow remains non-interactive until
+the later milestones are completed and validated.
+
+## Milestone 11J-C2A - Secure Prediction Target Catalog Read Path
+
+The UUID screen now loads the protected bracket, antepost, and tie-break catalog through one
+authenticated league-scoped read operation and can display catalog counts alongside real persisted
+progress. Empty catalog arrays are distinct from access or query errors.
+
+This does not make the workflow editable. The current bracket records describe participant sources
+but do not identify a destination match side, so the UI continues to show a conservative blocker.
+Quick and Expert remain non-interactive, no initialization/save CTA is shown, and no personal write
+RPC is connected.
+
+Milestone 11J-C2B will add the versioned destination mapping needed to place each source into a target
+match and participant position without ambiguity. It will first evaluate the schema options, support
+the required single-leg demo path without hardcoding one competition, and retain room for future
+two-leg formats. Quick/Expert and all personal writes remain unavailable until C2B is validated and a
+separate C3 milestone is authorized.

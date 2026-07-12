@@ -340,10 +340,34 @@ adapter does not invent derived bracket participants, tie-break targets, or ante
 knockout editing is also disabled conservatively. Consequently the UUID editor and all personal write
 RPCs remain disconnected; the feature is a verified read-side adapter, not end-to-end persistence.
 
-Milestone 11J-C2 will define a secure, authenticated read path for version-bound bracket slots,
-antepost definitions, tie-break metadata, and derived participants. It must preserve session identity,
-active membership, league scope, and read-side RLS coverage without adding prediction writes.
+Milestone 11J-C2A defines a secure, authenticated read path for version-bound bracket slots,
+antepost definitions, tie-break metadata, and bracket source metadata needed by the future destination
+mapping. It preserves session identity, active membership, league scope, and read-side RLS coverage
+without adding prediction writes.
 
-Only after 11J-C2 is validated may Milestone 11J-C3 connect explicit prediction-set initialization,
+Only after 11J-C2B is validated may Milestone 11J-C3 connect explicit prediction-set initialization,
 if supported, and the existing personal match, tie-break, antepost, and completion RPCs. Quick and
 Expert remain unavailable for UUID editing until that separate write milestone is complete.
+
+# Milestone 11J-C2A secure target catalog read model
+
+`get_prediction_target_catalog(p_league_id uuid)` returns a JSON read model containing the requested
+league id, competition edition id, league-bound format/ruleset/requirement version ids, edition bracket
+slots, antepost definitions, and static tie-break rules. Identity is not an argument; it comes from
+`auth.uid()`, and active membership is required.
+
+The RPC distinguishes an authorized empty catalog from an access/query error. The client performs one
+batched call and validates every required scope field. The adapter recognizes the existing bracket
+source forms (`GROUP_POSITION`, `BEST_THIRD`, `LEAGUE_POSITION`, `WINNER_OF_MATCH`, and
+`LOSER_OF_MATCH`) and the manual MVP antepost codes `TOP_SCORER` and `TOP_SCORER_GOALS`.
+
+The existing bracket-slot table does not identify the destination match side or another stable target
+position. Consequently source records are readable but cannot yet place every derived participant in
+the normalized match catalog. C2A is complete as a read-only catalog milestone, while Quick/Expert
+UUID editing and C3 writes stay disabled.
+
+Milestone 11J-C2B will analyze and add a stable, versioned destination mapping for each source. The
+design may use additional `bracket_slots` columns, a separate assignment table, or another normalized
+model; no option is selected before schema analysis. It must represent destination match/structure and
+participant position unambiguously, validate completeness and uniqueness, support the required
+single-leg demo flow, and leave room for future two-leg formats. It will not connect personal writes.

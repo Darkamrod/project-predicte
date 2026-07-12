@@ -51,6 +51,32 @@ export interface AuthenticatedPersistedMatchPredictionInput {
   qualificationMethod?: "REGULATION" | "EXTRA_TIME" | "PENALTIES" | undefined;
 }
 
+export interface AuthenticatedTargetBracketSlotInput {
+  id: string;
+  editionId: string;
+  roundId: string;
+  sourceType: string;
+  sourcePayload: unknown;
+}
+
+export interface AuthenticatedTargetAntepostDefinitionInput {
+  id: string;
+  editionId: string;
+  code: string;
+  label: string;
+  valueType: string;
+  required: boolean;
+}
+
+export interface AuthenticatedTargetTiebreakRuleInput {
+  id: string;
+  editionId: string;
+  scope: string;
+  order: number;
+  ruleCode: string;
+  rulePayload: unknown;
+}
+
 export interface AuthenticatedPredictionTargetAdapterInput {
   leagueStatus: string;
   formatTemplatePayload?: unknown;
@@ -61,8 +87,11 @@ export interface AuthenticatedPredictionTargetAdapterInput {
   teams: AuthenticatedTargetTeamInput[];
   matches: AuthenticatedTargetMatchInput[];
   persistedMatchPredictions: AuthenticatedPersistedMatchPredictionInput[];
-  bracketSlotsAvailable: boolean;
-  antepostDefinitionsAvailable: boolean;
+  bracketSlots: AuthenticatedTargetBracketSlotInput[];
+  antepostDefinitions: AuthenticatedTargetAntepostDefinitionInput[];
+  tiebreakRules: AuthenticatedTargetTiebreakRuleInput[];
+  catalogReadPathAvailable: boolean;
+  bracketSlotDestinationsAvailable: boolean;
 }
 
 export interface AuthenticatedNormalizedPredictionValue {
@@ -94,6 +123,12 @@ export interface AuthenticatedPredictionTargetAdapterResult {
   targets: AuthenticatedPredictionMatchTarget[];
   blockers: string[];
   writeReady: boolean;
+  catalog: {
+    bracketSlotCount: number;
+    supportedAntepostDefinitionIds: string[];
+    unsupportedAntepostDefinitionIds: string[];
+    tiebreakRuleCount: number;
+  };
   progress: {
     totalTargets: number;
     completedTargets: number;
@@ -174,13 +209,24 @@ export function adaptAuthenticatedPredictionTargets(
       } satisfies AuthenticatedPredictionMatchTarget;
     });
 
+  const malformedBracketSlots = input.bracketSlots.filter((slot) => !isValidBracketSource(slot));
+  const supportedAntepostDefinitions = input.antepostDefinitions.filter(isSupportedManualAntepost);
+  const unsupportedAntepostDefinitions = input.antepostDefinitions.filter(
+    (definition) => !isSupportedManualAntepost(definition)
+  );
   const blockers = [
     !input.predictionRequirementPayload ? "Prediction requirements non disponibili." : undefined,
-    !input.bracketSlotsAvailable
-      ? "Bracket slots non leggibili dal client autenticato."
+    !input.catalogReadPathAvailable
+      ? "Catalogo target protetto non leggibile dal client autenticato."
       : undefined,
-    !input.antepostDefinitionsAvailable
-      ? "Definizioni antepost non leggibili dal client autenticato."
+    malformedBracketSlots.length > 0
+      ? "Bracket slots con metadata sorgente incompleti."
+      : undefined,
+    !input.bracketSlotDestinationsAvailable
+      ? "Bracket slots senza destinazione home/away verificabile."
+      : undefined,
+    unsupportedAntepostDefinitions.length > 0
+      ? "Definizioni antepost non supportate dal workflow autenticato."
       : undefined,
     targets.some((target) => target.matchFormat === "knockout_two_leg")
       ? "Knockout two-leg non supportato dal domain workflow corrente."
@@ -198,12 +244,51 @@ export function adaptAuthenticatedPredictionTargets(
       blockers.length === 0 &&
       (input.leagueStatus === "draft" || input.leagueStatus === "open") &&
       targets.every((target) => !target.blockedReason),
+    catalog: {
+      bracketSlotCount: input.bracketSlots.length,
+      supportedAntepostDefinitionIds: supportedAntepostDefinitions.map(
+        (definition) => definition.id
+      ),
+      unsupportedAntepostDefinitionIds: unsupportedAntepostDefinitions.map(
+        (definition) => definition.id
+      ),
+      tiebreakRuleCount: input.tiebreakRules.length
+    },
     progress: {
       totalTargets: targets.length,
       completedTargets,
       missingTargets: Math.max(targets.length - completedTargets, 0)
     }
   };
+}
+
+function isSupportedManualAntepost(
+  definition: AuthenticatedTargetAntepostDefinitionInput
+): boolean {
+  return definition.code === "TOP_SCORER" || definition.code === "TOP_SCORER_GOALS";
+}
+
+function isValidBracketSource(slot: AuthenticatedTargetBracketSlotInput): boolean {
+  const payload = isRecord(slot.sourcePayload) ? slot.sourcePayload : undefined;
+  if (!payload) return false;
+
+  if (slot.sourceType === "GROUP_POSITION") {
+    return typeof payload.groupCode === "string" && isPositiveInteger(payload.position);
+  }
+  if (slot.sourceType === "BEST_THIRD") {
+    return isPositiveInteger(payload.rank);
+  }
+  if (slot.sourceType === "LEAGUE_POSITION") {
+    return isPositiveInteger(payload.position);
+  }
+  if (slot.sourceType === "WINNER_OF_MATCH" || slot.sourceType === "LOSER_OF_MATCH") {
+    return typeof payload.matchId === "string" && payload.matchId.length > 0;
+  }
+  return false;
+}
+
+function isPositiveInteger(value: unknown): boolean {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
 
 interface ParsedTemplateStage {

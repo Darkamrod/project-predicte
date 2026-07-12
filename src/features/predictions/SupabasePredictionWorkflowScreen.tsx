@@ -63,8 +63,11 @@ export function SupabasePredictionWorkflowScreen({
     teams: context.catalogTeams,
     matches: context.catalogMatches,
     persistedMatchPredictions: context.matchPredictions,
-    bracketSlotsAvailable: false,
-    antepostDefinitionsAvailable: false
+    bracketSlots: context.targetCatalog.bracketSlots,
+    antepostDefinitions: context.targetCatalog.antepostDefinitions,
+    tiebreakRules: context.targetCatalog.tiebreakRules,
+    catalogReadPathAvailable: true,
+    bracketSlotDestinationsAvailable: false
   });
   const capability = resolveSupabasePredictionWorkflowCapability(context, targetAdapter);
   const predictionSet = context.predictionSet;
@@ -111,6 +114,11 @@ export function SupabasePredictionWorkflowScreen({
             <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
               Adapter reale: {targetAdapter.progress.completedTargets}/
               {targetAdapter.progress.totalTargets} target match persistiti.
+            </Text>
+            <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
+              Catalogo protetto: {targetAdapter.catalog.bracketSlotCount} slot bracket,{" "}
+              {targetAdapter.catalog.supportedAntepostDefinitionIds.length} antepost MVP,{" "}
+              {targetAdapter.catalog.tiebreakRuleCount} regole tie-break.
             </Text>
           </>
         ) : (

@@ -234,12 +234,31 @@ no lifecycle or deadline decision is delegated to device time. This milestone do
 migrations, RLS, policies, grants, RPCs, trusted ingestion, official scoring, or leaderboard
 persistence.
 
-Milestone 11J-C2 is the separately authorized secure catalog read phase. It must add only
-league-scoped, version-bound access to bracket slots, antepost definitions, tie-break metadata, and
-derived participants, while retaining session identity, active-membership checks, and authenticated
-read-side RLS tests. It must not connect personal write RPCs.
+Milestone 11J-C2A is the separately authorized secure catalog read phase. It adds only
+league-scoped, version-bound access to bracket slots, antepost definitions, static tie-break rules,
+and bracket source metadata, while retaining session identity, active-membership checks, and
+authenticated read-side RLS tests. It must not connect personal write RPCs.
 
-Milestone 11J-C3 is the later write phase. Only after 11J-C2 validation may it connect explicit
+Milestone 11J-C3 is the later write phase. Only after 11J-C2B validation may it connect explicit
 prediction-set initialization where authorized and the existing personal prediction RPCs, with
 server-side lifecycle/deadline and authenticated write RLS verification. Until then Quick and Expert
 remain unavailable for real UUID editing.
+
+## Milestone 11J-C2A Secure Catalog RPC
+
+`get_prediction_target_catalog(uuid)` is a stable, security-definer read function with explicit
+`search_path = pg_catalog, public`. It accepts only `league_id`, obtains the caller from `auth.uid()`,
+requires an active `league_members` row, and derives edition and version scope from the league. It
+rejects mismatched format, ruleset, or prediction-requirement versions.
+
+Execution is revoked from `PUBLIC` and `anon` and granted only to `authenticated`. The function
+returns minimal bracket, antepost, and static tie-break catalog fields; it exposes no profiles, auth
+metadata, provider data, administrative records, or service-role credentials. It performs no writes
+and does not call personal prediction, scoring, leaderboard, result-ingestion, or trusted RPCs.
+
+Authenticated RLS tests cover anonymous, outsider, removed-member, active-member, cross-league,
+edition/version scope, privileges, and mutation-free behavior. C2A is complete as a secure read path.
+
+Milestone 11J-C2B will separately define and validate destination mappings. It must preserve the same
+league/version scope and minimum privileges, introduce no personal writes, and keep the UUID editor
+disabled. C3 remains unauthorized until C2B proves mapping completeness and uniqueness.

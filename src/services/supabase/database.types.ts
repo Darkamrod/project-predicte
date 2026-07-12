@@ -2311,6 +2311,10 @@ export type Database = {
       };
       ensure_current_user_profile: { Args: never; Returns: undefined };
       generate_invite_token: { Args: never; Returns: string };
+      get_prediction_target_catalog: {
+        Args: { p_league_id: string };
+        Returns: Json;
+      };
       hash_invite_token: { Args: { p_token: string }; Returns: string };
       join_league_by_invite: { Args: { p_token: string }; Returns: string };
       league_accepts_members: {

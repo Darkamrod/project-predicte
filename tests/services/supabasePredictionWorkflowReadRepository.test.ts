@@ -14,7 +14,7 @@ vi.mock("@/services/supabase/client", () => ({
 
 describe("SupabasePredictionWorkflowReadRepository", () => {
   it("loads league-scoped version context and only the authenticated user's predictions", async () => {
-    const { client, calls } = createReadClient(createCompleteFixtures());
+    const { client, calls, rpcCalls } = createReadClient(createCompleteFixtures());
     const repository = new SupabasePredictionWorkflowReadRepository(client);
 
     const context = await repository.loadAuthenticatedWorkflow(leagueId, userId);
@@ -31,6 +31,15 @@ describe("SupabasePredictionWorkflowReadRepository", () => {
     expect(context.catalogMatches).toHaveLength(1);
     expect(context.catalogStages).toHaveLength(1);
     expect(context.catalogTeams.map((team) => team.id)).toEqual(["team-1", "team-2"]);
+    expect(context.targetCatalog).toMatchObject({
+      leagueId,
+      editionId: "edition-1",
+      formatTemplateVersionId: "format-1"
+    });
+    expect(context.targetCatalog.bracketSlots).toHaveLength(1);
+    expect(rpcCalls).toEqual([
+      { functionName: "get_prediction_target_catalog", args: { p_league_id: leagueId } }
+    ]);
 
     expect(filtersFor(calls, "league_members")).toEqual([
       { column: "league_id", value: leagueId },
@@ -74,6 +83,43 @@ describe("SupabasePredictionWorkflowReadRepository", () => {
     await expect(repository.loadAuthenticatedWorkflow(leagueId, userId)).rejects.toBeInstanceOf(
       SupabasePredictionWorkflowAccessError
     );
+  });
+
+  it("preserves an authorized empty protected catalog", async () => {
+    const fixtures = createCompleteFixtures();
+    const catalog = fixtures.target_catalog!.data[0]!;
+    fixtures.target_catalog = {
+      data: [
+        {
+          ...catalog,
+          bracket_slots: [],
+          antepost_definitions: [],
+          tiebreak_rules: []
+        }
+      ]
+    };
+    const { client } = createReadClient(fixtures);
+
+    const context = await new SupabasePredictionWorkflowReadRepository(
+      client
+    ).loadAuthenticatedWorkflow(leagueId, userId);
+
+    expect(context.targetCatalog.bracketSlots).toEqual([]);
+    expect(context.targetCatalog.antepostDefinitions).toEqual([]);
+    expect(context.targetCatalog.tiebreakRules).toEqual([]);
+  });
+
+  it("propagates a protected catalog RPC error instead of treating it as empty", async () => {
+    const fixtures = createCompleteFixtures();
+    fixtures.target_catalog = { data: [], error: new Error("catalog query failed") };
+    const { client } = createReadClient(fixtures);
+
+    await expect(
+      new SupabasePredictionWorkflowReadRepository(client).loadAuthenticatedWorkflow(
+        leagueId,
+        userId
+      )
+    ).rejects.toThrow("catalog query failed");
   });
 });
 
@@ -222,7 +268,29 @@ function createCompleteFixtures(): Record<string, QueryFixture> {
       ]
     },
     prediction_tiebreak_overrides: { data: [] },
-    antepost_predictions: { data: [] }
+    antepost_predictions: { data: [] },
+    target_catalog: {
+      data: [
+        {
+          league_id: leagueId,
+          edition_id: "edition-1",
+          format_template_version_id: "format-1",
+          ruleset_version_id: "rules-1",
+          prediction_requirement_version_id: "requirements-1",
+          bracket_slots: [
+            {
+              id: "slot-1",
+              edition_id: "edition-1",
+              round_id: "round-1",
+              source_type: "WINNER_OF_MATCH",
+              source_payload: { matchId: "match-1" }
+            }
+          ],
+          antepost_definitions: [],
+          tiebreak_rules: []
+        }
+      ]
+    }
   };
 }
 
@@ -233,7 +301,7 @@ interface QueryResult {
 }
 
 type QueryRow = Record<string, unknown>;
-type QueryFixture = { data: QueryRow[] };
+type QueryFixture = { data: QueryRow[]; error?: Error };
 
 interface QueryCall {
   table: string;
@@ -241,16 +309,30 @@ interface QueryCall {
   mutations: string[];
 }
 
+interface RpcCall {
+  functionName: string;
+  args: Record<string, unknown>;
+}
+
 function createReadClient(results: Record<string, QueryFixture>): {
   calls: QueryCall[];
+  rpcCalls: RpcCall[];
   client: SupabasePredictionWorkflowReadClient;
 } {
   const calls: QueryCall[] = [];
+  const rpcCalls: RpcCall[] = [];
   const client = {
-    from: (table: string) => new FakeQueryBuilder(table, results[table] ?? { data: [] }, calls)
+    from: (table: string) => new FakeQueryBuilder(table, results[table] ?? { data: [] }, calls),
+    rpc: (functionName: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ functionName, args });
+      return Promise.resolve({
+        data: results.target_catalog?.data[0] ?? null,
+        error: results.target_catalog?.error ?? null
+      });
+    }
   } as unknown as SupabasePredictionWorkflowReadClient;
 
-  return { calls, client };
+  return { calls, rpcCalls, client };
 }
 
 class FakeQueryBuilder implements PromiseLike<QueryResult> {

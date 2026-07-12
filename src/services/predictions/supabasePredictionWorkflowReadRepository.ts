@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseClient } from "@/services/supabase/client";
 import type { Database, Json } from "@/services/supabase/database.types";
 
-export type SupabasePredictionWorkflowReadClient = Pick<SupabaseClient<Database>, "from">;
+export type SupabasePredictionWorkflowReadClient = Pick<SupabaseClient<Database>, "from" | "rpc">;
 type LeagueStatus = Database["public"]["Enums"]["league_status"];
 type PredictionSetStatus = Database["public"]["Enums"]["prediction_set_status"];
 type PredictionSyncStatus = Database["public"]["Enums"]["prediction_sync_status"];
@@ -144,6 +144,43 @@ export interface SupabasePredictionCatalogTeam {
   countryCode?: string | undefined;
 }
 
+export interface SupabasePredictionCatalogBracketSlot {
+  id: string;
+  editionId: string;
+  roundId: string;
+  sourceType: string;
+  sourcePayload: Json;
+}
+
+export interface SupabasePredictionCatalogAntepostDefinition {
+  id: string;
+  editionId: string;
+  code: string;
+  label: string;
+  valueType: string;
+  required: boolean;
+}
+
+export interface SupabasePredictionCatalogTiebreakRule {
+  id: string;
+  editionId: string;
+  scope: string;
+  order: number;
+  ruleCode: string;
+  rulePayload: Json;
+}
+
+export interface SupabasePredictionTargetCatalog {
+  leagueId: string;
+  editionId: string;
+  formatTemplateVersionId: string;
+  rulesetVersionId: string;
+  predictionRequirementVersionId: string;
+  bracketSlots: SupabasePredictionCatalogBracketSlot[];
+  antepostDefinitions: SupabasePredictionCatalogAntepostDefinition[];
+  tiebreakRules: SupabasePredictionCatalogTiebreakRule[];
+}
+
 export interface SupabasePredictionWorkflowContext {
   league: SupabasePredictionWorkflowLeague;
   edition?: SupabasePredictionWorkflowEdition | undefined;
@@ -160,6 +197,7 @@ export interface SupabasePredictionWorkflowContext {
   catalogGroups: SupabasePredictionCatalogGroup[];
   catalogRounds: SupabasePredictionCatalogRound[];
   catalogTeams: SupabasePredictionCatalogTeam[];
+  targetCatalog: SupabasePredictionTargetCatalog;
 }
 
 export class SupabasePredictionWorkflowAccessError extends Error {
@@ -230,6 +268,7 @@ export class SupabasePredictionWorkflowReadRepository {
       catalogStages,
       catalogGroups,
       catalogRounds,
+      targetCatalog,
       personalPredictions
     ] = await Promise.all([
       this.loadEdition(league.competitionEditionId),
@@ -241,6 +280,7 @@ export class SupabasePredictionWorkflowReadRepository {
       this.loadCatalogStages(league.competitionEditionId),
       this.loadCatalogGroups(league.competitionEditionId),
       this.loadCatalogRounds(league.competitionEditionId),
+      this.loadTargetCatalog(league.id),
       predictionSet
         ? this.loadPersonalPredictions(predictionSet.id)
         : Promise.resolve({ matchPredictions: [], tiebreakOverrides: [], antepostPredictions: [] })
@@ -261,6 +301,7 @@ export class SupabasePredictionWorkflowReadRepository {
       catalogGroups,
       catalogRounds,
       catalogTeams,
+      targetCatalog,
       ...personalPredictions
     };
   }
@@ -457,6 +498,16 @@ export class SupabasePredictionWorkflowReadRepository {
     }));
   }
 
+  private async loadTargetCatalog(leagueId: string): Promise<SupabasePredictionTargetCatalog> {
+    const { data, error } = await resolveReadClient(this.client).rpc(
+      "get_prediction_target_catalog",
+      { p_league_id: leagueId }
+    );
+
+    throwIfError(error);
+    return mapTargetCatalog(data);
+  }
+
   private async loadPersonalPredictions(predictionSetId: string): Promise<{
     matchPredictions: SupabasePersistedMatchPrediction[];
     tiebreakOverrides: SupabasePersistedTiebreakOverride[];
@@ -569,4 +620,86 @@ function mapVersion(
   payload: Json
 ): SupabasePredictionWorkflowVersion {
   return { id, version, status, payload };
+}
+
+function mapTargetCatalog(value: Json): SupabasePredictionTargetCatalog {
+  const catalog = requireRecord(value, "Catalogo target non disponibile.");
+  const leagueId = requireString(catalog.league_id, "Catalogo target senza league scope.");
+  const editionId = requireString(catalog.edition_id, "Catalogo target senza edition scope.");
+
+  return {
+    leagueId,
+    editionId,
+    formatTemplateVersionId: requireString(
+      catalog.format_template_version_id,
+      "Catalogo target senza format version."
+    ),
+    rulesetVersionId: requireString(
+      catalog.ruleset_version_id,
+      "Catalogo target senza ruleset version."
+    ),
+    predictionRequirementVersionId: requireString(
+      catalog.prediction_requirement_version_id,
+      "Catalogo target senza requirement version."
+    ),
+    bracketSlots: requireArray(catalog.bracket_slots).map((item) => {
+      const row = requireRecord(item, "Bracket slot non valido.");
+      return {
+        id: requireString(row.id, "Bracket slot senza id."),
+        editionId: requireString(row.edition_id, "Bracket slot senza edition."),
+        roundId: requireString(row.round_id, "Bracket slot senza round."),
+        sourceType: requireString(row.source_type, "Bracket slot senza source type."),
+        sourcePayload: row.source_payload ?? {}
+      };
+    }),
+    antepostDefinitions: requireArray(catalog.antepost_definitions).map((item) => {
+      const row = requireRecord(item, "Definizione antepost non valida.");
+      return {
+        id: requireString(row.id, "Definizione antepost senza id."),
+        editionId: requireString(row.edition_id, "Definizione antepost senza edition."),
+        code: requireString(row.code, "Definizione antepost senza code."),
+        label: requireString(row.label, "Definizione antepost senza label."),
+        valueType: requireString(row.value_type, "Definizione antepost senza value type."),
+        required: requireBoolean(row.required, "Definizione antepost senza required.")
+      };
+    }),
+    tiebreakRules: requireArray(catalog.tiebreak_rules).map((item) => {
+      const row = requireRecord(item, "Regola tie-break non valida.");
+      return {
+        id: requireString(row.id, "Regola tie-break senza id."),
+        editionId: requireString(row.edition_id, "Regola tie-break senza edition."),
+        scope: requireString(row.scope, "Regola tie-break senza scope."),
+        order: requireNumber(row.sort_order, "Regola tie-break senza order."),
+        ruleCode: requireString(row.rule_code, "Regola tie-break senza code."),
+        rulePayload: row.rule_payload ?? {}
+      };
+    })
+  };
+}
+
+function requireRecord(value: Json | undefined, message: string): Record<string, Json | undefined> {
+  if (value === null || value === undefined || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(message);
+  }
+  return value;
+}
+
+function requireArray(value: Json | undefined): Json[] {
+  if (!Array.isArray(value)) throw new Error("Catalogo target con lista non valida.");
+  return value;
+}
+
+function requireString(value: Json | undefined, message: string): string {
+  if (typeof value !== "string" || value.length === 0) throw new Error(message);
+  return value;
+}
+
+function requireBoolean(value: Json | undefined, message: string): boolean {
+  if (typeof value !== "boolean") throw new Error(message);
+  return value;
+}
+
+function requireNumber(value: Json | undefined, message: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(message);
+  return value;
 }
