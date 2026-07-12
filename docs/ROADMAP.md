@@ -246,3 +246,24 @@ Do not start a later milestone without explicit authorization.
 - Loaded versioned league context, the session user's prediction set, persisted personal predictions, and edition matches through read-only, league-scoped queries.
 - Kept locked/live/completed/archived states read-only and kept a missing prediction set explicit without automatic initialization.
 - Did not connect the existing secure prediction RPCs because a complete authenticated target catalog/adapter is still missing. Full UUID Quick/Expert editing remains future work and must not reuse mock targets.
+
+## Completed in Milestone 11J-C1 - Authenticated Prediction Target Adapter Foundation
+
+- Added edition-scoped stage, group, round, match, and referenced-team reads to the authenticated workflow repository.
+- Added one pure, version-aware normalized target adapter for future Quick and Expert presentations, including persisted match values, ordering, progress, unresolved-participant blockers, and conservative format classification.
+- Kept UUID editing disabled because bracket slots and antepost definitions are not readable through the existing client authorization model. Tie-break target generation, MVP antepost targets, and derived bracket progression therefore remain unavailable.
+- Kept two-leg knockout editing disabled until aggregate and advancement behavior can be verified from authorized real data.
+- Connected no write RPC and introduced no direct mutation. This milestone is complete only as a read-only adapter foundation; it does not provide an editable UUID workflow.
+
+## Planned Milestone 11J-C2 - Secure Prediction Target Catalog Read Path
+
+- Add safe, league-scoped and version-bound reads for bracket slots and antepost definitions.
+- Expose the metadata required for distinct tie-break targets and derived participants.
+- Keep identity session-derived, verify active membership, and add authenticated read-side RLS tests.
+- Do not connect personal prediction RPCs or enable authenticated writes.
+
+## Planned Milestone 11J-C3 - Safe Personal Prediction Write Integration
+
+- Start only after 11J-C2 is complete and validated.
+- Connect explicit prediction-set initialization if an authorized operation exists, followed by the existing personal match, tie-break, antepost, and completion RPCs.
+- Validate server-authoritative lifecycle/deadline enforcement and authenticated write RLS behavior before enabling the real Quick/Expert UUID workflow.

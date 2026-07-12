@@ -324,3 +324,26 @@ The read model is intentionally not converted into the existing mock `Competitio
 client RLS catalog does not expose every target required by the complete editor, including bracket
 slots and antepost definitions. Until a future authorized read-side contract closes that gap, UUID
 Quick/Expert editing remains unavailable and no mock target data is substituted.
+
+# Milestone 11J-C1 authenticated target adapter foundation
+
+The authenticated loader now includes edition-scoped stages, groups, rounds, matches, and only the
+teams referenced by those matches. A pure adapter converts those rows plus persisted personal match
+predictions into one ordered normalized target collection intended to be shared by Quick and Expert.
+It preserves `home_goals_90`, `away_goals_90`, `qualified_team_id`, and
+`qualification_method` semantics and reports unresolved participants or unsupported formats as
+blockers rather than creating placeholders.
+
+The current authenticated catalog is incomplete. `bracket_slots` and
+`competition_antepost_definitions` are not readable through the existing client RLS contract, so the
+adapter does not invent derived bracket participants, tie-break targets, or antepost targets. Two-leg
+knockout editing is also disabled conservatively. Consequently the UUID editor and all personal write
+RPCs remain disconnected; the feature is a verified read-side adapter, not end-to-end persistence.
+
+Milestone 11J-C2 will define a secure, authenticated read path for version-bound bracket slots,
+antepost definitions, tie-break metadata, and derived participants. It must preserve session identity,
+active membership, league scope, and read-side RLS coverage without adding prediction writes.
+
+Only after 11J-C2 is validated may Milestone 11J-C3 connect explicit prediction-set initialization,
+if supported, and the existing personal match, tie-break, antepost, and completion RPCs. Quick and
+Expert remain unavailable for UUID editing until that separate write milestone is complete.

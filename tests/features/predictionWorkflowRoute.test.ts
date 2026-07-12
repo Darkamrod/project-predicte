@@ -52,4 +52,19 @@ describe("authenticated prediction workflow route contracts", () => {
     );
     expect(combined).not.toMatch(/world_cup|euro_2028|champions_league/i);
   });
+
+  it("keeps the authenticated target adapter pure and writes disabled while catalog gaps remain", () => {
+    const adapter = read("src/domain/predictions/authenticatedTargetAdapter.ts");
+    const screen = read("src/features/predictions/SupabasePredictionWorkflowScreen.tsx");
+    const capability = read("src/features/predictions/supabasePredictionWorkflowCapability.ts");
+    const combined = `${adapter}\n${screen}\n${capability}`;
+
+    expect(adapter).not.toMatch(/react|supabase|usePredicteMock|PredicteMockProvider/i);
+    expect(adapter).not.toMatch(/world_cup|euro_2028|champions_league/i);
+    expect(screen).toContain("bracketSlotsAvailable: false");
+    expect(screen).toContain("antepostDefinitionsAvailable: false");
+    expect(screen).toContain("targetAdapter");
+    expect(combined).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
+    expect(combined).not.toMatch(/save_match_prediction|upsert_antepost_prediction/);
+  });
 });

@@ -178,3 +178,20 @@ Quick/Expert controls are not shown for UUID leagues yet. The authenticated clie
 currently expose a complete target catalog for bracket and antepost editing, so presenting the mock
 workflow would be misleading. A missing prediction set is reported explicitly and never created on
 route open. Existing secure write RPCs remain unused until the real target adapter is complete.
+
+## Milestone 11J-C1 - Authenticated Prediction Target Adapter Foundation
+
+For UUID leagues, the screen now derives ordered match targets and progress from real edition stages,
+groups, rounds, matches, teams, and persisted personal match predictions. Quick and Expert are planned
+to consume this same normalized collection; they are not separate data models.
+
+The screen remains read-only because the authorized catalog cannot currently supply bracket slots or
+antepost definitions. It explains the missing catalog capability instead of opening a partial editor,
+using mock placeholders, or saving incomplete data. Tie-break editing, manual antepost fields, derived
+bracket progression, two-leg knockout editing, and every write RPC remain unavailable for UUID leagues.
+
+Milestone 11J-C2 will add the secure, league/version-scoped read path for bracket slots, antepost
+definitions, tie-break metadata, and derived participants, with authenticated read-side RLS tests and
+no writes. Milestone 11J-C3 may then connect explicit initialization and the existing personal write
+RPCs. The real UUID Quick/Expert workflow remains non-interactive until both later milestones are
+completed and validated.

@@ -220,3 +220,26 @@ the persisted lifecycle rather than device time and exposes locked/later states 
 Milestone 11J-B adds no mutation, migration, RLS policy, grant, RPC, trusted worker, result ingestion,
 official scoring, or leaderboard persistence. Existing personal prediction RPCs remain disconnected
 until the authenticated read-side can provide every target required by the full editor.
+
+## Milestone 11J-C1 Adapter Foundation and Stop Condition
+
+The authenticated loader reads edition-scoped stages, groups, rounds, matches, and referenced teams
+through the public client and existing RLS. Its pure adapter does not read profiles, `auth.users`,
+email, private metadata, or service-role credentials, and it never uses mock targets for UUID leagues.
+
+Existing client authorization does not expose `bracket_slots` or
+`competition_antepost_definitions`. The UUID screen therefore remains read-only and reports the
+catalog gap. No personal prediction RPC is called, no direct insert/update/upsert/delete is added, and
+no lifecycle or deadline decision is delegated to device time. This milestone does not alter schema,
+migrations, RLS, policies, grants, RPCs, trusted ingestion, official scoring, or leaderboard
+persistence.
+
+Milestone 11J-C2 is the separately authorized secure catalog read phase. It must add only
+league-scoped, version-bound access to bracket slots, antepost definitions, tie-break metadata, and
+derived participants, while retaining session identity, active-membership checks, and authenticated
+read-side RLS tests. It must not connect personal write RPCs.
+
+Milestone 11J-C3 is the later write phase. Only after 11J-C2 validation may it connect explicit
+prediction-set initialization where authorized and the existing personal prediction RPCs, with
+server-side lifecycle/deadline and authenticated write RLS verification. Until then Quick and Expert
+remain unavailable for real UUID editing.

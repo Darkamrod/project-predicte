@@ -351,3 +351,15 @@ headroom.
 - Kept `not_started` explicit and side-effect free. Existing create/join flows normally create prediction sets, but no separate initialization RPC exists and the loader never inserts one.
 - Confirmed that secure personal prediction RPCs already exist, but did not connect them. The current authenticated read-side does not expose a complete target catalog for the full Quick/Expert workflow, notably bracket slots and antepost definitions, so UUID editing remains conservatively unavailable instead of borrowing mock targets.
 - Added no migration, policy, grant, RPC, direct table write, scoring path, leaderboard persistence, trusted worker behavior, or result ingestion behavior.
+
+## 2026-07-11 - Milestone 11J-C1 - Authenticated Prediction Target Adapter Foundation
+
+- Extended the authenticated read model with edition-scoped stages, groups, rounds, matches, and the teams referenced by those matches. The team lookup is batched and does not introduce N+1 reads.
+- Added a pure, version-aware target adapter under `src/domain`. It orders real catalog matches, maps persisted normalized predictions, distinguishes initial-phase, single-leg, two-leg, and unsupported targets, and exposes conservative blockers and progress without importing React or Supabase.
+- Kept Quick and Expert as two future presentations of the same normalized target collection. The UUID screen does not render either editor while the adapter reports an incomplete catalog.
+- Applied the required stop condition. Existing client RLS does not provide readable `bracket_slots` or `competition_antepost_definitions`, so derived bracket participants, distinct tie-break targets, and MVP antepost targets cannot be assembled safely from real data.
+- Kept two-leg knockout targets disabled because the authenticated adapter cannot yet verify aggregate and advancement semantics from the authorized catalog.
+- Did not connect `save_match_prediction`, `upsert_prediction_tiebreak_override`, `upsert_antepost_prediction`, or `update_prediction_set_completion`. No write is allowed while the target model is incomplete, and no mock target is substituted for a UUID league.
+- Added no migration, RLS policy, grant, RPC, direct mutation, scoring path, leaderboard persistence, trusted worker behavior, or result ingestion behavior. Milestone 11J-C1 is complete as a read-only adapter foundation, not as end-to-end authenticated prediction editing.
+- Reserved Milestone 11J-C2, Secure Prediction Target Catalog Read Path, for league/version-scoped access to bracket slots, antepost definitions, tie-break metadata, and derived-participant metadata, including authenticated read-side RLS tests. It must not connect personal write RPCs.
+- Reserved Milestone 11J-C3, Safe Personal Prediction Write Integration, for explicit prediction-set initialization if supported and for the existing personal prediction RPCs, server-authoritative lifecycle/deadline enforcement, and authenticated write RLS tests. It may start only after 11J-C2 is complete and validated.

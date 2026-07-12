@@ -1,4 +1,5 @@
 import { isLockedLeagueStatus } from "@/domain/predictions/personalCompletion";
+import type { AuthenticatedPredictionTargetAdapterResult } from "@/domain/predictions/authenticatedTargetAdapter";
 import type { SupabasePredictionWorkflowContext } from "@/services/predictions/supabasePredictionWorkflowReadRepository";
 
 export type SupabasePredictionWorkflowCapability =
@@ -7,7 +8,8 @@ export type SupabasePredictionWorkflowCapability =
   | { kind: "unavailable"; message: string; missingData: string[] };
 
 export function resolveSupabasePredictionWorkflowCapability(
-  context: SupabasePredictionWorkflowContext
+  context: SupabasePredictionWorkflowContext,
+  targetAdapter?: AuthenticatedPredictionTargetAdapterResult
 ): SupabasePredictionWorkflowCapability {
   if (isLockedLeagueStatus(context.league.status)) {
     return {
@@ -31,7 +33,7 @@ export function resolveSupabasePredictionWorkflowCapability(
     !context.predictionRequirementVersion ? "prediction requirement version" : undefined,
     !context.scoringPresetVersion ? "scoring preset version" : undefined,
     context.catalogMatches.length === 0 ? "target match reali" : undefined,
-    "adapter completo target/bracket/antepost"
+    ...(targetAdapter?.blockers ?? ["adapter completo target/bracket/antepost"])
   ].filter((item): item is string => Boolean(item));
 
   return {

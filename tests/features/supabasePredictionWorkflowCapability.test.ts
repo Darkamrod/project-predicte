@@ -86,6 +86,10 @@ function createContext(
         status: "NOT_STARTED",
         order: 1
       }
-    ]
+    ],
+    catalogStages: [],
+    catalogGroups: [],
+    catalogRounds: [],
+    catalogTeams: []
   };
 }

@@ -9,6 +9,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAppTheme } from "@/design-system/theme";
+import { adaptAuthenticatedPredictionTargets } from "@/domain/predictions/authenticatedTargetAdapter";
 import { strings } from "@/i18n/strings";
 import { resolveSupabasePredictionWorkflowCapability } from "./supabasePredictionWorkflowCapability";
 import { useSupabasePredictionWorkflowLoader } from "./useSupabasePredictionWorkflowLoader";
@@ -52,7 +53,20 @@ export function SupabasePredictionWorkflowScreen({
   }
 
   const { context } = state;
-  const capability = resolveSupabasePredictionWorkflowCapability(context);
+  const targetAdapter = adaptAuthenticatedPredictionTargets({
+    leagueStatus: context.league.status,
+    formatTemplatePayload: context.formatTemplateVersion?.payload,
+    predictionRequirementPayload: context.predictionRequirementVersion?.payload,
+    stages: context.catalogStages,
+    groups: context.catalogGroups,
+    rounds: context.catalogRounds,
+    teams: context.catalogTeams,
+    matches: context.catalogMatches,
+    persistedMatchPredictions: context.matchPredictions,
+    bracketSlotsAvailable: false,
+    antepostDefinitionsAvailable: false
+  });
+  const capability = resolveSupabasePredictionWorkflowCapability(context, targetAdapter);
   const predictionSet = context.predictionSet;
   const progress = predictionSet?.totalRequired
     ? Math.round((predictionSet.completedItems / predictionSet.totalRequired) * 100)
@@ -93,6 +107,10 @@ export function SupabasePredictionWorkflowScreen({
             <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
               {predictionSet.completedItems}/{predictionSet.totalRequired} elementi completati ·{" "}
               {context.matchPredictions.length} risultati partita caricati.
+            </Text>
+            <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
+              Adapter reale: {targetAdapter.progress.completedTargets}/
+              {targetAdapter.progress.totalTargets} target match persistiti.
             </Text>
           </>
         ) : (

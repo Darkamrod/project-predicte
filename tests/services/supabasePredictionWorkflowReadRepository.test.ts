@@ -29,6 +29,8 @@ describe("SupabasePredictionWorkflowReadRepository", () => {
     });
     expect(context.predictionRequirementVersion?.id).toBe("requirements-1");
     expect(context.catalogMatches).toHaveLength(1);
+    expect(context.catalogStages).toHaveLength(1);
+    expect(context.catalogTeams.map((team) => team.id)).toEqual(["team-1", "team-2"]);
 
     expect(filtersFor(calls, "league_members")).toEqual([
       { column: "league_id", value: leagueId },
@@ -42,6 +44,9 @@ describe("SupabasePredictionWorkflowReadRepository", () => {
     expect(filtersFor(calls, "match_predictions")).toEqual([
       { column: "prediction_set_id", value: predictionSetId }
     ]);
+    expect(filtersFor(calls, "matches")).toEqual([{ column: "edition_id", value: "edition-1" }]);
+    expect(filtersFor(calls, "stages")).toEqual([{ column: "edition_id", value: "edition-1" }]);
+    expect(filtersFor(calls, "teams")).toEqual([{ column: "id", value: ["team-1", "team-2"] }]);
     expect(calls.flatMap((call) => call.mutations)).toEqual([]);
     expect(calls.some((call) => call.table === "profiles" || call.table === "auth.users")).toBe(
       false
@@ -168,6 +173,37 @@ function createCompleteFixtures(): Record<string, QueryFixture> {
         }
       ]
     },
+    stages: {
+      data: [
+        {
+          id: "stage-1",
+          edition_id: "edition-1",
+          code: "GROUP_STAGE",
+          kind: "GROUP",
+          name: "Fase iniziale",
+          sort_order: 1
+        }
+      ]
+    },
+    groups: {
+      data: [
+        {
+          id: "group-1",
+          edition_id: "edition-1",
+          stage_id: "stage-1",
+          code: "A",
+          name: "Gruppo A",
+          sort_order: 1
+        }
+      ]
+    },
+    rounds: { data: [] },
+    teams: {
+      data: [
+        { id: "team-1", name: "Team One", short_name: "ONE", country_code: "ON" },
+        { id: "team-2", name: "Team Two", short_name: "TWO", country_code: "TW" }
+      ]
+    },
     match_predictions: {
       data: [
         {
@@ -235,6 +271,11 @@ class FakeQueryBuilder implements PromiseLike<QueryResult> {
 
   eq(column: string, value: unknown): this {
     this.call.filters.push({ column, value });
+    return this;
+  }
+
+  in(column: string, values: unknown[]): this {
+    this.call.filters.push({ column, value: values });
     return this;
   }
 

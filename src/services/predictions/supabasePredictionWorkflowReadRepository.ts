@@ -113,6 +113,37 @@ export interface SupabasePredictionCatalogMatch {
   order: number;
 }
 
+export interface SupabasePredictionCatalogStage {
+  id: string;
+  code: string;
+  kind: string;
+  name: string;
+  order: number;
+}
+
+export interface SupabasePredictionCatalogGroup {
+  id: string;
+  stageId: string;
+  code: string;
+  name: string;
+  order: number;
+}
+
+export interface SupabasePredictionCatalogRound {
+  id: string;
+  stageId: string;
+  code: string;
+  name: string;
+  order: number;
+}
+
+export interface SupabasePredictionCatalogTeam {
+  id: string;
+  name: string;
+  shortName: string;
+  countryCode?: string | undefined;
+}
+
 export interface SupabasePredictionWorkflowContext {
   league: SupabasePredictionWorkflowLeague;
   edition?: SupabasePredictionWorkflowEdition | undefined;
@@ -125,6 +156,10 @@ export interface SupabasePredictionWorkflowContext {
   tiebreakOverrides: SupabasePersistedTiebreakOverride[];
   antepostPredictions: SupabasePersistedAntepostPrediction[];
   catalogMatches: SupabasePredictionCatalogMatch[];
+  catalogStages: SupabasePredictionCatalogStage[];
+  catalogGroups: SupabasePredictionCatalogGroup[];
+  catalogRounds: SupabasePredictionCatalogRound[];
+  catalogTeams: SupabasePredictionCatalogTeam[];
 }
 
 export class SupabasePredictionWorkflowAccessError extends Error {
@@ -192,6 +227,9 @@ export class SupabasePredictionWorkflowReadRepository {
       predictionRequirementVersion,
       scoringPresetVersion,
       catalogMatches,
+      catalogStages,
+      catalogGroups,
+      catalogRounds,
       personalPredictions
     ] = await Promise.all([
       this.loadEdition(league.competitionEditionId),
@@ -200,10 +238,15 @@ export class SupabasePredictionWorkflowReadRepository {
       this.loadPredictionRequirementVersion(league.predictionRequirementVersionId),
       this.loadScoringPresetVersion(league.scoringPresetVersionId),
       this.loadCatalogMatches(league.competitionEditionId),
+      this.loadCatalogStages(league.competitionEditionId),
+      this.loadCatalogGroups(league.competitionEditionId),
+      this.loadCatalogRounds(league.competitionEditionId),
       predictionSet
         ? this.loadPersonalPredictions(predictionSet.id)
         : Promise.resolve({ matchPredictions: [], tiebreakOverrides: [], antepostPredictions: [] })
     ]);
+
+    const catalogTeams = await this.loadCatalogTeams(catalogMatches);
 
     return {
       league,
@@ -214,6 +257,10 @@ export class SupabasePredictionWorkflowReadRepository {
       ...(scoringPresetVersion ? { scoringPresetVersion } : {}),
       ...(predictionSet ? { predictionSet } : {}),
       catalogMatches,
+      catalogStages,
+      catalogGroups,
+      catalogRounds,
+      catalogTeams,
       ...personalPredictions
     };
   }
@@ -332,6 +379,81 @@ export class SupabasePredictionWorkflowReadRepository {
       ...(row.kickoff_at ? { kickoffAtUtc: row.kickoff_at } : {}),
       status: row.status,
       order: row.sort_order
+    }));
+  }
+
+  private async loadCatalogStages(editionId: string): Promise<SupabasePredictionCatalogStage[]> {
+    const { data, error } = await resolveReadClient(this.client)
+      .from("stages")
+      .select("id,edition_id,code,kind,name,sort_order")
+      .eq("edition_id", editionId)
+      .order("sort_order", { ascending: true });
+
+    throwIfError(error);
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      code: row.code,
+      kind: row.kind,
+      name: row.name,
+      order: row.sort_order
+    }));
+  }
+
+  private async loadCatalogGroups(editionId: string): Promise<SupabasePredictionCatalogGroup[]> {
+    const { data, error } = await resolveReadClient(this.client)
+      .from("groups")
+      .select("id,edition_id,stage_id,code,name,sort_order")
+      .eq("edition_id", editionId)
+      .order("sort_order", { ascending: true });
+
+    throwIfError(error);
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      stageId: row.stage_id,
+      code: row.code,
+      name: row.name,
+      order: row.sort_order
+    }));
+  }
+
+  private async loadCatalogRounds(editionId: string): Promise<SupabasePredictionCatalogRound[]> {
+    const { data, error } = await resolveReadClient(this.client)
+      .from("rounds")
+      .select("id,edition_id,stage_id,code,name,sort_order")
+      .eq("edition_id", editionId)
+      .order("sort_order", { ascending: true });
+
+    throwIfError(error);
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      stageId: row.stage_id,
+      code: row.code,
+      name: row.name,
+      order: row.sort_order
+    }));
+  }
+
+  private async loadCatalogTeams(
+    matches: SupabasePredictionCatalogMatch[]
+  ): Promise<SupabasePredictionCatalogTeam[]> {
+    const teamIds = [
+      ...new Set(matches.flatMap((match) => [match.homeTeamId, match.awayTeamId]).filter(Boolean))
+    ] as string[];
+
+    if (teamIds.length === 0) return [];
+
+    const { data, error } = await resolveReadClient(this.client)
+      .from("teams")
+      .select("id,name,short_name,country_code")
+      .in("id", teamIds)
+      .order("name", { ascending: true });
+
+    throwIfError(error);
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      shortName: row.short_name,
+      ...(row.country_code ? { countryCode: row.country_code } : {})
     }));
   }
 
