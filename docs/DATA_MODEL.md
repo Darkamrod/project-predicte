@@ -410,5 +410,44 @@ complete signature of node, slot, combination, and assignment IDs before and aft
 The data migration cites the FIFA World Cup 2026 Regulations, Articles 12.6-12.11 and Annexe C,
 plus the acquired source checksum. The seed only invokes migration-owned reconcilers; it is not the source of truth for an
 upgrade. Unknown legacy versions are never assigned generic destinations. Champions/two-leg remains
-outside the constrained supported catalog. C2B2 will complete the authenticated read model and C2B3
-will resolve personal participants; neither is part of C2B1.
+outside the constrained supported catalog. C2B2 now completes the authenticated read model; C2B3
+will resolve personal participants. Neither milestone is part of C2B1.
+
+# Milestone 11J-C2B2 authenticated prediction read model
+
+`get_authenticated_prediction_read_model(league_id)` returns one version-scoped payload containing
+league and edition metadata, selected format/ruleset/requirement/scoring versions, stages, groups,
+rounds, all edition-team memberships, all edition matches, and only the session user's prediction set,
+match predictions, tie-break overrides, and antepost predictions. The existing target-catalog RPC
+continues to own bracket nodes, slots, antepost definitions, static tie-break rules, and the conditional
+best-third matrix.
+
+Tie-break overrides retain `scope`, `scope_ref`, persisted `tie_group_id`, `tied_team_ids`,
+`affected_positions`, selected `ordered_team_ids`, reason, synchronization state, and timestamps.
+Arrays are not keyed by scope, so two tie groups in one scope remain distinct.
+
+Strict boundary validation binds every catalog row to the league edition and every personal row to the
+session-derived prediction set. Version payloads validate format discriminants, ordered ranking rules,
+and prediction requirement codes without arbitrary defaults. Authorized empty arrays remain distinct
+from malformed payloads and RPC errors.
+
+The World Cup 2026 initial catalog is migration-owned and derived from the FIFA World Cup 2026 Match
+Schedule dated 12 July 2026. Its source is
+`https://digitalhub.fifa.com/asset/4b5d4417-3343-4732-9cdf-14b6662af407/FWC26-Match-Schedule_English.pdf`;
+the acquired PDF SHA-256 is `1FFA43834656742AA69B9D5B98F826052BBD26B2E353161F7FA83DC97416D4EB`.
+Only structured facts are stored: 48 edition teams with FIFA codes, explicit group membership, and
+M1-M72 with home/away, group, matchday, 90-minute format, leg, sequence, and kickoff. Results and live
+state are excluded.
+
+`teams.fifa_code` is nullable for legacy/mock rows, constrained to three uppercase characters when
+present, and unique. Composite foreign keys keep edition teams, stages, groups, rounds, and match
+participants in one edition. `validate_world_cup_2026_initial_catalog()` enforces the edition-specific
+48/12/4/72/6/3 round-robin invariants and complete M1-M72 numbering. The helper is revoked from client
+roles. The seed calls the migration-owned idempotent population function rather than copying catalog
+rows. The separate 2030 mock remains isolated.
+
+The authenticated read model and target catalog are two concurrent RPC snapshots. Both carry the same
+league, edition, format-template, ruleset, prediction-requirement, and scoring-preset identifiers. The
+client must reject and retry any mismatched pair before adapting targets or exposing readiness. Target
+catalog JSON is accepted only after strict UUID, integer, discriminant, scope, and referential checks;
+an authorized empty catalog remains distinct from malformed or cross-version data.

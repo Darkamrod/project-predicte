@@ -231,8 +231,8 @@ C2B1 makes the destination catalog upgrade-safe through separate nullable-struct
 and final-constraint migrations. The World Cup 2026 mapping is migration-owned and derived from FIFA
 Articles 12.6-12.11 plus Annexe C; the seed only requests idempotent reconciliation. EURO catalog
 ingestion is future work. Unsupported legacy rows produce diagnostics and Champions two-leg remains
-blocked. C2B2, C2B3, and C3 are not started, personal participants remain unresolved, and UUID
-Quick/Expert entry remains read-only.
+blocked. At C2B1 closure C2B2 was partial; C2B2 is now complete as documented below. C2B3 and C3 are
+not started, personal participants remain unresolved, and UUID Quick/Expert entry remains read-only.
 
 The read-only UUID diagnostics consume all bracket catalog sections returned in one batch: versioned
 nodes, source slots, and conditional best-third combinations with assignments. Malformed sections are
@@ -240,5 +240,27 @@ errors rather than silently becoming empty. No participant resolver, initializat
 is enabled by C2B1.
 
 This changes no interaction capability. UUID Quick/Expert remains read-only with no initialization or
-save action. C2B2 will complete the authenticated inputs and C2B3 will resolve personal participants
+save action. C2B2 has completed the authenticated inputs; C2B3 will resolve personal participants
 before any separately authorized C3 write integration.
+
+## Milestone 11J-C2B2 - Complete Authenticated Read Model
+
+The UUID prediction screen can now report read-only counts for edition teams, groups, initial matches,
+persisted match predictions, complete persisted tie-break overrides, versioned rules, and protected
+bracket catalog data. The loader retains session/league stale-response guards and never substitutes the
+mock workflow for a UUID.
+
+The World Cup 2026 catalog now contains the 48 FIFA schedule teams, explicit groups A-L, and M1-M72
+with complete participants. These facts come from the FIFA World Cup 2026 Match Schedule dated
+12 July 2026 and contain no results or live state. The UUID diagnostics may show
+`ready_for_resolver` when this catalog, rules, requirements, best-third matrix, and bracket inputs are
+all present.
+
+The screen still does not render Quick or Expert controls. `ready_for_resolver` means only that C2B3
+can begin resolving personal participants; it does not create a prediction set or expose start, edit,
+or save actions. C2B3 and C3 personal writes are not started.
+
+The UUID loader combines its two read-only RPC responses only when their complete league/version
+envelopes match. If the league changes between the concurrent reads, the screen shows a retryable error
+and keeps Quick/Expert disabled. Malformed or semantically inconsistent target catalog rows follow the
+same conservative error path; authorized empty protected sections remain explicit empty data.

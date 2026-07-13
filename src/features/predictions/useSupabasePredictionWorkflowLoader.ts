@@ -65,7 +65,7 @@ export function useSupabasePredictionWorkflowLoader(
     if (guard.canApply(token)) setState({ kind: "loading" });
 
     try {
-      const context = await repository.loadAuthenticatedWorkflow(leagueId, authenticatedUserId);
+      const context = await repository.loadAuthenticatedWorkflow(leagueId);
       if (guard.canApply(token)) setState({ kind: "loaded", context });
     } catch (error) {
       if (!guard.canApply(token)) return;

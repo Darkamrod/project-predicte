@@ -436,6 +436,13 @@ export type Database = {
         };
         Relationships: [
           {
+            foreignKeyName: "edition_teams_group_edition_fkey";
+            columns: ["edition_id", "seed_group_id"];
+            isOneToOne: false;
+            referencedRelation: "groups";
+            referencedColumns: ["edition_id", "id"];
+          },
+          {
             foreignKeyName: "edition_teams_edition_id_fkey";
             columns: ["edition_id"];
             isOneToOne: false;
@@ -1361,6 +1368,13 @@ export type Database = {
         };
         Relationships: [
           {
+            foreignKeyName: "matches_away_team_edition_fkey";
+            columns: ["edition_id", "away_team_id"];
+            isOneToOne: false;
+            referencedRelation: "edition_teams";
+            referencedColumns: ["edition_id", "team_id"];
+          },
+          {
             foreignKeyName: "matches_away_team_id_fkey";
             columns: ["away_team_id"];
             isOneToOne: false;
@@ -1382,6 +1396,20 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "matches_group_edition_fkey";
+            columns: ["edition_id", "group_id"];
+            isOneToOne: false;
+            referencedRelation: "groups";
+            referencedColumns: ["edition_id", "id"];
+          },
+          {
+            foreignKeyName: "matches_home_team_edition_fkey";
+            columns: ["edition_id", "home_team_id"];
+            isOneToOne: false;
+            referencedRelation: "edition_teams";
+            referencedColumns: ["edition_id", "team_id"];
+          },
+          {
             foreignKeyName: "matches_home_team_id_fkey";
             columns: ["home_team_id"];
             isOneToOne: false;
@@ -1394,6 +1422,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "rounds";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "matches_round_edition_fkey";
+            columns: ["edition_id", "round_id"];
+            isOneToOne: false;
+            referencedRelation: "rounds";
+            referencedColumns: ["edition_id", "id"];
+          },
+          {
+            foreignKeyName: "matches_stage_edition_fkey";
+            columns: ["edition_id", "stage_id"];
+            isOneToOne: false;
+            referencedRelation: "stages";
+            referencedColumns: ["edition_id", "id"];
           },
           {
             foreignKeyName: "matches_stage_id_fkey";
@@ -2425,18 +2467,21 @@ export type Database = {
       teams: {
         Row: {
           country_code: string | null;
+          fifa_code: string | null;
           id: string;
           name: string;
           short_name: string;
         };
         Insert: {
           country_code?: string | null;
+          fifa_code?: string | null;
           id?: string;
           name: string;
           short_name: string;
         };
         Update: {
           country_code?: string | null;
+          fifa_code?: string | null;
           id?: string;
           name?: string;
           short_name?: string;
@@ -2503,6 +2548,10 @@ export type Database = {
       };
       ensure_current_user_profile: { Args: never; Returns: undefined };
       generate_invite_token: { Args: never; Returns: string };
+      get_authenticated_prediction_read_model: {
+        Args: { p_league_id: string };
+        Returns: Json;
+      };
       get_prediction_target_catalog: {
         Args: { p_league_id: string };
         Returns: Json;

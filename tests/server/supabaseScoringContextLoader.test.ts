@@ -209,8 +209,20 @@ function createRows(): RowMap {
       }
     ],
     teams: [
-      { id: homeTeamId, name: "Italia", short_name: "ITA", country_code: "ITA" },
-      { id: awayTeamId, name: "Brasile", short_name: "BRA", country_code: "BRA" }
+      {
+        id: homeTeamId,
+        name: "Italia",
+        short_name: "ITA",
+        country_code: "ITA",
+        fifa_code: null
+      },
+      {
+        id: awayTeamId,
+        name: "Brasile",
+        short_name: "BRA",
+        country_code: "BRA",
+        fifa_code: null
+      }
     ],
     players: [{ id: playerId, team_id: homeTeamId, display_name: "Italia Bomber" }],
     edition_teams: [

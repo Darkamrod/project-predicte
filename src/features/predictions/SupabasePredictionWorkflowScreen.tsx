@@ -129,6 +129,14 @@ export function SupabasePredictionWorkflowScreen({
             <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
               Destinazioni bracket valide: {targetAdapter.catalog.destinationMappingCount}.
             </Text>
+            <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
+              Catalogo iniziale: {context.resolverReadiness.counts.teams} squadre,{" "}
+              {context.resolverReadiness.counts.groups} gruppi,{" "}
+              {context.resolverReadiness.counts.initialMatches} partite.
+            </Text>
+            <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>
+              Override tie-break persistiti: {context.tiebreakOverrides.length}.
+            </Text>
           </>
         ) : (
           <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
@@ -147,9 +155,17 @@ export function SupabasePredictionWorkflowScreen({
               ? "Sola lettura"
               : capability.kind === "not_started"
                 ? "Non inizializzato"
-                : "Dati insufficienti"
+                : capability.kind === "ready_for_resolver"
+                  ? "Input completi"
+                  : "Dati insufficienti"
           }
-          tone={capability.kind === "locked" ? "neutral" : "warning"}
+          tone={
+            capability.kind === "locked"
+              ? "neutral"
+              : capability.kind === "ready_for_resolver"
+                ? "success"
+                : "warning"
+          }
         />
         <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
           {capability.message}

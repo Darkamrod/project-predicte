@@ -10,8 +10,16 @@ $constraintMigration = Join-Path $root "supabase/migrations/20260712022000_miles
 $primaryFailure = $null
 
 function Invoke-Supabase([string[]] $Arguments) {
-  & npx supabase @Arguments
-  if ($LASTEXITCODE -ne 0) { throw "Supabase command failed: $($Arguments -join ' ')" }
+  $maximumAttempts = if ($Arguments.Count -ge 2 -and $Arguments[0] -eq "db" -and $Arguments[1] -eq "reset") { 3 } else { 1 }
+  for ($attempt = 1; $attempt -le $maximumAttempts; $attempt++) {
+    & npx supabase @Arguments
+    if ($LASTEXITCODE -eq 0) { return }
+    if ($attempt -lt $maximumAttempts) {
+      Write-Host "Supabase reset attempt $attempt failed; retrying after container recovery"
+      Start-Sleep -Seconds 15
+    }
+  }
+  throw "Supabase command failed after $maximumAttempts attempt(s): $($Arguments -join ' ')"
 }
 
 function Invoke-SqlFile([string] $Path) {
@@ -117,13 +125,11 @@ catch {
 }
 finally {
   Write-Host "Restoring normal local database"
-  $restorePreference = $ErrorActionPreference
-  $ErrorActionPreference = "Continue"
-  $restoreOutput = (& npx supabase db reset 2>&1 | Out-String)
-  $restoreExitCode = $LASTEXITCODE
-  $ErrorActionPreference = $restorePreference
-  if ($restoreExitCode -ne 0) {
-    $message = "Final Supabase restore failed (exit $restoreExitCode): $restoreOutput"
+  try {
+    Invoke-Supabase @("db", "reset")
+  }
+  catch {
+    $message = "Final Supabase restore failed: $($_.Exception.Message)"
     if ($null -ne $primaryFailure) { $message = "$($primaryFailure.Exception.Message)`n$message" }
     throw $message
   }

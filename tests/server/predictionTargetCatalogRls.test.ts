@@ -2,6 +2,9 @@ import { execFileSync } from "node:child_process";
 
 import { describe, expect, it } from "vitest";
 
+import { parseAuthenticatedPredictionReadModel } from "@/services/predictions/authenticatedPredictionReadModel";
+import { parseAuthenticatedPredictionTargetCatalog } from "@/services/predictions/authenticatedPredictionTargetCatalog";
+
 const describeLocalSupabase = canUseLocalSupabase() ? describe : describe.skip;
 
 describeLocalSupabase("Milestone 11J-C2 prediction target catalog RLS", () => {
@@ -21,14 +24,17 @@ describeLocalSupabase("Milestone 11J-C2 prediction target catalog RLS", () => {
       );
 
       const catalog = callCatalog(activeMemberId, leagueId);
+      const parsedCatalog = parseAuthenticatedPredictionTargetCatalog(catalog);
       expect(catalog).toMatchObject({
         league_id: leagueId,
         edition_id: editionId,
         format_template_version_id: formatVersionId,
         ruleset_version_id: rulesetVersionId,
-        prediction_requirement_version_id: requirementVersionId
+        prediction_requirement_version_id: requirementVersionId,
+        scoring_preset_version_id: scoringVersionId
       });
       expect(catalog.bracket_nodes).toHaveLength(32);
+      expect(parsedCatalog.bracketNodes).toHaveLength(32);
       expect(catalog.bracket_nodes).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ node_key: "M73", format_template_version_id: formatVersionId }),
@@ -49,7 +55,53 @@ describeLocalSupabase("Milestone 11J-C2 prediction target catalog RLS", () => {
       expect(catalog.tiebreak_rules).toEqual(
         expect.arrayContaining([expect.objectContaining({ id: tiebreakId })])
       );
-      expect(queryScalar(signatureSql)).toBe("true|false|true");
+      expect(queryScalar(signatureSql)).toBe("true|false|true|true|false|true");
+      const readModel = callReadModel(activeMemberId, leagueId);
+      const parsedReadModel = parseAuthenticatedPredictionReadModel(readModel);
+      expect(readModel.league).toMatchObject({
+        id: leagueId,
+        competition_edition_id: editionId,
+        format_template_version_id: formatVersionId
+      });
+      expect(readModel.catalog.groups).toHaveLength(12);
+      expect(readModel.catalog.edition_teams).toHaveLength(48);
+      expect(readModel.catalog.edition_teams.every((team) => team.fifa_code)).toBe(true);
+      const initialMatches = readModel.catalog.matches.filter((match) => match.group_id !== null);
+      expect(initialMatches).toHaveLength(72);
+      expect(
+        initialMatches.every(
+          (match) =>
+            match.home_team_id &&
+            match.away_team_id &&
+            match.match_number &&
+            match.match_format === "REGULATION_90" &&
+            match.leg === 1
+        )
+      ).toBe(true);
+      expect(readModel.personal.prediction_set?.id).toBe(activePredictionSetId);
+      expect(readModel.personal.tiebreak_overrides).toHaveLength(2);
+      expect(
+        readModel.personal.tiebreak_overrides.map((override) => override.tie_group_id)
+      ).toEqual(["group-a-positions-1-2", "group-a-positions-3-4"]);
+      expect(parsedReadModel.versions.format_template.format).toMatchObject({
+        teamCount: 48,
+        groupCount: 12,
+        teamsPerGroup: 4,
+        bestThirdPlacedTeams: 8
+      });
+      expect(callReadModel(ownerId, leagueId).personal.prediction_set?.id).toBe(
+        ownerPredictionSetId
+      );
+      expect(callReadModelDenied("anon", activeMemberId, leagueId)).toContain("permission denied");
+      expect(callReadModelDenied("authenticated", removedMemberId, leagueId)).toContain(
+        "active league membership required"
+      );
+      expect(callReadModelDenied("authenticated", nonMemberId, leagueId)).toContain(
+        "active league membership required"
+      );
+      expect(callReadModelDenied("authenticated", activeMemberId, otherLeagueId)).toContain(
+        "active league membership required"
+      );
       const otherCatalog = callCatalog(ownerId, otherLeagueId);
       expect(otherCatalog.bracket_nodes).toEqual([]);
       expect(otherCatalog.best_third_combinations).toEqual([]);
@@ -109,6 +161,35 @@ function setupFixture(): void {
       ('${leagueId}', '${activeMemberId}', 'participant', 'active'),
       ('${leagueId}', '${removedMemberId}', 'participant', 'removed'),
       ('${otherLeagueId}', '${ownerId}', 'owner', 'active');
+
+    insert into public.prediction_sets (id, league_id, user_id, status)
+    values
+      ('${ownerPredictionSetId}', '${leagueId}', '${ownerId}', 'draft'),
+      ('${activePredictionSetId}', '${leagueId}', '${activeMemberId}', 'draft');
+
+    insert into public.prediction_tiebreak_overrides (
+      prediction_set_id, scope, scope_ref, tie_group_id, tied_team_ids,
+      affected_positions, ordered_team_ids, reason
+    )
+    select
+      '${activePredictionSetId}'::uuid, 'GROUP', 'group:A', 'group-a-positions-1-2',
+      teams[1:2], array[1, 2], teams[1:2], 'C2B2 RLS fixture'
+    from (
+      select array_agg(et.team_id order by et.team_id) as teams
+      from public.edition_teams et
+      join public.groups g on g.id = et.seed_group_id
+      where et.edition_id = '${editionId}' and g.code = 'A'
+    ) fixture
+    union all
+    select
+      '${activePredictionSetId}'::uuid, 'GROUP', 'group:A', 'group-a-positions-3-4',
+      teams[3:4], array[3, 4], teams[3:4], 'C2B2 RLS fixture'
+    from (
+      select array_agg(et.team_id order by et.team_id) as teams
+      from public.edition_teams et
+      join public.groups g on g.id = et.seed_group_id
+      where et.edition_id = '${editionId}' and g.code = 'A'
+    ) fixture;
   `);
 }
 
@@ -122,12 +203,37 @@ interface CatalogPayload {
   format_template_version_id: string;
   ruleset_version_id: string;
   prediction_requirement_version_id: string;
+  scoring_preset_version_id: string;
   bracket_slots: Array<{ id: string; edition_id: string }>;
   bracket_nodes: Array<{ node_key: string; format_template_version_id: string }>;
   best_third_combinations: Array<{ assignments: unknown[] }>;
   antepost_definitions: Array<{ id: string }>;
   tiebreak_rules: Array<{ id: string }>;
 }
+
+type ReadModelPayload = Record<string, unknown> & {
+  league: Record<string, unknown> & {
+    id: string;
+    competition_edition_id: string;
+    format_template_version_id: string;
+  };
+  catalog: Record<string, unknown> & {
+    groups: unknown[];
+    edition_teams: Array<{ fifa_code: string | null }>;
+    matches: Array<{
+      away_team_id: string | null;
+      group_id: string | null;
+      home_team_id: string | null;
+      leg: number | null;
+      match_format: string | null;
+      match_number: number | null;
+    }>;
+  };
+  personal: Record<string, unknown> & {
+    prediction_set: { id: string } | null;
+    tiebreak_overrides: Array<{ tie_group_id: string }>;
+  };
+};
 
 function callCatalog(userId: string, targetLeagueId: string): CatalogPayload {
   const value = queryAs(
@@ -136,6 +242,32 @@ function callCatalog(userId: string, targetLeagueId: string): CatalogPayload {
     `select public.get_prediction_target_catalog('${targetLeagueId}'::uuid)::text`
   );
   return JSON.parse(value) as CatalogPayload;
+}
+
+function callReadModel(userId: string, targetLeagueId: string): ReadModelPayload {
+  const value = queryAs(
+    "authenticated",
+    userId,
+    `select public.get_authenticated_prediction_read_model('${targetLeagueId}'::uuid)::text`
+  );
+  return JSON.parse(value) as ReadModelPayload;
+}
+
+function callReadModelDenied(
+  role: "anon" | "authenticated",
+  userId: string,
+  targetLeagueId: string
+): string {
+  try {
+    queryAs(
+      role,
+      userId,
+      `select public.get_authenticated_prediction_read_model('${targetLeagueId}'::uuid)`
+    );
+  } catch (error) {
+    if (error instanceof Error) return error.message.toLowerCase();
+  }
+  throw new Error("Expected authenticated read-model call to be denied.");
 }
 
 function callDenied(
@@ -199,11 +331,14 @@ const leagueId = "c2000000-0000-4000-8000-000000000010";
 const otherLeagueId = "c2000000-0000-4000-8000-000000000011";
 const antepostId = "c2000000-0000-4000-8000-000000000050";
 const tiebreakId = "c2000000-0000-4000-8000-000000000060";
+const ownerPredictionSetId = "c2000000-0000-4000-8000-000000000070";
+const activePredictionSetId = "c2000000-0000-4000-8000-000000000071";
 const editionId = "00000000-0000-4000-8000-000000000521";
 const otherEditionId = "00000000-0000-4000-8000-000000000522";
 const formatVersionId = "00000000-0000-4000-8000-000000000531";
 const rulesetVersionId = "00000000-0000-4000-8000-000000000541";
 const requirementVersionId = "00000000-0000-4000-8000-000000000551";
+const scoringVersionId = "00000000-0000-4000-8000-000000000561";
 
 const cleanupSql = `
   delete from public.leagues where id in ('${leagueId}', '${otherLeagueId}');
@@ -217,7 +352,10 @@ const signatureSql = `
   select
     has_function_privilege('authenticated', 'public.get_prediction_target_catalog(uuid)', 'EXECUTE')::text || '|' ||
     has_function_privilege('anon', 'public.get_prediction_target_catalog(uuid)', 'EXECUTE')::text || '|' ||
-    (to_regprocedure('public.get_prediction_target_catalog(uuid,uuid)') is null)::text;
+    (to_regprocedure('public.get_prediction_target_catalog(uuid,uuid)') is null)::text || '|' ||
+    has_function_privilege('authenticated', 'public.get_authenticated_prediction_read_model(uuid)', 'EXECUTE')::text || '|' ||
+    has_function_privilege('anon', 'public.get_authenticated_prediction_read_model(uuid)', 'EXECUTE')::text || '|' ||
+    (to_regprocedure('public.get_authenticated_prediction_read_model(uuid,uuid)') is null)::text;
 `;
 
 const countsSql = `

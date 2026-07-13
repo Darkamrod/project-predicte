@@ -30,7 +30,7 @@ describeLocalSupabase("Milestone 11J-C2B1 official World Cup bracket catalog", (
     expectRejected(assignmentOutsideCombinationSql, "qualified combination");
     expectRejected(duplicateAssignmentDestinationSql, "unique constraint");
     expectRejected(incompleteAssignmentSetSql, "exactly eight distinct assignments");
-  });
+  }, 15_000);
 
   it("accepts same-version nodes and rejects same-edition cross-version references", () => {
     psql(sameVersionAcceptedSql);

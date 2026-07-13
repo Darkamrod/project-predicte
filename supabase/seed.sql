@@ -406,10 +406,10 @@ values
     'FIFA World Cup 2026',
     '2026',
     true,
-    '2026-11-20T19:00:00Z',
-    '2026-11-20T18:30:00Z',
+    '2026-06-11T19:00:00Z',
+    '2026-06-11T18:30:00Z',
     '{"teamCount":48,"initialStageKind":"group_stage","groupCount":12,"teamsPerGroup":4,"automaticQualifiersPerGroup":2,"bestThirdPlacedTeams":8,"knockoutRounds":["ROUND_OF_32","ROUND_OF_16","QUARTER_FINAL","SEMI_FINAL","THIRD_PLACE","FINAL"],"bracketMappingStrategy":"fifa_2026_bracket_slots"}'::jsonb,
-    'mock',
+    'catalog_complete',
     'world_cup_2026',
     '00000000-0000-4000-8000-000000000501',
     '{"label":"Initial Project Predicte FIFA World Cup 2026 mock rules"}'::jsonb
@@ -665,6 +665,7 @@ select public.populate_world_cup_2026_best_third_matrix(
 select public.populate_supported_bracket_destination_catalog(
   '00000000-0000-4000-8000-000000000531'::uuid
 );
+select public.populate_world_cup_2026_initial_catalog();
 
 insert into public.competition_antepost_definitions (id, edition_id, code, label, value_type, required)
 values

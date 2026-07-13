@@ -34,14 +34,26 @@ describe("authenticated prediction workflow route contracts", () => {
     const screen = read("src/features/predictions/SupabasePredictionWorkflowScreen.tsx");
     const hook = read("src/features/predictions/useSupabasePredictionWorkflowLoader.ts");
     const repository = read("src/services/predictions/supabasePredictionWorkflowReadRepository.ts");
-    const combined = `${screen}\n${hook}\n${repository}`;
+    const readModelMigration = read(
+      "supabase/migrations/20260713010000_milestone11j_c2b2_authenticated_prediction_read_model.sql"
+    );
+    const combined = `${screen}\n${hook}\n${repository}\n${readModelMigration}`;
 
     expect(screen).toMatch(/Nessun dato mock viene usato per\s+questo UUID\./);
     expect(screen).toContain("Prediction set non ancora inizializzato");
     expect(screen).toContain("Sola lettura");
-    expect(repository).toContain('.eq("league_id", leagueId)');
-    expect(repository).toContain('.eq("user_id", authenticatedUserId)');
-    expect(repository).toContain('.eq("status", "active")');
+    expect(repository).toContain('"get_authenticated_prediction_read_model"');
+    expect(repository).toContain('Pick<SupabaseClient<Database>, "rpc">');
+    expect(readModelMigration).toContain("caller_id uuid := auth.uid()");
+    expect(readModelMigration).toContain("lm.status = 'active'");
+    expect(readModelMigration).toContain("ps.user_id = caller_id");
+    expect(readModelMigration).toMatch(
+      /get_authenticated_prediction_read_model\(p_league_id uuid\)/
+    );
+    expect(readModelMigration).not.toMatch(
+      /\b(insert into|update public\.|delete from|upsert|save_match_prediction|upsert_prediction_)\b/i
+    );
+    expect(repository).not.toMatch(/p_user_id|authenticatedUserId/);
     expect(combined).not.toMatch(/usePredicteMock|PredicteMockProvider/);
     expect(combined).not.toMatch(
       /from\(["']profiles["']\)|auth\.users|user_metadata|raw_user_meta_data|\.email/i

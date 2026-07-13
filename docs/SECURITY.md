@@ -296,3 +296,35 @@ The combination trigger rejects duplicate, empty, out-of-range, non-canonical, o
 duplicate group sets. Deferred assignment validation prevents an administrative transaction from
 leaving a combination partially assigned. Population helpers remain revoked from client roles. RPC
 tests cover authorized World Cup contents, denied users, and a league using another format version.
+
+## Milestone 11J-C2B2 Authenticated Read Model
+
+`get_authenticated_prediction_read_model(uuid)` is `SECURITY DEFINER` with an explicit
+`pg_catalog, public` search path. It accepts only `league_id`, derives identity from `auth.uid()`,
+requires active membership, validates that every selected version belongs to the league edition, and
+derives the personal prediction set from the caller. `PUBLIC` and `anon` execution are revoked;
+`authenticated` receives execute only.
+
+The function performs no writes and returns no arbitrary user id, profile, email, auth metadata,
+provider data, administrative metadata, service-role credential, or other member's prediction set.
+Repository calls remain batch RPC reads and contain no personal save RPC. Tests cover anonymous,
+non-member, removed-member, cross-league, active-member, session-personal isolation, version scope,
+minimum grants, and absence of mutation paths.
+
+The World Cup 2026 team/group/M1-M72 catalog is factual, static, and migration-owned. It contains no
+results, live state, standings, qualified teams, players, or statistics. Same-edition composite foreign
+keys and a revoked material validator reject cross-edition teams/groups, incomplete participants,
+duplicate pairings, malformed FIFA codes, and incomplete official match numbering. The authenticated
+RPC remains the only client path and returns the catalog only after active membership and league-version
+checks.
+
+`ready_for_resolver` is not a write capability. Quick/Expert UUID controls remain disabled; no personal
+RPC, prediction-set initialization, service-role path, or trusted result ingestion is connected. The
+schedule provenance does not relabel the separately versioned rules metadata, which remains marked mock.
+
+Because the authenticated read model and protected target catalog are separate concurrent RPC calls,
+each response includes the full league/version envelope. The client compares league, edition, format,
+ruleset, prediction requirements, and scoring preset before using either response. A mismatch exposes no
+identifiers in UI diagnostics, produces a retryable error, and cannot be interpreted as resolver
+readiness. Strict target parsing provides defense in depth against malformed, orphaned, cross-edition,
+or cross-version catalog rows; it does not add writes or broaden client grants.

@@ -288,8 +288,20 @@ Do not start a later milestone without explicit authorization.
 
 The database work is split into C2B1 nullable structure, official versioned data/backfill, and final constraints.
 A serial upgrade test proves preservation from C2A and diagnostic failure for unsupported legacy data.
-C2B2 must next complete tie-group and initial catalog reads; C2B3 must then implement iterative personal
-participant resolution. C3 remains blocked until all C2B work is closed.
+At C2B1 closure, C2B2 still had to complete tie-group and initial catalog reads. C2B2 is now complete
+as recorded below; C2B3 must next implement iterative personal participant resolution. C3 remains
+blocked until all C2B work is closed.
+
+### Milestone 11J-C2B2 implementation status: complete authenticated read model
+
+- Added a session-derived, active-member-only batch RPC for versioned initial catalog inputs and the current user's persisted prediction data.
+- Added strict DTO parsing, full persisted tie-group fields, pure completeness diagnostics, read-side RLS coverage, and UUID read-only diagnostics.
+- Added the FIFA schedule-derived static catalog through a migration-owned idempotent helper: 48 teams, 12 groups, 48 memberships, and M1-M72 with complete participants and stable metadata. The 2030 mock remains isolated.
+- Added material database and domain validation for four teams and six matches per group, three matches per team, unique intra-group pairings, FIFA codes, M1-M72, and absence of imported results.
+- The authenticated read model can now report `ready_for_resolver`. This is input readiness for C2B3 only and does not enable editing. Versioned rules retain their existing mock source label because schedule provenance does not establish rules provenance.
+- C2B3 iterative participant resolution and C3 personal writes are not started. Quick/Expert UUID remains non-interactive.
+- Hardened the C2B2 read boundary with a complete shared snapshot envelope and mandatory client comparison across the two batch RPCs. Mismatches are retryable errors and never produce a mixed workflow context.
+- Added strict semantic target-catalog parsing and material tests for malformed UUIDs, invalid source payloads, cross-scope references, orphan destinations, non-canonical combinations, persisted same-scope tie groups, and initial-catalog idempotence.
 
 ## Planned Milestone 11J-C3 - Safe Personal Prediction Write Integration
 

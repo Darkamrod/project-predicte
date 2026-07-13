@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { resolveSupabasePredictionWorkflowCapability } from "@/features/predictions/supabasePredictionWorkflowCapability";
+import type { AuthenticatedPredictionReadModel } from "@/services/predictions/authenticatedPredictionReadModel";
 import type { SupabasePredictionWorkflowContext } from "@/services/predictions/supabasePredictionWorkflowReadRepository";
 
 describe("Supabase prediction workflow capability", () => {
@@ -31,6 +32,21 @@ describe("Supabase prediction workflow capability", () => {
     expect(capability.kind).toBe("unavailable");
     if (capability.kind !== "unavailable") throw new Error("Expected unavailable capability");
     expect(capability.missingData).toContain("adapter completo target/bracket/antepost");
+  });
+
+  it("marks complete inputs as resolver-ready without enabling editing", () => {
+    const context = createContext();
+    context.resolverReadiness = {
+      kind: "ready_for_resolver",
+      blockers: [],
+      counts: { teams: 48, groups: 12, initialMatches: 72, completeInitialParticipants: 72 }
+    };
+
+    expect(resolveSupabasePredictionWorkflowCapability(context)).toEqual({
+      kind: "ready_for_resolver",
+      message:
+        "Read model completo per il futuro resolver. Quick Mode ed Expert Mode restano in sola lettura in C2B2."
+    });
   });
 });
 
@@ -97,11 +113,18 @@ function createContext(
       formatTemplateVersionId: "format-1",
       rulesetVersionId: "rules-1",
       predictionRequirementVersionId: "requirements-1",
+      scoringPresetVersionId: "scoring-1",
       bracketNodes: [],
       bracketSlots: [],
       bestThirdCombinations: [],
       antepostDefinitions: [],
       tiebreakRules: []
+    },
+    authenticatedReadModel: {} as unknown as AuthenticatedPredictionReadModel,
+    resolverReadiness: {
+      kind: "incomplete",
+      blockers: ["Catalogo iniziale incompleto."],
+      counts: { teams: 0, groups: 0, initialMatches: 0, completeInitialParticipants: 0 }
     }
   };
 }
