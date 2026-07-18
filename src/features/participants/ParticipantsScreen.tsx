@@ -1,12 +1,16 @@
-import { Eye, EyeOff } from "lucide-react-native";
+import { Eye, EyeOff, UsersRound } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
 import { AppCard } from "@/components/AppCard";
 import { AppHeader } from "@/components/AppHeader";
+import { AppListItem } from "@/components/AppListItem";
 import { AppScreen } from "@/components/AppScreen";
 import { SecondaryButton } from "@/components/Buttons";
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
+import { LoadingState } from "@/components/LoadingState";
 import { ParticipantAvatar } from "@/components/ParticipantAvatar";
+import { SectionHeader } from "@/components/SectionHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { canReadParticipantPredictions } from "@/domain/predictions/locks";
 import { useAppTheme } from "@/design-system/theme";
@@ -68,43 +72,44 @@ export function ParticipantsScreen({ leagueId }: { leagueId: string }): React.Re
 
   return (
     <AppScreen>
-      <AppHeader title={strings.leagueSections.participants} subtitle={league.name} />
-      {league.members.map((member) => {
-        const readable = canReadParticipantPredictions({
-          leagueStatus: league.status,
-          requesterUserId: currentUser.id,
-          participantUserId: member.userId
-        });
-        const Icon = readable ? Eye : EyeOff;
+      <AppHeader
+        eyebrow="Comunità"
+        title={strings.leagueSections.participants}
+        subtitle={league.name}
+      />
+      <SectionHeader
+        title="Rosa della lega"
+        subtitle={`${league.members.length} partecipanti nella demo`}
+      />
+      <View style={styles.list}>
+        {league.members.map((member) => {
+          const readable = canReadParticipantPredictions({
+            leagueStatus: league.status,
+            requesterUserId: currentUser.id,
+            participantUserId: member.userId
+          });
+          const Icon = readable ? Eye : EyeOff;
 
-        return (
-          <AppCard key={member.userId}>
-            <View style={styles.row}>
-              <ParticipantAvatar initials={member.avatarInitials} />
-              <View style={styles.textBlock}>
-                <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-                  {member.displayName}
-                </Text>
-                <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-                  Ruolo: {member.role}
-                </Text>
-              </View>
-              <StatusBadge
-                label={readable ? strings.copy.visibleAfterLock : strings.copy.hiddenUntilLock}
-                tone={readable ? "success" : "warning"}
-              />
-            </View>
-            <View style={styles.visibilityRow}>
-              <Icon color={readable ? theme.colors.success : theme.colors.warning} size={18} />
-              <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-                {readable
-                  ? "Dettaglio pronostici mock disponibile."
-                  : "La privacy pre-lock viene simulata anche nel repository mock."}
-              </Text>
-            </View>
-          </AppCard>
-        );
-      })}
+          return (
+            <AppListItem
+              key={member.userId}
+              leading={<ParticipantAvatar initials={member.avatarInitials} />}
+              title={member.displayName}
+              subtitle={formatMemberRole(member.role)}
+              supporting={readable ? "Pronostici visibili" : "Pronostici nascosti fino al blocco"}
+              trailing={
+                <View style={styles.visibilityIcon}>
+                  <Icon color={readable ? theme.colors.success : theme.colors.warning} size={18} />
+                  <StatusBadge
+                    label={readable ? "Visibili" : "Privati"}
+                    tone={readable ? "success" : "warning"}
+                  />
+                </View>
+              }
+            />
+          );
+        })}
+      </View>
     </AppScreen>
   );
 }
@@ -122,46 +127,58 @@ function SupabaseParticipantsScreen({
 
   return (
     <AppScreen>
-      <AppHeader title={title} subtitle={subtitle} />
-      <AppCard>
+      <AppHeader eyebrow="Comunità" title={title} subtitle={subtitle} />
+      <AppCard variant="elevated">
         <View style={styles.headerRow}>
           <View style={styles.textBlock}>
-            <Text style={[styles.kicker, { color: theme.colors.primary }]}>Supabase paginato</Text>
-            <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-              {members.pagination.totalItems} partecipanti
+            <View style={[styles.heroIcon, { backgroundColor: theme.colors.accentContainer }]}>
+              <UsersRound color={theme.colors.onAccentContainer} size={24} />
+            </View>
+            <Text style={[theme.typography.title, { color: theme.colors.textPrimary }]}>
+              Rosa della lega
+            </Text>
+            <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
+              Ruoli e stato dei partecipanti
             </Text>
           </View>
           <StatusBadge
-            label={members.error ? "Errore" : `${members.items.length} caricati`}
+            label={members.error ? "Errore" : `${members.pagination.totalItems} totali`}
             tone={members.error ? "error" : "primary"}
           />
         </View>
-        <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-          Lettura read-only per lega. I profili completi restano futuri; qui mostriamo identita
-          fallback, ruolo e stato disponibili.
-        </Text>
       </AppCard>
 
       {members.loading && members.items.length === 0 ? (
-        <ParticipantMessage message="Caricamento partecipanti..." />
+        <LoadingState title="Caricamento partecipanti" body="Sto preparando la rosa della lega." />
       ) : null}
 
       {members.error ? (
-        <AppCard>
-          <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-            Impossibile caricare i partecipanti: {members.error}
-          </Text>
-          <SecondaryButton label="Riprova" onPress={members.refresh} />
-        </AppCard>
+        <ErrorState
+          message={`Impossibile caricare i partecipanti: ${members.error}`}
+          onRetry={members.refresh}
+        />
       ) : null}
 
       {!members.loading && !members.error && members.items.length === 0 ? (
-        <ParticipantMessage message="Nessun partecipante reale visibile per questa lega." />
+        <EmptyState
+          title="Nessun partecipante"
+          body="Quando la lega avrà membri attivi, li troverai qui."
+        />
       ) : null}
 
-      {members.items.map((member) => (
-        <SupabaseParticipantCard key={member.userId} member={member} />
-      ))}
+      {members.items.length > 0 ? (
+        <>
+          <SectionHeader
+            title="Partecipanti"
+            subtitle={`${members.items.length} di ${members.pagination.totalItems} caricati`}
+          />
+          <View style={styles.list}>
+            {members.items.map((member) => (
+              <SupabaseParticipantCard key={member.userId} member={member} />
+            ))}
+          </View>
+        </>
+      ) : null}
 
       {members.pagination.hasNextPage && !members.error ? (
         <SecondaryButton
@@ -179,7 +196,6 @@ function SupabaseParticipantsScreen({
 }
 
 function SupabaseParticipantCard({ member }: { member: LeagueMemberListItem }): React.ReactNode {
-  const { theme } = useAppTheme();
   const identity = formatSafeUserIdentity({
     userId: member.userId,
     displayName: member.publicIdentity?.displayName,
@@ -187,36 +203,18 @@ function SupabaseParticipantCard({ member }: { member: LeagueMemberListItem }): 
   });
 
   return (
-    <AppCard>
-      <View style={styles.row}>
-        <ParticipantAvatar initials={identity.initials} />
-        <View style={styles.textBlock}>
-          <Text style={[styles.title, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-            {identity.displayName}
-          </Text>
-          <Text style={[styles.body, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-            {identity.secondaryLabel}
-          </Text>
-          <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-            Ruolo: {formatMemberRole(member.role)}
-          </Text>
-        </View>
+    <AppListItem
+      leading={<ParticipantAvatar initials={identity.initials} />}
+      title={identity.displayName}
+      subtitle={identity.secondaryLabel}
+      supporting={formatMemberRole(member.role)}
+      trailing={
         <StatusBadge
           label={formatMemberStatus(member.status)}
           tone={member.status === "active" ? "success" : "neutral"}
         />
-      </View>
-    </AppCard>
-  );
-}
-
-function ParticipantMessage({ message }: { message: string }): React.ReactNode {
-  const { theme } = useAppTheme();
-
-  return (
-    <AppCard>
-      <Text style={[styles.body, { color: theme.colors.textSecondary }]}>{message}</Text>
-    </AppCard>
+      }
+    />
   );
 }
 
@@ -228,10 +226,13 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: "space-between"
   },
-  row: {
+  heroIcon: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: 12
+    borderRadius: 8,
+    height: 48,
+    justifyContent: "center",
+    marginBottom: 8,
+    width: 48
   },
   textBlock: {
     flex: 1,
@@ -241,21 +242,17 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "800"
   },
-  kicker: {
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 0,
-    textTransform: "uppercase"
+  list: {
+    gap: 8
   },
   body: {
     flex: 1,
     fontSize: 14,
     lineHeight: 20
   },
-  visibilityRow: {
+  visibilityIcon: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: 8
+    gap: 5
   },
   footerText: {
     fontSize: 13,

@@ -6,11 +6,13 @@ import { useAppTheme } from "@/design-system/theme";
 export function IconButton({
   icon: Icon,
   label,
-  onPress
+  onPress,
+  disabled = false
 }: {
   icon: LucideIcon;
   label: string;
   onPress(): void;
+  disabled?: boolean;
 }): React.ReactNode {
   const { theme } = useAppTheme();
 
@@ -18,11 +20,13 @@ export function IconButton({
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: disabled ? theme.colors.disabled : theme.colors.surface,
           borderColor: theme.colors.border,
           height: theme.touchTarget.icon,
           opacity: pressed ? 0.75 : 1,
@@ -30,7 +34,7 @@ export function IconButton({
         }
       ]}
     >
-      <Icon color={theme.colors.textPrimary} size={22} />
+      <Icon color={disabled ? theme.colors.onDisabled : theme.colors.textPrimary} size={22} />
     </Pressable>
   );
 }

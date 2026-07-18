@@ -2,11 +2,15 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { AppCard } from "@/components/AppCard";
 import { AppHeader } from "@/components/AppHeader";
+import { AppListItem } from "@/components/AppListItem";
 import { AppScreen } from "@/components/AppScreen";
 import { PrimaryButton, SecondaryButton } from "@/components/Buttons";
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LeaderboardRow } from "@/components/LeaderboardRow";
+import { LoadingState } from "@/components/LoadingState";
 import { ParticipantAvatar } from "@/components/ParticipantAvatar";
+import { SectionHeader } from "@/components/SectionHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { ScoringBreakdownItem, ScoringBreakdownScope } from "@/domain/scoring/types";
 import { useAppTheme } from "@/design-system/theme";
@@ -71,16 +75,18 @@ export function LeaderboardScreen({ leagueId }: { leagueId: string }): React.Rea
 
   return (
     <AppScreen>
-      <AppHeader title={strings.leagueSections.leaderboard} subtitle={league.name} />
-      <AppCard style={styles.heroCard}>
+      <AppHeader
+        eyebrow="Competizione"
+        title={strings.leagueSections.leaderboard}
+        subtitle={league.name}
+      />
+      <AppCard style={styles.heroCard} variant="elevated">
         <View style={styles.headerRow}>
           <View style={styles.flex}>
             <Text style={[styles.kicker, { color: theme.colors.primary }]}>
               {strings.copy.leaderboardUpdated}
             </Text>
-            <Text style={[styles.heroTitle, { color: theme.colors.textPrimary }]}>
-              Classifica demo
-            </Text>
+            <Text style={[styles.heroTitle, { color: theme.colors.textPrimary }]}>Classifica</Text>
           </View>
           <StatusBadge
             label={snapshot ? "Snapshot" : "In attesa"}
@@ -96,7 +102,7 @@ export function LeaderboardScreen({ leagueId }: { leagueId: string }): React.Rea
             : "Nessuno snapshot disponibile."}
         </Text>
         <View style={styles.metricGrid}>
-          <LeaderboardMetric label="Partecipanti" value={String(snapshot?.entries.length ?? 0)} />
+          <LeaderboardMetric label="Giocatori" value={String(snapshot?.entries.length ?? 0)} />
           <LeaderboardMetric label="Leader" value={leader?.displayName ?? "-"} />
           <LeaderboardMetric label="Punti leader" value={String(leader?.totalPoints ?? 0)} />
         </View>
@@ -105,13 +111,25 @@ export function LeaderboardScreen({ leagueId }: { leagueId: string }): React.Rea
           onPress={() => settleMockResult(league.id)}
         />
       </AppCard>
-      {snapshot?.entries.map((entry) => (
-        <LeaderboardRow
-          key={entry.userId}
-          entry={entry}
-          isCurrentUser={entry.userId === currentUser.id}
+      {snapshot?.entries.length ? (
+        <>
+          <SectionHeader title="Posizioni" subtitle={`${snapshot.entries.length} partecipanti`} />
+          <View style={styles.list}>
+            {snapshot.entries.map((entry) => (
+              <LeaderboardRow
+                key={entry.userId}
+                entry={entry}
+                isCurrentUser={entry.userId === currentUser.id}
+              />
+            ))}
+          </View>
+        </>
+      ) : (
+        <EmptyState
+          title="Classifica in attesa"
+          body="Le posizioni appariranno dopo il primo aggiornamento dei risultati."
         />
-      ))}
+      )}
       <AppCard style={styles.breakdownCard}>
         <View style={styles.headerRow}>
           <View style={styles.flex}>
@@ -182,15 +200,15 @@ function SupabaseLeaderboardScreen({
 
   return (
     <AppScreen>
-      <AppHeader title={title} subtitle={subtitle} />
-      <AppCard style={styles.heroCard}>
+      <AppHeader eyebrow="Competizione" title={title} subtitle={subtitle} />
+      <AppCard style={styles.heroCard} variant="elevated">
         <View style={styles.headerRow}>
           <View style={styles.flex}>
             <Text style={[styles.kicker, { color: theme.colors.primary }]}>
-              Snapshot Supabase read-only
+              Ultimo aggiornamento
             </Text>
             <Text style={[styles.heroTitle, { color: theme.colors.textPrimary }]}>
-              Classifica reale
+              Classifica della lega
             </Text>
           </View>
           <StatusBadge
@@ -200,12 +218,17 @@ function SupabaseLeaderboardScreen({
         </View>
         <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
           {leaderboard.snapshot
-            ? `Fonte ${leaderboard.snapshot.sourceResultKey}`
-            : "Nessuno snapshot disponibile. La classifica non viene calcolata nel client."}
+            ? `Aggiornata ${new Date(leaderboard.snapshot.createdAtUtc).toLocaleString("it-IT", {
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                month: "short"
+              })}`
+            : "Le posizioni saranno disponibili dopo il primo aggiornamento."}
         </Text>
         <View style={styles.metricGrid}>
           <LeaderboardMetric
-            label="Righe caricate"
+            label="Posizioni"
             value={`${leaderboard.items.length}/${leaderboard.pagination.totalItems}`}
           />
           <LeaderboardMetric label="Leader" value={leaderIdentity?.displayName ?? "-"} />
@@ -214,32 +237,46 @@ function SupabaseLeaderboardScreen({
       </AppCard>
 
       {leaderboard.loading && leaderboard.items.length === 0 ? (
-        <LeaderboardMessage message="Caricamento classifica..." />
+        <LoadingState title="Caricamento classifica" body="Sto recuperando le ultime posizioni." />
       ) : null}
 
       {leaderboard.error ? (
-        <AppCard>
-          <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-            Impossibile caricare la classifica: {leaderboard.error}
-          </Text>
-          <SecondaryButton label="Riprova" onPress={leaderboard.refresh} />
-        </AppCard>
+        <ErrorState
+          message={`Impossibile caricare la classifica: ${leaderboard.error}`}
+          onRetry={leaderboard.refresh}
+        />
       ) : null}
 
       {!leaderboard.loading && !leaderboard.error && !leaderboard.snapshot ? (
-        <LeaderboardMessage message="Nessuno snapshot leaderboard disponibile per questa lega." />
+        <EmptyState
+          title="Classifica in attesa"
+          body="Le posizioni appariranno dopo il primo aggiornamento dei risultati."
+        />
       ) : null}
 
       {!leaderboard.loading &&
       !leaderboard.error &&
       leaderboard.snapshot &&
       leaderboard.items.length === 0 ? (
-        <LeaderboardMessage message="Snapshot presente, ma nessuna riga classifica visibile." />
+        <EmptyState
+          title="Nessuna posizione visibile"
+          body="La classifica è disponibile, ma non contiene ancora partecipanti visibili."
+        />
       ) : null}
 
-      {leaderboard.items.map((entry) => (
-        <SupabaseLeaderboardRow key={`${entry.snapshotId}-${entry.userId}`} entry={entry} />
-      ))}
+      {leaderboard.items.length > 0 ? (
+        <>
+          <SectionHeader
+            title="Posizioni"
+            subtitle={`${leaderboard.items.length} di ${leaderboard.pagination.totalItems} caricate`}
+          />
+          <View style={styles.list}>
+            {leaderboard.items.map((entry) => (
+              <SupabaseLeaderboardRow key={`${entry.snapshotId}-${entry.userId}`} entry={entry} />
+            ))}
+          </View>
+        </>
+      ) : null}
 
       {leaderboard.pagination.hasNextPage && !leaderboard.error ? (
         <SecondaryButton
@@ -265,39 +302,25 @@ function SupabaseLeaderboardRow({ entry }: { entry: LeaderboardEntryListItem }):
   });
 
   return (
-    <AppCard>
-      <View style={styles.leaderboardReadRow}>
-        <Text style={[styles.readRank, { color: theme.colors.textPrimary }]}>#{entry.rank}</Text>
-        <ParticipantAvatar initials={identity.initials} />
-        <View style={styles.flex}>
-          <Text style={[styles.title, { color: theme.colors.textPrimary }]} numberOfLines={1}>
-            {identity.displayName}
-          </Text>
-          <Text style={[styles.body, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-            {identity.secondaryLabel}
-          </Text>
-          <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
-            Ultimo update: +{entry.latestPoints} - Delta: {formatDelta(entry.positionDelta)}
-          </Text>
+    <AppListItem
+      leading={
+        <View style={styles.rankAndAvatar}>
+          <Text style={[styles.readRank, { color: theme.colors.textPrimary }]}>#{entry.rank}</Text>
+          <ParticipantAvatar initials={identity.initials} />
         </View>
+      }
+      title={identity.displayName}
+      subtitle={identity.secondaryLabel}
+      supporting={`Ultimo update +${entry.latestPoints} · ${formatDelta(entry.positionDelta)} pos.`}
+      trailing={
         <View style={styles.readPointsBlock}>
           <Text style={[styles.readPoints, { color: theme.colors.textPrimary }]}>
             {entry.totalPoints}
           </Text>
           <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>pt</Text>
         </View>
-      </View>
-    </AppCard>
-  );
-}
-
-function LeaderboardMessage({ message }: { message: string }): React.ReactNode {
-  const { theme } = useAppTheme();
-
-  return (
-    <AppCard>
-      <Text style={[styles.body, { color: theme.colors.textSecondary }]}>{message}</Text>
-    </AppCard>
+      }
+    />
   );
 }
 
@@ -430,6 +453,9 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10
   },
+  list: {
+    gap: 8
+  },
   metricLabel: {
     fontSize: 12,
     fontWeight: "700",
@@ -443,10 +469,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "900"
   },
-  leaderboardReadRow: {
+  rankAndAvatar: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 12
+    gap: 8
   },
   readRank: {
     fontSize: 18,

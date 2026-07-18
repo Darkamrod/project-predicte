@@ -2,32 +2,25 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { useAppTheme } from "@/design-system/theme";
 
-export function AppHeader({
+export function SectionHeader({
   title,
   subtitle,
-  eyebrow,
   trailing
 }: {
   title: string;
   subtitle?: string;
-  eyebrow?: string;
   trailing?: React.ReactNode;
 }): React.ReactNode {
   const { theme } = useAppTheme();
 
   return (
-    <View style={styles.row}>
+    <View style={styles.root}>
       <View style={styles.textBlock}>
-        {eyebrow ? (
-          <Text style={[theme.typography.overline, styles.eyebrow, { color: theme.colors.accent }]}>
-            {eyebrow}
-          </Text>
-        ) : null}
-        <Text style={[theme.typography.display, styles.title, { color: theme.colors.textPrimary }]}>
+        <Text style={[theme.typography.sectionTitle, { color: theme.colors.textPrimary }]}>
           {title}
         </Text>
         {subtitle ? (
-          <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
+          <Text style={[theme.typography.caption, { color: theme.colors.textSecondary }]}>
             {subtitle}
           </Text>
         ) : null}
@@ -38,7 +31,7 @@ export function AppHeader({
 }
 
 const styles = StyleSheet.create({
-  row: {
+  root: {
     alignItems: "center",
     flexDirection: "row",
     gap: 12,
@@ -46,14 +39,7 @@ const styles = StyleSheet.create({
   },
   textBlock: {
     flex: 1,
-    gap: 5,
+    gap: 3,
     minWidth: 0
-  },
-  title: {
-    letterSpacing: 0
-  },
-  eyebrow: {
-    letterSpacing: 0,
-    textTransform: "uppercase"
   }
 });

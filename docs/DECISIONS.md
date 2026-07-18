@@ -407,3 +407,14 @@ headroom.
 - Quick/Expert UUID controls remain non-interactive. No resolver, personal write RPC, automatic prediction-set initialization, scoring, trusted result ingestion, or mock fallback was added. C2B3 and C3 remain unauthorized.
 - The two concurrent read RPCs now expose the same league, edition, format, ruleset, prediction-requirement, and scoring-preset envelope. The repository compares every field before constructing the workflow context and returns a retryable snapshot-mismatch error instead of combining data from different league-version states.
 - Replaced permissive target-catalog mapping with a strict Zod boundary. UUIDs, positive integer fields, source payload discriminants, edition/version scope, node references, slot destinations, canonical best-third combinations, assignments, antepost definitions, and tie-break rows are validated before domain readiness is evaluated. Authorized empty protected sections remain valid.
+
+## 2026-07-18 - Milestone 12 - UI Foundation and League Read Slice
+
+- Evolved the existing Milestone 0 visual foundation instead of replacing the application shell or introducing a second design system.
+- Added complete semantic light and dark palettes, with deep blue as the primary action color, turquoise as a supporting accent, and distinct success, warning, error, and information roles. Feature components remain free of raw color values.
+- Kept theme selection system-driven for this milestone and made the resolver ready for a future explicit light, dark, or system preference without changing feature APIs.
+- Standardized spacing, restrained radii, typography, borders, shadows, minimum touch targets, and responsive content width in shared tokens.
+- Added reusable list, section-heading, loading, empty, error, card, button, header, badge, and screen primitives. Shared primitives do not import domain, Supabase, scoring, or trusted modules.
+- Migrated the global Expo Router shell plus the Participants and Leaderboard screens as the first vertical slice. Their existing UUID/mock routing, read-only repositories, pagination, privacy fallback, stale-request guards, and leaderboard snapshot behavior are unchanged.
+- Kept the scope deliberately small: Home, League Overview content, prediction entry, rules, profile, notifications, and remaining feature screens retain their current presentation for later authorized UI milestones.
+- Added no new dependency; only SDK-required Expo patch versions were aligned. Added no backend change, schema change, migration, RLS/policy change, RPC, scoring path, trusted ingestion path, payment, betting, advertising, or sports-provider integration.

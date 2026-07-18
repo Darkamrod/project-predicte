@@ -1,9 +1,21 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useColorScheme } from "react-native";
 
-import { darkColors, lightColors, radii, spacing, touchTarget, type ColorTokens } from "./tokens";
+import {
+  borders,
+  darkColors,
+  layout,
+  lightColors,
+  radii,
+  shadows,
+  spacing,
+  touchTarget,
+  typography,
+  type ColorTokens
+} from "./tokens";
+import { resolveThemeMode, type ThemeMode } from "./themeResolver";
 
-export type ThemeMode = "system" | "light" | "dark";
+export type { ThemeMode } from "./themeResolver";
 
 export interface AppTheme {
   mode: "light" | "dark";
@@ -11,7 +23,11 @@ export interface AppTheme {
   colors: ColorTokens;
   spacing: typeof spacing;
   radii: typeof radii;
+  typography: typeof typography;
+  borders: typeof borders;
+  shadows: typeof shadows;
   touchTarget: typeof touchTarget;
+  layout: typeof layout;
 }
 
 interface ThemeContextValue {
@@ -24,8 +40,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 export function AppThemeProvider({ children }: { children: ReactNode }): ReactNode {
   const systemScheme = useColorScheme();
   const [selectedMode, setThemeMode] = useState<ThemeMode>("system");
-  const systemMode = systemScheme === "dark" ? "dark" : "light";
-  const resolvedMode = selectedMode === "system" ? systemMode : selectedMode;
+  const resolvedMode = resolveThemeMode(selectedMode, systemScheme);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
@@ -35,7 +50,11 @@ export function AppThemeProvider({ children }: { children: ReactNode }): ReactNo
         colors: resolvedMode === "dark" ? darkColors : lightColors,
         spacing,
         radii,
-        touchTarget
+        typography,
+        borders,
+        shadows,
+        touchTarget,
+        layout
       },
       setThemeMode
     }),

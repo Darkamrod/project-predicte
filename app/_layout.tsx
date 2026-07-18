@@ -29,9 +29,10 @@ function RootStack(): React.ReactNode {
       <Stack
         screenOptions={{
           contentStyle: { backgroundColor: theme.colors.background },
+          headerShadowVisible: false,
           headerStyle: { backgroundColor: theme.colors.surface },
           headerTintColor: theme.colors.textPrimary,
-          headerTitleStyle: { fontWeight: "800" }
+          headerTitleStyle: theme.typography.bodyStrong
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

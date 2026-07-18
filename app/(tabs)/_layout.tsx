@@ -15,8 +15,13 @@ export default function TabsLayout(): React.ReactNode {
         tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border
-        }
+          borderTopColor: theme.colors.border,
+          height: theme.layout.bottomBarHeight,
+          paddingBottom: theme.spacing.sm,
+          paddingTop: theme.spacing.xs
+        },
+        tabBarLabelStyle: theme.typography.caption,
+        tabBarHideOnKeyboard: true
       }}
     >
       <Tabs.Screen

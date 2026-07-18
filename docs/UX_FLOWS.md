@@ -264,3 +264,22 @@ The UUID loader combines its two read-only RPC responses only when their complet
 envelopes match. If the league changes between the concurrent reads, the screen shows a retryable error
 and keeps Quick/Expert disabled. Malformed or semantically inconsistent target catalog rows follow the
 same conservative error path; authorized empty protected sections remain explicit empty data.
+
+## Milestone 12 - UI Foundation and League Read Slice
+
+The application shell now uses one semantic light/dark theme foundation with consistent navigation,
+page width, spacing, typography, surfaces, status colors, and accessible touch targets. System theme is
+the active selection; the resolver also supports a future explicit light, dark, or system preference.
+
+Participants and Leaderboard are the first migrated feature slice. Both retain their existing demo-id
+and authenticated UUID behavior, paginated load-more flow, retry and empty states, safe public identity
+fallbacks, and stale-request protection. The leaderboard still reads only the latest persisted snapshot
+and performs no client-side scoring or ranking calculation.
+
+Loading, empty, error, section heading, card, button, badge, and list-row treatments now come from shared
+UI primitives. Long labels and identities are constrained within responsive rows, and primary controls
+retain at least a 48-point touch target.
+
+This milestone does not redesign Home, League Overview content, prediction entry, rules, profile,
+notifications, or the remaining feature screens. Those areas remain available for later authorized UI
+slices; no navigation, Supabase contract, domain rule, or trusted behavior changes in Milestone 12.

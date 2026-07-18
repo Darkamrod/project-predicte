@@ -79,7 +79,7 @@ describe("Milestone 9-11A demo flow UI contract", () => {
   it("keeps leaderboard and breakdown grouped for the demo snapshot", () => {
     const source = readFileSync("src/features/leaderboard/LeaderboardScreen.tsx", "utf8");
 
-    expect(source).toContain("Classifica demo");
+    expect(source).toContain(">Classifica</Text>");
     expect(source).toContain("groupBreakdownItems");
     expect(source).toContain("Breakdown del tuo profilo");
     expect(source).toContain("LeaderboardMetric");

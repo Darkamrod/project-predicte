@@ -308,3 +308,12 @@ blocked until all C2B work is closed.
 - Start only after 11J-C2B is complete and validated.
 - Connect explicit prediction-set initialization if an authorized operation exists, followed by the existing personal match, tie-break, antepost, and completion RPCs.
 - Validate server-authoritative lifecycle/deadline enforcement and authenticated write RLS behavior before enabling the real Quick/Expert UUID workflow.
+
+## Completed in Milestone 12 - UI Foundation and League Read Slice
+
+- Expanded the existing design system with semantic light/dark tokens, stable typography and spacing, restrained elevation, borders, and minimum touch targets.
+- Made system theme resolution explicit and ready for a future persisted light/dark/system preference.
+- Consolidated reusable screen, card, button, list-row, section-header, badge, loading, empty, and error states.
+- Refined the Expo Router shell and migrated Participants and Leaderboard as the first real-data UI slice while preserving their existing pagination, request guards, privacy boundaries, mock fallback, and read-only behavior.
+- Added focused source and theme-contract tests, including contrast checks for core text and action pairs.
+- Left Home, League Overview content, predictions, rules, profile, notifications, and remaining feature screens for later authorized UI milestones. No later milestone is started here.

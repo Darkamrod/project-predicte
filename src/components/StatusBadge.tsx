@@ -26,15 +26,15 @@ function getPalette(
   tone: StatusTone
 ): { background: string; text: string } {
   if (tone === "success") {
-    return { background: colors.success, text: colors.onSuccess };
+    return { background: colors.successContainer, text: colors.onSuccessContainer };
   }
 
   if (tone === "warning") {
-    return { background: colors.warning, text: colors.onWarning };
+    return { background: colors.warningContainer, text: colors.onWarningContainer };
   }
 
   if (tone === "error") {
-    return { background: colors.error, text: colors.onError };
+    return { background: colors.errorContainer, text: colors.onErrorContainer };
   }
 
   if (tone === "primary") {

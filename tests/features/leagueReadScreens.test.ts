@@ -26,7 +26,8 @@ describe("league read screens source contracts", () => {
 
     expect(source).toContain("useSupabaseLatestLeaderboardList");
     expect(source).toContain("formatSafeUserIdentity");
-    expect(source).toContain("Nessuno snapshot leaderboard disponibile");
+    expect(source).toContain("Classifica in attesa");
+    expect(source).toContain("Le posizioni appariranno dopo il primo aggiornamento dei risultati.");
     expect(source).toContain("Carica altre posizioni");
     expect(hookSource).toContain("listLatestLeaderboardEntriesForLeague(leagueId");
     expect(hookSource).not.toContain("listLeaderboardEntries(");
