@@ -20,10 +20,14 @@ describe("Milestone 12 UI foundation", () => {
   it.each([
     ["light primary text", lightColors.textPrimary, lightColors.background],
     ["light secondary text", lightColors.textSecondary, lightColors.background],
+    ["light muted text", lightColors.textMuted, lightColors.surface],
     ["light primary action", lightColors.onPrimary, lightColors.primary],
+    ["light trophy badge", lightColors.onTrophy, lightColors.trophy],
     ["dark primary text", darkColors.textPrimary, darkColors.background],
     ["dark secondary text", darkColors.textSecondary, darkColors.background],
-    ["dark primary action", darkColors.onPrimary, darkColors.primary]
+    ["dark muted text", darkColors.textMuted, darkColors.surface],
+    ["dark primary action", darkColors.onPrimary, darkColors.primary],
+    ["dark trophy badge", darkColors.onTrophy, darkColors.trophy]
   ])("keeps readable contrast for %s", (_label, foreground, background) => {
     expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5);
   });
@@ -55,6 +59,14 @@ describe("Milestone 12 UI foundation", () => {
     for (const source of componentSources) {
       expect(source).not.toMatch(/@\/domain|@\/services|supabase|scoring|leaderboard snapshot/i);
     }
+  });
+
+  it("exposes visual titles as accessible headings", () => {
+    const appHeader = readSource("src/components/AppHeader.tsx");
+    const sectionHeader = readSource("src/components/SectionHeader.tsx");
+
+    expect(appHeader).toMatch(/<Text\s+accessibilityRole="header"/);
+    expect(sectionHeader).toMatch(/<Text\s+accessibilityRole="header"/);
   });
 });
 

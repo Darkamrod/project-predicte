@@ -23,7 +23,10 @@ export function AppHeader({
             {eyebrow}
           </Text>
         ) : null}
-        <Text style={[theme.typography.display, styles.title, { color: theme.colors.textPrimary }]}>
+        <Text
+          accessibilityRole="header"
+          style={[theme.typography.display, styles.title, { color: theme.colors.textPrimary }]}
+        >
           {title}
         </Text>
         {subtitle ? (

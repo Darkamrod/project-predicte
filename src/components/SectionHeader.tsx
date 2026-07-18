@@ -16,7 +16,10 @@ export function SectionHeader({
   return (
     <View style={styles.root}>
       <View style={styles.textBlock}>
-        <Text style={[theme.typography.sectionTitle, { color: theme.colors.textPrimary }]}>
+        <Text
+          accessibilityRole="header"
+          style={[theme.typography.sectionTitle, { color: theme.colors.textPrimary }]}
+        >
           {title}
         </Text>
         {subtitle ? (

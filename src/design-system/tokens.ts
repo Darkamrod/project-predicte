@@ -47,7 +47,7 @@ export const lightColors: ColorTokens = {
   surfaceVariant: "#EAF0F6",
   textPrimary: "#0C1B2A",
   textSecondary: "#42556A",
-  textMuted: "#6B7D90",
+  textMuted: "#5F7185",
   border: "#D5DEE8",
   borderStrong: "#AAB8C7",
   primary: "#155EEF",
@@ -76,7 +76,7 @@ export const lightColors: ColorTokens = {
   disabled: "#DCE4EC",
   onDisabled: "#718194",
   overlay: "rgba(5, 17, 31, 0.58)",
-  trophy: "#A86E09",
+  trophy: "#966600",
   onTrophy: "#FFFFFF"
 };
 
