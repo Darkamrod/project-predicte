@@ -82,9 +82,11 @@ Milestone 6 still uses mock provider data only. The trusted runtime is ready to 
 - `src/server/results/retryQueue.ts`: pure retry classification and due-candidate helpers for provider import retries.
 - `trusted_provider_retry_candidates`: service-role-only RPC that selects retryable failed provider imports by UTC `next_retry_at`.
 - `supabase/migrations/20260705030000_milestone7_worker_deployment_auth_tests.sql`: explicit client write revokes for provider/scoring runtime tables, retry classification columns, and retry candidate RPC.
-- `tests/server/supabaseAuthenticatedRls.test.ts`: authenticated local Supabase RLS/grant test harness for owner/admin/member/non-member/anon/service-role behavior when the local database is available and migrated.
+- `tests/server/supabaseAuthenticatedRls.supabase.test.ts`: authenticated local Supabase RLS/grant test harness for owner/admin/member/non-member/anon/service-role behavior when the local database is available and migrated.
 
 The deployed-entrypoint shape is now concrete, but the provider remains `MOCK_RESULTS` only. The mobile app still uses public Supabase credentials only and does not import server-side provider/scoring persistence modules.
+
+Tests named `*.supabase.test.ts` share the local Supabase database and therefore run serially between files. Other Vitest files remain parallel. `npm run test` runs both projects; `npm run test:supabase` runs only the shared-database integration project.
 
 ## Milestone 7.1 Additions
 

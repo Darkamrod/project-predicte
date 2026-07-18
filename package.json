@@ -11,6 +11,7 @@
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:supabase": "vitest run --project=supabase",
     "test:watch": "vitest",
     "test:migration-upgrade": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-c2b1-migration-upgrade.ps1",
     "format:check": "prettier --check ."
